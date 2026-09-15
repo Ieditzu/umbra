@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node / Vite
+frontend/node_modules/
+frontend/dist/
+*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
+# Local configuration and experiment artifacts
+.env
+.umbra-data/
+umbra-data/
+*.sqlite3
+*.db
+
+# OS/editor noise
+.DS_Store
+.idea/
+.vscode/

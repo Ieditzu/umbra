@@ -125,7 +125,7 @@ If the faint passive signal is not measurable by the end of Day 2, narrow the ex
 
 10. Technology plan
 
-The scientific core should run on a laptop using Python, OpenCV, and a small PyTorch model. Unity is optional: it can display the live top-down probability map and make the demonstration clear, but it should not replace the real-camera experiment or real measured data.
+The scientific core runs locally on a laptop using Python, OpenCV, and a small CPU-friendly PyTorch model. A local browser dashboard is the primary interface: it supports recorded-file import, browser-camera capture, analysis, training, and evidence review. It does not require a cloud service, account, or external data upload.
 
 11. Research starting point
 
@@ -133,3 +133,39 @@ Bouman et al., "Turning Corners Into Cameras: Principles and Methods," ICCV 2017
 https://openaccess.thecvf.com/content_iccv_2017/html/Bouman_Turning_Corners_Into_ICCV_2017_paper.html
 
 This work showed that ordinary RGB video can recover hidden motion from subtle light variations near a corner edge. Umbra uses it as background research, then tests a narrower, practical self-calibration and confidence-aware approach.
+
+12. Product implementation commitments
+
+Umbra is a local, single-user research kit rather than a surveillance product. It estimates anonymous, coarse movement along a one-dimensional hidden track: a position range, approach/retreat direction, speed class, and confidence. It does not identify a person, reconstruct their appearance, or infer pose or actions behind a wall.
+
+The dashboard supports two ways to add footage:
+
+- record a finished calibration or main-camera trial from the browser, then analyse it after recording; or
+- import local calibration, main-camera, and separately recorded ground-truth videos.
+
+The ground-truth workflow is designed for controlled, consent-based experiments. Two printed ArUco markers at known hidden-track endpoints let the system automatically locate the track in ground-truth footage. A separate camera can be synchronised from audio cues, with timestamp fallback. If alignment or automatic labeling is uncertain, evaluation is withheld instead of pretending that a label is trustworthy.
+
+13. Automatic scene setup and refusal behavior
+
+Umbra automatically finds a likely building-corner edge and useful visible-side analysis region from calibration footage. Version one deliberately has no manual ROI or corner drawing: a scene that lacks a stable camera, strong enough edge, usable directional light, or a coherent penumbra signal receives a clear no-coverage or no-reliable-signal result with recapture guidance.
+
+Location and capture time are acquired through browser permission where available, with typed latitude/longitude and timestamp fallback for imported footage. Solar information is used as one geometric clue, not as a substitute for visual evidence.
+
+14. Models, baselines, and evidence
+
+Before field recordings exist, Umbra generates deterministic synthetic corner trials with known hidden motion, calibration footage, and ground truth. These are used to exercise the entire workflow and pretrain a compact temporal model. Field recordings can later fine-tune the same model.
+
+Every experiment compares four methods:
+
+1. Simple frame/background differencing.
+2. A fixed temporal model without scene adaptation.
+3. Geometry and sun-direction rules.
+4. Umbra's scene-normalized temporal model, track-aware smoothing, and confidence gate.
+
+The output state is one of: no coverage, no reliable signal, possible motion, or strong motion. Confidence combines calibration quality, scene coverage, signal strength, temporal consistency, model uncertainty, and disagreement with simpler methods. Bad weather, flat light, glare, camera motion, and ambiguous video must bias the system toward refusal rather than a false alert.
+
+15. Data, privacy, and reports
+
+Large videos, model runs, generated data, and reports are kept in a configurable local data directory outside Git. Each result records its source files, calibration measurements, auto-selected region, metadata, model version, seed/configuration, predicted timeline, ground truth when available, and evaluation metrics.
+
+Completed experiments export a readable HTML evidence report and machine-readable JSON/CSV data. The report shows calibration quality, selected corner/ROI, signal heatmaps, predicted and ground-truth track traces, confidence reasons, and baseline comparison. It exports anonymised trajectory overlays by default; direct-view identity footage remains local. Trials use consented team participants or opaque targets only.
