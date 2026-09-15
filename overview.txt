@@ -1,0 +1,135 @@
+UMBRA
+Seeing hidden motion around corners from natural light
+
+1. The idea in one sentence
+
+Umbra is a camera-based system that watches the visible pavement beside a building corner and uses tiny changes in natural shadow and light patterns to estimate motion on the hidden side of that corner.
+
+It is not a camera that sees through walls. It uses the fact that a corner blocks light in a structured way: when an object moves out of view, it can still change the penumbra (the soft edge of a shadow) visible near the corner.
+
+2. What Umbra is trying to solve
+
+At a blind corner, a normal camera only reacts after an object enters its direct view. Umbra tries to extract information that is already present in the light on the visible side of the corner. Its output is an early estimate of hidden movement, before direct line-of-sight is available.
+
+The project is about the sensing method itself, not about recognizing a particular kind of object. The hidden target can be any moving opaque object.
+
+3. Core principle
+
+Sunlight and other directional outdoor light reaches the area behind a building corner. A moving object changes which rays of light are blocked or reflected. Those changes can create either:
+
+- a visible shadow that spills into the camera's view; or
+- a much fainter penumbra pattern on the pavement or wall near the corner.
+
+The camera records only the visible side. Umbra compares a live video sequence with a reference recording of the empty corner, finds temporal light-pattern changes, and infers which hidden motion is most likely to have produced them.
+
+One corner normally gives a rough one-dimensional estimate: for example, whether something is approaching or moving away along the hidden side. Two visible edges, two cameras, or an extra geometric cue can improve this into a two-dimensional estimate.
+
+4. System design
+
+Inputs
+
+- A fixed RGB camera aimed at the pavement and edge of a real outdoor corner.
+- A short empty-scene calibration video.
+- The date, time, and approximate location when outdoors, used to estimate the direction of the sun.
+- Camera/corner geometry estimated from the image: the edge, ground region, and useful analysis area.
+
+Processing
+
+1. Umbra detects the corner edge and selects a small visible ground/wall region of interest.
+2. It builds a stable background model from the empty calibration video.
+3. It removes ordinary frame noise, camera auto-exposure changes, and slow lighting changes.
+4. It measures the remaining shadow/penumbra movement across several frames.
+5. A small temporal machine-learning model and geometric rules convert that signal into a probability map of hidden motion.
+6. A tracker estimates direction and speed over time.
+7. A confidence model decides whether there is enough visual evidence to make a prediction.
+
+Outputs
+
+- No reliable signal / possible hidden motion / strong hidden motion.
+- Approximate hidden position or position range.
+- Movement direction and estimated speed class.
+- A confidence score and a clear "cannot determine" state.
+
+5. What the AI part actually does
+
+The AI is not simply trained to say "shadow" or "no shadow." It learns the relationship between a sequence of tiny visible changes and the labelled hidden movement that caused them. It should also adapt to a new corner after a short empty-scene calibration instead of assuming every pavement, wall, and light condition looks the same.
+
+The core research question is:
+
+Can a self-calibrating camera system infer hidden motion around an unfamiliar outdoor corner from natural light patterns more reliably than fixed, non-adaptive methods?
+
+Hypothesis:
+
+Using short-scene calibration, temporal features, and sun/corner geometry will improve hidden-motion detection, reduce position error, and reduce false alerts compared with simple image differencing and a fixed model trained at only one corner.
+
+6. What makes the project different
+
+The basic physics is real research. Umbra must not claim to have invented "seeing around corners." Its contribution is the specific practical question: can a low-cost, self-calibrating system work across real outdoor corner conditions and know when the signal is too weak to trust?
+
+The important difference is confidence-aware inference. A safety-related system should not confidently invent a hidden object in darkness, cloud cover, wet reflective pavement, or unsuitable sun direction. Umbra should explicitly report low confidence or no coverage in those cases.
+
+7. Controlled experiment
+
+Use a tall opaque board or a wheeled silhouette target on a measured hidden track. This keeps the first experiments controlled and avoids relying on recordings of strangers.
+
+For every trial:
+
+- Main camera: looks only at the visible pavement/corner region.
+- Ground-truth camera: records the hidden track solely to label real target position and time.
+- Target: moves through known positions at known speeds while staying out of the main camera's direct view.
+- Metadata: corner location, surface type, date/time, weather/light conditions, sun direction estimate, and camera placement.
+
+Test across:
+
+- at least three real outdoor corners;
+- different times of day, especially morning and afternoon;
+- different ground surfaces and light levels;
+- different target distances, speeds, and directions;
+- target absent trials, which are essential for measuring false alerts.
+
+Compare four methods:
+
+1. Simple frame/background differencing.
+2. A fixed model trained at one corner only.
+3. Geometry and sun-direction rules without learned temporal features.
+4. Umbra: self-calibration + temporal model + geometry + confidence score.
+
+Measure:
+
+- Presence-detection precision, recall, and F1 score.
+- Hidden-position error in centimetres/metres or track sections.
+- Direction accuracy.
+- Lead time before the target becomes directly visible.
+- False-alert rate during empty scenes.
+- Calibration time and the percentage of situations where Umbra correctly declines to predict.
+
+8. Honest limits
+
+Umbra will not work everywhere. It requires a stationary camera, a usable corner edge, visible pavement/wall near that edge, and enough directional light. It will be weakest at night, in flat overcast light, with unsuitable sun angles, or when the surface is highly reflective or visually busy.
+
+That limitation is part of the research, not a failure. The project should map the conditions where Umbra works, where it degrades, and whether its confidence score correctly identifies unreliable conditions.
+
+9. Two-week build order
+
+Days 1-2: feasibility gate. Record an empty corner and a hidden target at marked positions. Confirm that any repeatable shadow/penumbra signal exists before building a large model.
+
+Days 3-5: collect labelled, controlled data at the first usable corner. Build a basic OpenCV difference baseline.
+
+Days 6-8: create the first temporal model and position/direction tracker. Add the calibration procedure.
+
+Days 9-11: collect unseen-corner and changed-light tests. Run the baselines and record every result.
+
+Days 12-14: analyse results, make graphs, prepare the visual demonstration, and write the report in the team's own words.
+
+If the faint passive signal is not measurable by the end of Day 2, narrow the experiment to situations where a natural shadow visibly spills into the analysis area. Do not make claims beyond the conditions actually tested.
+
+10. Technology plan
+
+The scientific core should run on a laptop using Python, OpenCV, and a small PyTorch model. Unity is optional: it can display the live top-down probability map and make the demonstration clear, but it should not replace the real-camera experiment or real measured data.
+
+11. Research starting point
+
+Bouman et al., "Turning Corners Into Cameras: Principles and Methods," ICCV 2017:
+https://openaccess.thecvf.com/content_iccv_2017/html/Bouman_Turning_Corners_Into_ICCV_2017_paper.html
+
+This work showed that ordinary RGB video can recover hidden motion from subtle light variations near a corner edge. Umbra uses it as background research, then tests a narrower, practical self-calibration and confidence-aware approach.
