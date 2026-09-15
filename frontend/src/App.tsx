@@ -167,7 +167,6 @@ export default function App() {
   const [form, setForm] = useState({ name: "", notes: "", latitude: "", longitude: "", recorded_at: "" });
   const [trialName, setTrialName] = useState("Trial 1");
   const [trackLength, setTrackLength] = useState("4");
-  const [lighting, setLighting] = useState<"directional" | "flat" | "reflective">("directional");
   const [streaming, setStreaming] = useState(false);
   const [captureRole, setCaptureRole] = useState<MediaRole | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -232,7 +231,7 @@ export default function App() {
     try {
       const next = await request<Job>("/demo", {
         method: "POST",
-        body: JSON.stringify({ lighting, seed: 7, frames: 120, target_present: true })
+        body: JSON.stringify({ lighting: "directional", seed: 7, frames: 120, target_present: true })
       });
       setJob(next);
       await watchJob(next.id);
@@ -406,79 +405,77 @@ export default function App() {
   }
 
   return (
-    <main>
-      <header className="hero">
-        <div className="brand"><span className="brand-mark">◒</span><span>UMBRA</span></div>
-        <p className="eyebrow">Evidence before visibility</p>
-        <h1>Measure hidden motion.<br /><em>Know when not to trust it.</em></h1>
-        <p className="hero-copy">A local, consent-based research kit for testing whether subtle light changes beside a corner can support a coarse hidden-motion estimate.</p>
-        <div className="hero-actions">
-          <button className="button primary" disabled={busy} onClick={() => void beginDemo()}>{busy ? "Working locally…" : "Run synthetic demo"}</button>
-          <button className="button secondary" disabled={busy || !mlAvailable} title={mlAvailable ? "Pretrain the compact temporal model locally" : "Run uv sync --extra dev --extra ml to enable training"} onClick={() => void trainModel()}>{mlAvailable ? "Pretrain temporal model" : "ML extra not installed"}</button>
-          <a className="button ghost" href="#experiment">Create field experiment</a>
+    <main className="app-shell">
+      <header className="app-header">
+        <div className="brand"><span className="brand-mark">◒</span><span>UMBRA</span><small>Local research workspace</small></div>
+        <div className="app-actions">
+          <span className="local-status">● Local only</span>
+          <button className="button secondary" disabled={busy || !mlAvailable} title={mlAvailable ? "Pretrain the compact temporal model locally" : "Run uv sync --extra dev --extra ml to enable training"} onClick={() => void trainModel()}>{mlAvailable ? "Pretrain model" : "ML unavailable"}</button>
+          <button className="button primary" disabled={busy} onClick={() => void beginDemo()}>{busy ? "Working…" : "Run demo"}</button>
         </div>
-        <p className="microcopy">No cloud upload · no identity inference · confidence-aware refusal</p>
       </header>
 
       {notice && <div className={`notice ${notice.includes("complete") || notice.includes("ready") ? "good" : ""}`}>{notice}</div>}
       {job && job.status !== "succeeded" && <section className="job-card"><div><strong>{job.message}</strong><span>{Math.round(job.progress * 100)}%</span></div><progress value={job.progress} max="1" /></section>}
 
-      <section className="principles">
-        <article><span>01</span><h2>Automatic setup</h2><p>Umbra detects a likely corner and analysis region. It refuses an unsuitable scene instead of asking you to draw one.</p></article>
-        <article><span>02</span><h2>Controlled truth</h2><p>Ground-truth footage uses ArUco track endpoints and consented subjects or opaque targets.</p></article>
-        <article><span>03</span><h2>Evidence export</h2><p>Every run saves a local HTML report, prediction CSV, configuration, and confidence reasons.</p></article>
-      </section>
-
-      <section id="experiment" className="workspace">
-        <div className="section-heading"><div><p className="eyebrow">Field workflow</p><h2>Build a measured experiment</h2></div><p>Start a scene, capture or import clips, then analyse only after recording completes.</p></div>
-        <div className="workspace-grid">
-          <form className="panel scene-form" onSubmit={(event) => void createScene(event)}>
-            <h3>1. Create scene</h3>
-            <label>Scene name<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="North courtyard corner" /></label>
-            <label>Notes<textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="Surface, weather, setup notes…" /></label>
-            <div className="form-row"><label>Latitude<input type="number" step="any" value={form.latitude} onChange={(event) => setForm({ ...form, latitude: event.target.value })} /></label><label>Longitude<input type="number" step="any" value={form.longitude} onChange={(event) => setForm({ ...form, longitude: event.target.value })} /></label></div>
-            <button className="text-button" type="button" onClick={useLocation}>Use browser location</button>
-            <label>Capture time<input type="datetime-local" value={form.recorded_at} onChange={(event) => setForm({ ...form, recorded_at: event.target.value })} /></label>
-            <button className="button primary" disabled={busy} type="submit">Create local scene</button>
-          </form>
-
-          <section className="panel scene-picker">
-            <h3>Existing scenes</h3>
-            {scenes.length === 0 ? <p className="empty">No scenes yet. Run the demo or create a field scene.</p> : <div className="scene-list">{scenes.map((scene) => <button key={scene.id} className={detail?.scene.id === scene.id ? "scene active" : "scene"} onClick={() => void loadScene(scene.id)}><strong>{scene.name}</strong><span>{new Date(scene.created_at).toLocaleString()}</span></button>)}</div>}
-          </section>
-        </div>
-
-        {detail && <section className="experiment-detail">
-          <div className="active-scene"><div><p className="eyebrow">Active scene</p><h2>{detail.scene.name}</h2><p>{detail.scene.notes || "No setup notes"}</p></div><span>{detail.scene.latitude !== null ? "Sun metadata available" : "Visual geometry only"}</span></div>
-          <div className="capture-grid">
-            <section className="panel capture-panel">
-              <h3>2. Capture main-camera clips</h3>
-              <video ref={videoRef} autoPlay muted playsInline className={streaming ? "camera active" : "camera"} />
-              <p className="hint">Record the empty scene first. Ground-truth footage comes from a separate camera and is imported below.</p>
-              <div className="capture-actions">
-                {!streaming ? <button className="button secondary" onClick={() => void startCamera()}>Enable camera</button> : <button className="button ghost" onClick={stopCamera}>Stop camera</button>}
-                {streaming && !captureRole && <><button className="button secondary" onClick={() => record("calibration")}>Record calibration</button><button className="button primary" onClick={() => record("main")}>Record trial</button></>}
-                {captureRole && <button className="button danger" onClick={stopRecording}>Stop {roleLabel[captureRole]}</button>}
-              </div>
-            </section>
-            <section className="panel import-panel">
-              <h3>Or import local files</h3>
-              <div className="media-list">
-                {(["calibration", "main", "ground_truth"] as MediaRole[]).map((role) => <MediaSlot key={role} role={role} media={mediaByRole[role]} disabled={busy} onUpload={upload} />)}
-              </div>
-              <p className="hint">Ground truth is optional for inference but required for reported position-error metrics. Use marker 10 at the corner side and marker 11 at the far endpoint.</p>
-            </section>
+      <div className="app-layout">
+        <aside className="sidebar">
+          <div className="sidebar-heading"><span>Scenes</span><small>{scenes.length}</small></div>
+          <div className="scene-list">
+            {scenes.length === 0 && <p className="empty">No scenes yet.</p>}
+            {scenes.map((scene) => (
+              <button key={scene.id} className={detail?.scene.id === scene.id ? "scene active" : "scene"} onClick={() => void loadScene(scene.id)}>
+                <strong>{scene.name}</strong><span>{new Date(scene.created_at).toLocaleString()}</span>
+              </button>
+            ))}
           </div>
+          <details className="new-scene" open={scenes.length === 0}>
+            <summary>New scene</summary>
+            <form className="scene-form" onSubmit={(event) => void createScene(event)}>
+              <label>Scene name<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="North courtyard corner" /></label>
+              <label>Notes<textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="Surface, weather, setup notes…" /></label>
+              <div className="form-row"><label>Latitude<input type="number" step="any" value={form.latitude} onChange={(event) => setForm({ ...form, latitude: event.target.value })} /></label><label>Longitude<input type="number" step="any" value={form.longitude} onChange={(event) => setForm({ ...form, longitude: event.target.value })} /></label></div>
+              <button className="text-button" type="button" onClick={useLocation}>Use browser location</button>
+              <label>Capture time<input type="datetime-local" value={form.recorded_at} onChange={(event) => setForm({ ...form, recorded_at: event.target.value })} /></label>
+              <button className="button primary" disabled={busy} type="submit">Create scene</button>
+            </form>
+          </details>
+        </aside>
 
-          <section className="panel trial-panel">
-            <div><h3>3. Register and analyse a trial</h3><p>Calibration and main footage are required. Umbra automatically assesses the edge and visible-side region; there is no manual ROI correction.</p></div>
-            <div className="trial-controls"><label>Trial name<input value={trialName} onChange={(event) => setTrialName(event.target.value)} /></label><label>Track length (m)<input type="number" min="0" step="0.1" value={trackLength} onChange={(event) => setTrackLength(event.target.value)} /></label><button className="button primary" disabled={busy || !mediaByRole.calibration || !mediaByRole.main} onClick={() => void createTrial()}>Register trial</button></div>
-          </section>
-          {detail.trials.length > 0 && <section className="trial-list panel"><h3>Trials</h3>{detail.trials.map((trial) => <div className="trial-row" key={trial.id}><div><strong>{trial.name}</strong><span>{trial.ground_truth_media_id ? "Ground truth attached" : "Inference only"}</span></div><button className="button secondary" disabled={busy} onClick={() => void analyse(trial)}>Analyse</button></div>)}</section>}
-        </section>}
-      </section>
-      {result && <ResultPanel result={result} />}
-      <footer><span>Umbra is an experimental sensing method, not a safety-critical or surveillance system.</span><span>Local research artifact · v0.1</span></footer>
+        <section className="workbench">
+          {!detail && <section className="empty-workspace panel"><p className="eyebrow">No active scene</p><h1>Select a scene or create one.</h1><p>Use the sidebar to import calibration and trial footage, then run an analysis.</p></section>}
+          {detail && <>
+            <div className="active-scene"><div><p className="eyebrow">Active scene</p><h1>{detail.scene.name}</h1><p>{detail.scene.notes || "No setup notes"}</p></div><span>{detail.scene.latitude !== null ? "Sun metadata available" : "Visual geometry only"}</span></div>
+            <div className="capture-grid">
+              <section className="panel capture-panel">
+                <div className="panel-heading"><h2>Camera capture</h2><span className="step">1</span></div>
+                <video ref={videoRef} autoPlay muted playsInline className={streaming ? "camera active" : "camera"} />
+                <p className="hint">Record an empty calibration, then a visible-side trial. Analysis starts after recording ends.</p>
+                <div className="capture-actions">
+                  {!streaming ? <button className="button secondary" onClick={() => void startCamera()}>Enable camera</button> : <button className="button ghost" onClick={stopCamera}>Stop camera</button>}
+                  {streaming && !captureRole && <><button className="button secondary" onClick={() => record("calibration")}>Record calibration</button><button className="button primary" onClick={() => record("main")}>Record trial</button></>}
+                  {captureRole && <button className="button danger" onClick={stopRecording}>Stop {roleLabel[captureRole]}</button>}
+                </div>
+              </section>
+              <section className="panel import-panel">
+                <div className="panel-heading"><h2>Local files</h2><span className="step">2</span></div>
+                <div className="media-list">
+                  {(["calibration", "main", "ground_truth"] as MediaRole[]).map((role) => <MediaSlot key={role} role={role} media={mediaByRole[role]} disabled={busy} onUpload={upload} />)}
+                </div>
+                <p className="hint">Ground truth is optional for inference and required for position-error metrics. Marker 10 is the corner side; marker 11 is the far endpoint.</p>
+              </section>
+            </div>
+
+            <section className="panel trial-panel">
+              <div><h2>Trial</h2><p>Umbra auto-selects the edge and visible-side region. A poor scene returns no coverage instead of accepting a manual ROI.</p></div>
+              <div className="trial-controls"><label>Trial name<input value={trialName} onChange={(event) => setTrialName(event.target.value)} /></label><label>Track length (m)<input type="number" min="0" step="0.1" value={trackLength} onChange={(event) => setTrackLength(event.target.value)} /></label><button className="button primary" disabled={busy || !mediaByRole.calibration || !mediaByRole.main} onClick={() => void createTrial()}>Register</button></div>
+            </section>
+            {detail.trials.length > 0 && <section className="trial-list panel"><div className="panel-heading"><h2>Registered trials</h2><span>{detail.trials.length}</span></div>{detail.trials.map((trial) => <div className="trial-row" key={trial.id}><div><strong>{trial.name}</strong><span>{trial.ground_truth_media_id ? "Ground truth attached" : "Inference only"}</span></div><button className="button secondary" disabled={busy} onClick={() => void analyse(trial)}>Analyse</button></div>)}</section>}
+          </>}
+          {result && <ResultPanel result={result} />}
+        </section>
+      </div>
+      <footer><span>Experimental sensing workspace · local research only</span><span>v0.1</span></footer>
     </main>
   );
 }
