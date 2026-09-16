@@ -7,6 +7,7 @@
 - Fix the main camera physically. Disable digital stabilization if it causes crop changes.
 - Print ArUco dictionary `DICT_4X4_50` markers with IDs **10** and **11**. Put ID 10 at the hidden-track endpoint nearest the corner and ID 11 at the far endpoint. Measure their separation.
 - Place the ground-truth camera so both markers and the full controlled track are visible. It is a labeling device, not an input to the main inference model.
+- Start the ground-truth camera with at least three seconds of an empty track for foreground-model warm-up. Missing markers and warm-up samples are excluded from evaluation; they are not negative examples. Review automatic labels: foreground subtraction can miss stationary objects or confuse unrelated movement with the target.
 
 ## Capture order
 
@@ -19,9 +20,12 @@
 
 - If Umbra reports `no_coverage`, reframe the main camera or wait for directional light; do not hand-draw a replacement ROI.
 - If ground-truth synchronization confidence is low, do not report position error for that trial.
+- Audio synchronization requires local `ffmpeg`. Without usable audio, the zero-offset fallback has low confidence and evaluation is withheld. The estimated offset is main-camera time minus reference-camera time. Matching accepts only valid labels within 75 ms.
 - Treat `possible_motion` as an observation requiring further controlled trials, not an alert.
 - Test at least three corners and leave one whole corner out of each model comparison split.
 
 ## What to report
 
 For each method, retain presence precision/recall/F1, false-alert rate, normalized or metric position error, direction accuracy, lead time where direct visibility can be measured, calibration time, and correct-refusal rate. Report lighting and surface conditions with every aggregate result.
+
+This is the intended field evaluation, not a list of metrics already implemented. Current exports provide timestamp-matched frame-level confusion counts, precision/recall/F1, false-alert rate and position-proxy error. Baseline panels contain clip-level heuristic scores only. Direction accuracy, lead time, calibrated metric position, correct-refusal ground truth and held-out-corner comparisons require additional field measurements and analysis. Report unavailable quantities explicitly instead of substituting synthetic scores.

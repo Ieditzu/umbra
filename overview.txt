@@ -1,6 +1,13 @@
 UMBRA
 Seeing hidden motion around corners from natural light
 
+STATUS NOTE: This file describes the research design and longer-term ambitions.
+It is not a record of demonstrated capabilities. See README.md and
+docs/competition/ for the current implementation, reproducible synthetic
+results, limitations and field work still required. In particular, the current
+primary estimator and comparison summaries are heuristic, the optional neural
+model is advisory, and no outdoor performance has been established.
+
 1. The idea in one sentence
 
 Umbra is a camera-based system that watches the visible pavement beside a building corner and uses tiny changes in natural shadow and light patterns to estimate motion on the hidden side of that corner.

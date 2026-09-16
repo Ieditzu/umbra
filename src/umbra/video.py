@@ -121,7 +121,8 @@ def estimate_audio_offset(main_path: Path, ground_truth_path: Path) -> dict[str,
     if max_lag <= 4:
         return {"method": "timestamp_fallback", "offset_s": 0.0, "confidence": 0.2}
     correlation = np.correlate(main, ground_truth, mode="full")
-    middle = len(correlation) // 2
+    # Zero lag is len(second) - 1, including unequal-duration recordings.
+    middle = len(ground_truth) - 1
     window = correlation[middle - max_lag : middle + max_lag + 1]
     lag = int(np.argmax(window)) - max_lag
     peak = float(window.max() / (len(main) + 1e-6))

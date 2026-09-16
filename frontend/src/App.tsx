@@ -79,10 +79,11 @@ function ResultPanel({ result }: { result: AnalysisResult }) {
       </div>
       <div className="metrics-grid">
         <Metric label="Confidence" value={`${Math.round(result.confidence * 100)}%`} />
-        <Metric label="Motion evidence" value={`${Math.round(result.presence_probability * 100)}%`} />
+        <Metric label="Motion evidence" value={result.presence_probability == null ? "—" : `${Math.round(result.presence_probability * 100)}%`} />
         <Metric label="Position range" value={positions} />
         <Metric label="Direction" value={result.direction.replaceAll("_", " ")} detail={result.speed_class} />
       </div>
+      <p className="privacy-note"><strong>{result.evidence?.kind === "synthetic" ? "Synthetic demonstration" : "Experimental video analysis"}.</strong> {result.evidence?.limitation ?? "Field performance has not been established."} Position is an unvalidated image-derived track proxy.</p>
       <div className="chart-card">
         <div className="chart-label"><span>Temporal motion evidence</span><span>{result.timeline.length} samples</span></div>
         <SignalChart result={result} />
@@ -119,6 +120,7 @@ function ResultPanel({ result }: { result: AnalysisResult }) {
         </p>
       )}
       <div className="export-row">
+        <a className="button secondary" href={`${API}/analyses/${result.analysis_id}/bundle`}>Download evidence ZIP</a>
         <a className="button secondary" href={reportUrl} target="_blank" rel="noreferrer">Open HTML report</a>
         <a className="button ghost" href={predictionsUrl}>Download predictions CSV</a>
       </div>
@@ -166,7 +168,7 @@ export default function App() {
   const [mlAvailable, setMlAvailable] = useState(false);
   const [form, setForm] = useState({ name: "", notes: "", latitude: "", longitude: "", recorded_at: "" });
   const [trialName, setTrialName] = useState("Trial 1");
-  const [trackLength, setTrackLength] = useState("4");
+  const [trackLength, setTrackLength] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [captureRole, setCaptureRole] = useState<MediaRole | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -397,6 +399,7 @@ export default function App() {
       const next = await request<Job>(`/trials/${trial.id}/analysis`, { method: "POST", body: JSON.stringify({ include_baselines: true }) });
       setJob(next);
       await watchJob(next.id);
+      if (detail) setDetail(await request<SceneDetail>(`/scenes/${detail.scene.id}`));
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not analyse trial");
     } finally {
@@ -424,7 +427,7 @@ export default function App() {
           <div className="scene-list">
             {scenes.length === 0 && <p className="empty">No scenes yet.</p>}
             {scenes.map((scene) => (
-              <button key={scene.id} className={detail?.scene.id === scene.id ? "scene active" : "scene"} onClick={() => void loadScene(scene.id)}>
+              <button key={scene.id} disabled={busy || captureRole !== null} className={detail?.scene.id === scene.id ? "scene active" : "scene"} onClick={() => void loadScene(scene.id).catch((error: Error) => setNotice(error.message))}>
                 <strong>{scene.name}</strong><span>{new Date(scene.created_at).toLocaleString()}</span>
               </button>
             ))}
@@ -452,8 +455,8 @@ export default function App() {
                 <video ref={videoRef} autoPlay muted playsInline className={streaming ? "camera active" : "camera"} />
                 <p className="hint">Record an empty calibration, then a visible-side trial. Analysis starts after recording ends.</p>
                 <div className="capture-actions">
-                  {!streaming ? <button className="button secondary" onClick={() => void startCamera()}>Enable camera</button> : <button className="button ghost" onClick={stopCamera}>Stop camera</button>}
-                  {streaming && !captureRole && <><button className="button secondary" onClick={() => record("calibration")}>Record calibration</button><button className="button primary" onClick={() => record("main")}>Record trial</button></>}
+                  {!streaming ? <button className="button secondary" disabled={busy} onClick={() => void startCamera()}>Enable camera</button> : <button className="button ghost" onClick={stopCamera}>Stop camera</button>}
+                  {streaming && !captureRole && <><button className="button secondary" disabled={busy} onClick={() => record("calibration")}>Record calibration</button><button className="button primary" disabled={busy} onClick={() => record("main")}>Record trial</button></>}
                   {captureRole && <button className="button danger" onClick={stopRecording}>Stop {roleLabel[captureRole]}</button>}
                 </div>
               </section>
@@ -471,6 +474,7 @@ export default function App() {
               <div className="trial-controls"><label>Trial name<input value={trialName} onChange={(event) => setTrialName(event.target.value)} /></label><label>Track length (m)<input type="number" min="0" step="0.1" value={trackLength} onChange={(event) => setTrackLength(event.target.value)} /></label><button className="button primary" disabled={busy || !mediaByRole.calibration || !mediaByRole.main} onClick={() => void createTrial()}>Register</button></div>
             </section>
             {detail.trials.length > 0 && <section className="trial-list panel"><div className="panel-heading"><h2>Registered trials</h2><span>{detail.trials.length}</span></div>{detail.trials.map((trial) => <div className="trial-row" key={trial.id}><div><strong>{trial.name}</strong><span>{trial.ground_truth_media_id ? "Ground truth attached" : "Inference only"}</span></div><button className="button secondary" disabled={busy} onClick={() => void analyse(trial)}>Analyse</button></div>)}</section>}
+            {(detail.analyses ?? []).length > 0 && <section className="trial-list panel"><h2>Saved analyses</h2>{detail.analyses.map((analysis) => <div className="trial-row" key={analysis.id}><div><strong>{analysis.trial_name}</strong><span>{new Date(analysis.created_at).toLocaleString()}</span></div><button className="button secondary" disabled={busy} onClick={() => void request<{ result: AnalysisResult }>(`/analyses/${analysis.id}`).then((value) => setResult(value.result)).catch((error: Error) => setNotice(error.message))}>Review result</button></div>)}</section>}
           </>}
           {result && <ResultPanel result={result} />}
         </section>

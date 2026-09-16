@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import csv
 import html
 import json
@@ -52,6 +53,9 @@ def _scene_overlay(calibration_path: Path, assessment: dict[str, Any], destinati
     capture.release()
     if not ok:
         return None
+    # ROI coordinates belong to the analysis image (maximum width 480).
+    if frame.shape[1] > 480:
+        frame = cv2.resize(frame, (480, round(frame.shape[0] * 480 / frame.shape[1])))
     edge, roi = assessment.get("edge"), assessment.get("roi")
     if edge:
         cv2.line(frame, tuple(edge[:2]), tuple(edge[2:]), (255, 221, 90), 3)
@@ -113,7 +117,7 @@ def write_artifacts(
     reasons = "".join(f"<li>{html.escape(str(reason))}</li>" for reason in result.get("reasons", []))
     scene = result["scene_assessment"]
     overlay = (
-        f'<img src="/artifacts/runs/{analysis_id}/{overlay_name}" alt="Automatic corner and ROI overlay">'
+        f'<img src="data:image/png;base64,{base64.b64encode((destination / overlay_name).read_bytes()).decode()}" alt="Automatic corner and ROI overlay">'
         if overlay_name
         else "<p>Scene overlay could not be decoded.</p>"
     )
@@ -130,6 +134,8 @@ svg {{ width:100%; background:#0e1a22; border-radius:8px; }} img {{ max-width:10
 </style></head><body><main>
 <p class="muted">LOCAL-ONLY • CONSENT-BASED RESEARCH ARTIFACT</p>
 <h1>Umbra evidence report</h1><p class="state">{html.escape(result['state'])}</p>
+<p><strong>Evidence: {_value(result.get('evidence', {}).get('kind', 'unclassified'))}.</strong>
+{_value(result.get('evidence', {}).get('limitation', 'Field performance has not been established.'))}</p>
 <div class="grid"><section class="card"><strong>Confidence</strong><br>{_value(result['confidence'])}</section>
 <section class="card"><strong>Motion probability</strong><br>{_value(result.get('presence_probability'))}</section>
 <section class="card"><strong>Direction</strong><br>{_value(result.get('direction'))}</section>
@@ -142,8 +148,11 @@ svg {{ width:100%; background:#0e1a22; border-radius:8px; }} img {{ max-width:10
 <h2>Presence probability over time</h2>{_line_chart(probability)}
 <h2>Estimated hidden-track probability</h2>{_track_heatmap(timeline)}
 <h2>Estimated normalized position</h2>{_line_chart(positions, colour='#6dd6ff')}
+<p>Position is an unvalidated image-derived track proxy. These curves use independent vertical scales; they are not calibrated distance measurements.</p>
 <h2>Method comparison</h2><table><tr><th>Method</th><th>Presence probability</th><th>State</th></tr>{baseline_rows}</table>
 <h2>Ground-truth evaluation</h2><table>{metrics_rows}</table>
+<p>Metrics use timestamp-matched valid labels. Missing metrics mean evaluation was unavailable. Automatic field labels require review.</p>
+<h2>Reproduction details</h2><pre style="white-space:pre-wrap;overflow-wrap:anywhere">{html.escape(json.dumps(result.get('provenance', {}), indent=2))}</pre>
 <p class="muted">This report is not evidence of a person's identity, pose, or appearance. Low-confidence and no-coverage results are expected safety behavior.</p>
 </main></body></html>"""
     report_directory.mkdir(parents=True, exist_ok=True)

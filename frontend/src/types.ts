@@ -37,6 +37,7 @@ export interface SceneDetail {
   scene: Scene;
   media: MediaAsset[];
   trials: Trial[];
+  analyses: { id: string; trial_id: string; trial_name: string; created_at: string }[];
 }
 
 export interface Job {
@@ -61,12 +62,12 @@ export interface AnalysisResult {
   analysis_id: string;
   state: State;
   confidence: number;
-  presence_probability: number;
+  presence_probability: number | null;
   position_range_norm: [number, number] | null;
   position_range_m: [number, number] | null;
   direction: string;
   speed_class: string;
-  velocity_track_units_per_s: number;
+  velocity_track_units_per_s: number | null;
   reasons: string[];
   timeline: TimelinePoint[];
   metrics: Record<string, number | null>;
@@ -81,4 +82,5 @@ export interface AnalysisResult {
   };
   confidence_factors: Record<string, number>;
   model: Record<string, unknown>;
+  evidence?: { kind: string; limitation: string };
 }

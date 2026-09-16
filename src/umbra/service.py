@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 import uuid
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from . import __version__
 from .config import Settings
 from .ml import ML_AVAILABLE, predict_checkpoint, train_synthetic_model
 from .pipeline import analyse_trial
@@ -112,13 +114,29 @@ class UmbraService:
         checkpoint = self.settings.model_dir / "synthetic_temporal_v1.pt"
         model_hint = predict_checkpoint(checkpoint, Path(calibration["path"]), Path(main["path"]))
         if model_hint:
-            result["model"] = {
+            result["advisory_model"] = {
                 "name": "temporal_umbra_net",
                 "version": "synthetic-v1",
                 "trained": True,
                 "role": "advisory until validated on held-out field data",
                 **model_hint,
             }
+        result["evidence"] = {
+            "kind": "synthetic" if main["metadata"].get("synthetic") else "imported_video",
+            "field_validated": False,
+            "limitation": "Synthetic data checks the software only. Imported footage requires controlled field validation.",
+        }
+        result["provenance"] = {
+            "software_version": __version__,
+            "created_at": datetime.now(UTC).isoformat(),
+            "scene_id": scene["id"], "trial_id": trial_id,
+            "track_length_m": trial.get("track_length_m"),
+            "sources": [
+                {"id": media["id"], "role": media["role"], "name": media["original_name"], "metadata": media["metadata"]}
+                for media in (calibration, main, ground_truth) if media is not None
+            ],
+            "analysis": {"target_fps": 10, "max_trial_samples": 600, "presence_threshold": 0.5, "label_tolerance_s": 0.075},
+        }
         analysis_id = str(uuid.uuid4())
         result["analysis_id"] = analysis_id
         artifact_paths = write_artifacts(

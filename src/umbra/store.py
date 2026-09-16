@@ -229,3 +229,12 @@ class Store:
         with self._connection() as connection:
             row = connection.execute("SELECT * FROM analyses WHERE id = ?", (analysis_id,)).fetchone()
         return self._row(row)
+
+    def list_analyses(self, scene_id: str) -> list[dict[str, Any]]:
+        with self._connection() as connection:
+            rows = connection.execute(
+                "SELECT analyses.id, analyses.trial_id, analyses.created_at, trials.name AS trial_name "
+                "FROM analyses JOIN trials ON trials.id = analyses.trial_id "
+                "WHERE trials.scene_id = ? ORDER BY analyses.created_at DESC", (scene_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]

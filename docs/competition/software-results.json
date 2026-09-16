@@ -1,0 +1,84 @@
+{
+  "evidence_kind": "synthetic_software_demonstration",
+  "field_validated": false,
+  "generated_at": "2026-09-16T15:36:15.567556+00:00",
+  "software_version": "0.1.0",
+  "python": "3.12.13",
+  "opencv": "4.14.0",
+  "numpy": "2.5.3",
+  "cases": [
+    {
+      "case": "directional_target",
+      "seed": 7,
+      "frames": 120,
+      "fps": 10,
+      "target_present": true,
+      "lighting": "directional",
+      "state": "strong_motion",
+      "confidence": 0.7415,
+      "metrics": {
+        "ground_truth_available": 1,
+        "evaluated_samples": 120,
+        "true_positive": 95,
+        "false_positive": 0,
+        "false_negative": 25,
+        "true_negative": 0,
+        "precision": 1.0,
+        "recall": 0.7917,
+        "f1": 0.8837,
+        "false_alert_rate": null,
+        "position_error_norm": 0.2145,
+        "position_error_m": null
+      }
+    },
+    {
+      "case": "directional_empty",
+      "seed": 7,
+      "frames": 120,
+      "fps": 10,
+      "target_present": false,
+      "lighting": "directional",
+      "state": "no_reliable_signal",
+      "confidence": 0.2605,
+      "metrics": {
+        "ground_truth_available": 1,
+        "evaluated_samples": 120,
+        "true_positive": 0,
+        "false_positive": 3,
+        "false_negative": 0,
+        "true_negative": 117,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "false_alert_rate": 0.025,
+        "position_error_norm": null,
+        "position_error_m": null
+      }
+    },
+    {
+      "case": "flat_target",
+      "seed": 7,
+      "frames": 120,
+      "fps": 10,
+      "target_present": true,
+      "lighting": "flat",
+      "state": "no_reliable_signal",
+      "confidence": 0.3996,
+      "metrics": {
+        "ground_truth_available": 1,
+        "evaluated_samples": 120,
+        "true_positive": 27,
+        "false_positive": 0,
+        "false_negative": 93,
+        "true_negative": 0,
+        "precision": 1.0,
+        "recall": 0.225,
+        "f1": 0.3673,
+        "false_alert_rate": null,
+        "position_error_norm": 0.1712,
+        "position_error_m": null
+      }
+    }
+  ],
+  "interpretation": "Three deterministic fixtures exercise behavior, not generalization. Per-frame threshold metrics are correlated; they are not independent field trials. No metric distance, lead-time or comparative superiority claim is supported."
+}

@@ -117,7 +117,7 @@ def _status(coverage: float, present: float, confidence: float) -> tuple[str, li
     if coverage < 0.44:
         reasons.append("The corner, visible-side patch, or calibration is unsuitable")
         return "no_coverage", reasons
-    if present < 0.22:
+    if present < 0.5 or confidence < 0.35:
         reasons.append("No repeatable hidden-motion signal exceeds calibration noise")
         return "no_reliable_signal", reasons
     if confidence < 0.67:
@@ -140,8 +140,8 @@ def _baseline_summary(
     geometry = float(np.clip(coverage * (0.35 + 0.65 * coherence), 0.0, 1.0))
     methods = {
         "frame_difference": simple,
-        "fixed_temporal_model": fixed,
-        "geometry_sun_rules": geometry,
+        "fixed_signal_threshold": fixed,
+        "coverage_coherence_rule": geometry,
         "umbra": umbra_present,
     }
     return {
@@ -157,9 +157,25 @@ def _metrics(
     timeline: list[dict[str, Any]],
     labels: list[dict[str, float | bool]],
     track_length_m: float | None,
+    offset_s: float = 0.0,
 ) -> dict[str, float | int | None]:
-    if not labels or not timeline:
+    # Audio offset is main time minus ground-truth time. Match timestamps,
+    # never row indices: cameras can have different rates and start times.
+    labels = sorted(labels, key=lambda item: float(item["timestamp_s"]))
+    pairs = []
+    label_times = np.array([float(item["timestamp_s"]) + offset_s for item in labels])
+    for point in timeline:
+        if not labels:
+            break
+        timestamp = float(point["timestamp_s"])
+        index = int(np.searchsorted(label_times, timestamp))
+        candidates = [i for i in (index - 1, index) if 0 <= i < len(labels)]
+        nearest = min(candidates, key=lambda i: abs(label_times[i] - timestamp))
+        if abs(label_times[nearest] - timestamp) <= 0.075 and labels[nearest].get("valid", True):
+            pairs.append((point, labels[nearest]))
+    if not pairs:
         return {"ground_truth_available": 0, "f1": None, "position_error_norm": None}
+    timeline, labels = map(list, zip(*pairs, strict=True))
     expected = np.array([bool(item["present"]) for item in labels], dtype=bool)
     observed = np.array([item["presence_probability"] >= 0.5 for item in timeline], dtype=bool)
     count = min(expected.size, observed.size)
@@ -178,10 +194,15 @@ def _metrics(
     position_error = float(np.mean(positions)) if positions else None
     result: dict[str, float | int | None] = {
         "ground_truth_available": 1,
+        "evaluated_samples": count,
+        "true_positive": true_positive,
+        "false_positive": false_positive,
+        "false_negative": false_negative,
+        "true_negative": int(np.sum(~expected & ~observed)),
         "precision": round(precision, 4),
         "recall": round(recall, 4),
         "f1": round(f1, 4),
-        "false_alert_rate": round(false_positive / max(1, int(np.sum(~expected))), 4),
+        "false_alert_rate": round(false_positive / int(np.sum(~expected)), 4) if np.any(~expected) else None,
         "position_error_norm": round(position_error, 4) if position_error is not None else None,
         "position_error_m": round(position_error * track_length_m, 3)
         if position_error is not None and track_length_m is not None
@@ -224,6 +245,15 @@ def analyse_trial(
         return {
             "state": "no_coverage",
             "confidence": 0.0,
+            "presence_probability": None,
+            "position_range_norm": None,
+            "position_range_m": None,
+            "direction": "unknown",
+            "speed_class": "unknown",
+            "velocity_track_units_per_s": None,
+            "reasons": assessment.reasons,
+            "confidence_factors": {},
+            "model": {"name": "calibration_temporal_evidence", "version": "0.1", "trained": False},
             "scene_assessment": _serialise_assessment(assessment, calibration),
             "sun": sun,
             "timeline": [],
@@ -265,6 +295,8 @@ def analyse_trial(
     )
     state, state_reasons = _status(assessment.coverage_score, present_probability, confidence)
     direction, speed_class, velocity = _speed_and_direction(positions, timestamps)
+    if state in {"no_coverage", "no_reliable_signal"}:
+        direction, speed_class, velocity = "unknown", "unknown", None
     timeline = [
         {
             "timestamp_s": round(timestamp, 3),
@@ -285,11 +317,13 @@ def analyse_trial(
         labels, alignment = load_ground_truth(ground_truth_path)
         if alignment["method"] != "synthetic_clock":
             sync = estimate_audio_offset(main_path, ground_truth_path)
-            alignment = {**alignment, **sync}
+            label_confidence = float(alignment["confidence"])
+            alignment = {**alignment, **sync, "label_method": "aruco_foreground", "label_confidence": label_confidence}
+            alignment["confidence"] = min(label_confidence, float(sync["confidence"]))
             if float(alignment["confidence"]) < 0.45:
                 labels = []
                 alignment["withheld"] = "Ground-truth alignment confidence is too low"
-    metrics = _metrics(timeline, labels, track_length_m)
+    metrics = _metrics(timeline, labels, track_length_m, float(alignment.get("offset_s", 0.0)))
     update(0.90, "Preparing confidence-aware result")
     return {
         "state": state,
@@ -298,16 +332,16 @@ def analyse_trial(
         "position_range_norm": [
             round(float(np.quantile(positions, 0.2)), 4),
             round(float(np.quantile(positions, 0.8)), 4),
-        ],
+        ] if state in {"possible_motion", "strong_motion"} else None,
         "position_range_m": [
             round(float(np.quantile(positions, 0.2)) * track_length_m, 3),
             round(float(np.quantile(positions, 0.8)) * track_length_m, 3),
         ]
-        if track_length_m is not None
+        if track_length_m is not None and state in {"possible_motion", "strong_motion"}
         else None,
         "direction": direction,
         "speed_class": speed_class,
-        "velocity_track_units_per_s": round(velocity, 4),
+        "velocity_track_units_per_s": round(velocity, 4) if velocity is not None else None,
         "model": {"name": "calibration_temporal_evidence", "version": "0.1", "trained": False},
         "confidence_factors": {
             "coverage": round(assessment.coverage_score, 4),

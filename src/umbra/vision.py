@@ -119,6 +119,8 @@ def detect_corner_and_roi(background: np.ndarray, stability: float) -> SceneAsse
         reasons.append("Calibration contains camera movement or changing exposure")
     if not reasons:
         reasons.append("Automatic corner and analysis region selected")
+    else:
+        coverage = min(coverage, 0.43)
     return SceneAssessment(edge, roi, edge_score, roi_score, coverage, reasons)
 
 
@@ -187,6 +189,7 @@ def find_aruco_track_labels(path: Path) -> list[dict[str, float | bool]]:
     labels: list[dict[str, float | bool]] = []
     marker_centres: dict[int, np.ndarray] = {}
     for index, frame in enumerate(frames):
+        marker_centres = {}
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         if detector is not None:
             corners, ids, _ = detector.detectMarkers(gray)
@@ -200,7 +203,12 @@ def find_aruco_track_labels(path: Path) -> list[dict[str, float | bool]]:
         foreground = cv2.morphologyEx(foreground, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
         contours, _ = cv2.findContours(foreground, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         candidates = [contour for contour in contours if cv2.contourArea(contour) > frame.shape[0] * frame.shape[1] * 0.002]
-        present = bool(candidates and 10 in marker_centres and 11 in marker_centres)
+        valid = (
+            index >= 24
+            and 10 in marker_centres and 11 in marker_centres
+            and float(np.linalg.norm(marker_centres[11] - marker_centres[10])) > 20
+        )
+        present = bool(candidates and valid)
         position = 0.5
         if present:
             contour = max(candidates, key=cv2.contourArea)
@@ -210,7 +218,7 @@ def find_aruco_track_labels(path: Path) -> list[dict[str, float | bool]]:
                 start, end = marker_centres[10], marker_centres[11]
                 vector = end - start
                 position = float(np.clip(np.dot(point - start, vector) / (np.dot(vector, vector) + 1e-6), 0.0, 1.0))
-        labels.append({"timestamp_s": timestamps[index], "position_norm": position, "present": present})
+        labels.append({"timestamp_s": timestamps[index], "position_norm": position, "present": present, "valid": bool(valid)})
     return labels
 
 
@@ -231,4 +239,10 @@ def load_ground_truth(path: Path) -> tuple[list[dict[str, float | bool]], dict[s
         ]
         return labels, {"method": "synthetic_clock", "offset_s": 0.0, "confidence": 1.0}
     labels = find_aruco_track_labels(path)
-    return labels, {"method": "aruco_foreground", "offset_s": 0.0, "confidence": 0.65}
+    usable = sum(bool(label.get("valid")) for label in labels)
+    return labels, {
+        "method": "aruco_foreground", "offset_s": 0.0,
+        "confidence": 0.65 if usable else 0.0,
+        "valid_samples": usable,
+        "label_limitations": "Automatic foreground estimates require visual review; stationary targets may be missed.",
+    }

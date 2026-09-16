@@ -10,9 +10,9 @@ It is not a camera that sees through walls. It reports anonymous movement onlyâ€
 - A React dashboard for browser-camera recording, local video import, job progress, result review, and exports.
 - Automatic corner/ROI selection with refusal rather than manual ROI drawing.
 - Empty-scene calibration, exposure normalization, temporal residual analysis, a 1D probability tracker, and confidence gating.
-- Four comparison methods: frame difference, fixed temporal signal, geometry/sun rule, and Umbra's adaptive method.
+- Four heuristic signal summaries: frame difference, fixed signal threshold, coverage/coherence rule, and Umbra's adaptive method. These are not four trained-model evaluations.
 - Controlled ground-truth support using ArUco IDs 10 and 11, plus synthetic data for an immediate end-to-end demo.
-- HTML evidence reports, result JSON, and prediction CSV files kept locally.
+- Saved analysis history, self-contained HTML evidence reports, result JSON, prediction CSV, and downloadable evidence ZIP files kept locally.
 
 ## Quick start
 
@@ -51,6 +51,20 @@ The dashboard then enables **Pretrain temporal model**; the same route is availa
 5. Read the confidence reasons before interpreting the estimated trace. Low-confidence, no-signal, and no-coverage outputs are valid outcomes.
 
 See [the field protocol](docs/field-protocol.md) for the controlled-study checklist.
+
+## RoSEF paperwork and demonstration
+
+The [competition dossier](docs/competition/README.md) includes an editable Romanian document, English abstract, printable working poster, contribution declaration prompts, and recorded synthetic results. Current-edition rules, participant details, signatures and field results are still required before submission.
+
+For a single-server, offline demonstration, run `make build`, then `uv run umbra-api` and open `http://127.0.0.1:8000`. Dependencies must be installed beforehand. Saved analyses can be reopened from each scene. Download the evidence ZIP, extract it, and open `report.html` offline; its diagnostic image is embedded.
+
+Reproduce the documented software checks with:
+
+```bash
+uv run python scripts/validate_synthetic.py --data-dir ../umbra-data/submission-fixtures --output docs/competition/software-results.json
+```
+
+The current estimator is heuristic. Its confidence scores are not calibrated probabilities. Position is an image-derived proxy; multiplying it by a track length does not establish physical accuracy. Solar data is contextual metadata; the current inference does not invert sun/corner geometry. The optional neural checkpoint is advisory and does not replace the primary estimator. No held-out field performance or superiority over trained baselines has been established.
 
 ## Data and privacy
 

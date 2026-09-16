@@ -1,6 +1,8 @@
 """FastAPI entry point for Umbra's local dashboard and experiment API."""
 
+import io
 import uuid
+import zipfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any
@@ -8,7 +10,7 @@ from typing import Annotated, Any
 import uvicorn
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
@@ -92,7 +94,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         scene = database.get_scene(scene_id)
         if scene is None:
             raise HTTPException(status_code=404, detail="Scene not found")
-        return {"scene": scene, "media": database.list_media(scene_id), "trials": database.list_trials(scene_id)}
+        return {"scene": scene, "media": database.list_media(scene_id), "trials": database.list_trials(scene_id), "analyses": database.list_analyses(scene_id)}
 
     @app.post(
         "/api/v1/scenes/{scene_id}/media/{role}",
@@ -218,6 +220,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not report_path.exists():
             raise HTTPException(status_code=404, detail="Report was not generated")
         return FileResponse(report_path, media_type="text/html")
+
+    @app.get("/api/v1/analyses/{analysis_id}/bundle", tags=["analysis"])
+    def get_bundle(analysis_id: str, database: Annotated[Store, Depends(get_store)]) -> Response:
+        record = database.get_analysis(analysis_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+        run = Path(record["path"]).parent
+        paths = [run / "result.json", run / "predictions.csv", settings.report_dir / f"{analysis_id}.html"]
+        if not all(path.exists() for path in paths):
+            raise HTTPException(status_code=404, detail="Evidence bundle is incomplete")
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            for path, name in zip(paths, ("result.json", "predictions.csv", "report.html"), strict=True):
+                archive.write(path, name)
+        return Response(buffer.getvalue(), media_type="application/zip", headers={
+            "Content-Disposition": f'attachment; filename="umbra-{analysis_id}.zip"'
+        })
 
     @app.get("/api/v1/analyses/{analysis_id}/predictions", tags=["analysis"])
     def get_predictions(analysis_id: str, database: Annotated[Store, Depends(get_store)]) -> FileResponse:
