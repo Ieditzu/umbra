@@ -192,6 +192,29 @@ export default function App() {
     setResult(null);
   }
 
+  async function deleteScene(scene: Scene) {
+    const accepted = window.confirm(
+      `Delete “${scene.name}”? This permanently removes its footage, trials, and local reports.`
+    );
+    if (!accepted) return;
+    setBusy(true);
+    try {
+      await request<{ scene_id: string }>(`/scenes/${scene.id}`, { method: "DELETE" });
+      if (detail?.scene.id === scene.id) {
+        stopCamera();
+        setDetail(null);
+        setResult(null);
+        setJob(null);
+      }
+      await refreshScenes();
+      setNotice(`Deleted “${scene.name}” and its local data.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not delete scene");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   useEffect(() => {
     void Promise.all([
       refreshScenes(),
@@ -427,9 +450,12 @@ export default function App() {
           <div className="scene-list">
             {scenes.length === 0 && <p className="empty">No scenes yet.</p>}
             {scenes.map((scene) => (
-              <button key={scene.id} disabled={busy || captureRole !== null} className={detail?.scene.id === scene.id ? "scene active" : "scene"} onClick={() => void loadScene(scene.id).catch((error: Error) => setNotice(error.message))}>
-                <strong>{scene.name}</strong><span>{new Date(scene.created_at).toLocaleString()}</span>
-              </button>
+              <div className={detail?.scene.id === scene.id ? "scene-item active" : "scene-item"} key={scene.id}>
+                <button disabled={busy || captureRole !== null} className="scene" onClick={() => void loadScene(scene.id).catch((error: Error) => setNotice(error.message))}>
+                  <strong>{scene.name}</strong><span>{new Date(scene.created_at).toLocaleString()}</span>
+                </button>
+                <button className="scene-delete" type="button" disabled={busy || captureRole !== null} title={`Permanently delete ${scene.name}`} aria-label={`Delete ${scene.name}`} onClick={() => void deleteScene(scene)}>Delete</button>
+              </div>
             ))}
           </div>
           <details className="new-scene" open={scenes.length === 0}>

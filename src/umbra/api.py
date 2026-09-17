@@ -89,6 +89,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def create_scene(payload: SceneCreate, database: Annotated[Store, Depends(get_store)]) -> dict[str, Any]:
         return database.create_scene(payload.model_dump(mode="json"))
 
+    @app.delete("/api/v1/scenes/{scene_id}", tags=["scenes"])
+    def delete_scene(
+        scene_id: str,
+        current_service: Annotated[UmbraService, Depends(get_service)],
+    ) -> dict[str, str]:
+        if not current_service.delete_scene(scene_id):
+            raise HTTPException(status_code=404, detail="Scene not found")
+        return {"scene_id": scene_id}
+
     @app.get("/api/v1/scenes/{scene_id}", tags=["scenes"])
     def get_scene(scene_id: str, database: Annotated[Store, Depends(get_store)]) -> dict[str, Any]:
         scene = database.get_scene(scene_id)

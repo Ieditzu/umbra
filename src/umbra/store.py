@@ -22,6 +22,7 @@ class Store:
     def _connection(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path)
         connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
         return connection
 
     def _initialise(self) -> None:
@@ -120,6 +121,39 @@ class Store:
         with self._connection() as connection:
             row = connection.execute("SELECT * FROM scenes WHERE id = ?", (scene_id,)).fetchone()
         return self._row(row)
+
+    def delete_scene(self, scene_id: str) -> dict[str, Any] | None:
+        """Delete a scene and its dependent records, returning owned artifact paths."""
+
+        with self._connection() as connection:
+            scene = connection.execute("SELECT * FROM scenes WHERE id = ?", (scene_id,)).fetchone()
+            if scene is None:
+                return None
+            media_rows = connection.execute(
+                "SELECT path FROM media WHERE scene_id = ?", (scene_id,)
+            ).fetchall()
+            analysis_rows = connection.execute(
+                """
+                SELECT analyses.id, analyses.path
+                FROM analyses
+                JOIN trials ON trials.id = analyses.trial_id
+                WHERE trials.scene_id = ?
+                """,
+                (scene_id,),
+            ).fetchall()
+            # Delete in dependency order so this also works with SQLite foreign keys enabled.
+            connection.execute(
+                "DELETE FROM analyses WHERE trial_id IN (SELECT id FROM trials WHERE scene_id = ?)",
+                (scene_id,),
+            )
+            connection.execute("DELETE FROM trials WHERE scene_id = ?", (scene_id,))
+            connection.execute("DELETE FROM media WHERE scene_id = ?", (scene_id,))
+            connection.execute("DELETE FROM scenes WHERE id = ?", (scene_id,))
+        return {
+            "scene": self._row(scene),
+            "media_paths": [str(row["path"]) for row in media_rows],
+            "analyses": [dict(row) for row in analysis_rows],
+        }
 
     def create_media(self, payload: dict[str, Any]) -> dict[str, Any]:
         record = {

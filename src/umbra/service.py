@@ -7,6 +7,7 @@ import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
+from shutil import rmtree
 from typing import Any
 
 from . import __version__
@@ -157,6 +158,49 @@ class UmbraService:
         if not path.exists():
             return None
         return record, json.loads(path.read_text(encoding="utf-8"))
+
+    @staticmethod
+    def _within(path: Path, directory: Path) -> bool:
+        try:
+            path.resolve().relative_to(directory.resolve())
+        except ValueError:
+            return False
+        return True
+
+    def delete_scene(self, scene_id: str) -> bool:
+        """Remove a scene's database rows and only files owned by Umbra's data directory."""
+
+        deleted = self.store.delete_scene(scene_id)
+        if deleted is None:
+            return False
+
+        media_root = self.settings.media_dir.resolve()
+        synthetic_root = self.settings.synthetic_dir.resolve()
+        synthetic_bundles: set[Path] = set()
+        for value in deleted["media_paths"]:
+            path = Path(value).resolve()
+            if self._within(path, media_root):
+                path.unlink(missing_ok=True)
+            elif self._within(path, synthetic_root):
+                bundle = path.parent
+                if bundle.parent == synthetic_root:
+                    synthetic_bundles.add(bundle)
+                else:
+                    path.unlink(missing_ok=True)
+        for bundle in synthetic_bundles:
+            rmtree(bundle, ignore_errors=True)
+
+        runs_root = self.settings.run_dir.resolve()
+        reports_root = self.settings.report_dir.resolve()
+        for analysis in deleted["analyses"]:
+            result_path = Path(analysis["path"]).resolve()
+            run = result_path.parent
+            if run.parent == runs_root:
+                rmtree(run, ignore_errors=True)
+            report = (reports_root / f"{analysis['id']}.html").resolve()
+            if self._within(report, reports_root):
+                report.unlink(missing_ok=True)
+        return True
 
     def train_model(self, request: dict[str, Any], progress: Progress) -> dict[str, Any]:
         if not ML_AVAILABLE:

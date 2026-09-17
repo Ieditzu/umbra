@@ -19,6 +19,29 @@ def test_health_and_scene_creation(tmp_path: Path) -> None:
         assert response.json()["name"] == "Test corner"
 
 
+def test_scene_deletion_removes_imported_media(tmp_path: Path) -> None:
+    settings = Settings(data_dir=tmp_path / "data", max_upload_bytes=10_000_000)
+    settings.ensure_directories()
+    bundle = generate_synthetic_bundle(tmp_path / "fixture", seed=19, frames=30)
+    with TestClient(create_app(settings)) as client:
+        scene = client.post("/api/v1/scenes", json={"name": "Delete import"}).json()
+        with bundle.calibration_path.open("rb") as handle:
+            response = client.post(
+                f"/api/v1/scenes/{scene['id']}/media/calibration",
+                files={"file": (bundle.calibration_path.name, handle, "video/mp4")},
+            )
+        assert response.status_code == 201, response.text
+        stored_path = Path(response.json()["path"])
+        assert stored_path.exists()
+
+        response = client.delete(f"/api/v1/scenes/{scene['id']}")
+
+        assert response.status_code == 200
+        assert response.json() == {"scene_id": scene["id"]}
+        assert not stored_path.exists()
+        assert client.get(f"/api/v1/scenes/{scene['id']}").status_code == 404
+
+
 def test_video_import_and_trial_registration(tmp_path: Path) -> None:
     settings = Settings(data_dir=tmp_path / "data", max_upload_bytes=10_000_000)
     settings.ensure_directories()
