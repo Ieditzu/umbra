@@ -30,6 +30,7 @@ h3 { margin-bottom: 12px; font-size: .92rem; }
 .ghost { border-color: #385157; background: transparent; }
 .danger { background: #d96d6c; color: #290808; }
 .text-button { padding: 0; border: 0; background: transparent; color: #7fe5c3; font-size: .76rem; text-align: left; }
+.metadata-status { margin: 0; color: #8ea2a4; font-size: .7rem; line-height: 1.4; }.metadata-status.ready { color: #82d9bb; }.metadata-status.unavailable { color: #d8b675; }
 
 .notice { position: sticky; top: 8px; z-index: 5; margin: 12px 22px 0; padding: 10px 13px; border-left: 3px solid #e8c064; background: #17242a; color: #cfddda; font-size: .82rem; box-shadow: 0 6px 20px #0005; }
 .notice.good { border-color: #78e9c2; }

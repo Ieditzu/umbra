@@ -26,6 +26,23 @@ const stateLabel: Record<State, string> = {
 
 const sleep = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
+type SceneForm = {
+  name: string;
+  notes: string;
+  latitude: string;
+  longitude: string;
+  recorded_at: string;
+};
+
+function localDateTimeValue(date = new Date()): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function newSceneForm(): SceneForm {
+  return { name: "", notes: "", latitude: "", longitude: "", recorded_at: localDateTimeValue() };
+}
+
 function fmt(value: number | null | undefined, digits = 2): string {
   return typeof value === "number" ? value.toFixed(digits) : "—";
 }
@@ -166,7 +183,8 @@ export default function App() {
   const [notice, setNotice] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [mlAvailable, setMlAvailable] = useState(false);
-  const [form, setForm] = useState({ name: "", notes: "", latitude: "", longitude: "", recorded_at: "" });
+  const [form, setForm] = useState<SceneForm>(newSceneForm);
+  const [locationStatus, setLocationStatus] = useState<"checking" | "ready" | "unavailable">("checking");
   const [trialName, setTrialName] = useState("Trial 1");
   const [trackLength, setTrackLength] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -220,6 +238,7 @@ export default function App() {
       refreshScenes(),
       request<{ ml_available: boolean }>("/health").then((health) => setMlAvailable(health.ml_available))
     ]).catch((error: unknown) => setNotice(error instanceof Error ? error.message : "Could not load Umbra"));
+    fillBrowserMetadata(true);
     return () => streamRef.current?.getTracks().forEach((track) => track.stop());
   }, []);
 
@@ -301,12 +320,13 @@ export default function App() {
           notes: form.notes,
           latitude: form.latitude ? Number(form.latitude) : null,
           longitude: form.longitude ? Number(form.longitude) : null,
-          recorded_at: form.recorded_at ? new Date(form.recorded_at).toISOString() : null
+          recorded_at: new Date(form.recorded_at || localDateTimeValue()).toISOString()
         })
       });
       await refreshScenes();
       await loadScene(scene.id);
-      setForm({ name: "", notes: "", latitude: "", longitude: "", recorded_at: "" });
+      setForm(newSceneForm());
+      fillBrowserMetadata(true);
       setNotice("Scene created. Import footage or record calibration and main-camera clips.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not create scene");
@@ -315,15 +335,29 @@ export default function App() {
     }
   }
 
-  function useLocation() {
+  function fillBrowserMetadata(silent = false) {
+    setForm((current) => ({ ...current, recorded_at: localDateTimeValue() }));
     if (!navigator.geolocation) {
-      setNotice("This browser does not provide location permission. Enter approximate coordinates instead.");
+      setLocationStatus("unavailable");
+      if (!silent) setNotice("This browser does not provide location permission. Enter approximate coordinates instead.");
       return;
     }
+    setLocationStatus("checking");
     navigator.geolocation.getCurrentPosition(
-      (position) => setForm((current) => ({ ...current, latitude: String(position.coords.latitude), longitude: String(position.coords.longitude) })),
-      () => setNotice("Location was not granted. You can type approximate latitude and longitude."),
-      { enableHighAccuracy: false, timeout: 8000 }
+      (position) => {
+        setForm((current) => ({
+          ...current,
+          latitude: String(position.coords.latitude),
+          longitude: String(position.coords.longitude)
+        }));
+        setLocationStatus("ready");
+        if (!silent) setNotice("Browser time and location updated for sun metadata.");
+      },
+      () => {
+        setLocationStatus("unavailable");
+        if (!silent) setNotice("Location was not granted. You can type approximate latitude and longitude.");
+      },
+      { enableHighAccuracy: true, maximumAge: 60_000, timeout: 10_000 }
     );
   }
 
@@ -464,8 +498,9 @@ export default function App() {
               <label>Scene name<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="North courtyard corner" /></label>
               <label>Notes<textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="Surface, weather, setup notes…" /></label>
               <div className="form-row"><label>Latitude<input type="number" step="any" value={form.latitude} onChange={(event) => setForm({ ...form, latitude: event.target.value })} /></label><label>Longitude<input type="number" step="any" value={form.longitude} onChange={(event) => setForm({ ...form, longitude: event.target.value })} /></label></div>
-              <button className="text-button" type="button" onClick={useLocation}>Use browser location</button>
-              <label>Capture time<input type="datetime-local" value={form.recorded_at} onChange={(event) => setForm({ ...form, recorded_at: event.target.value })} /></label>
+              <p className={`metadata-status ${locationStatus}`}>{locationStatus === "ready" ? "Browser location ready • stored locally with this scene" : locationStatus === "checking" ? "Getting browser location for sun metadata…" : "Location unavailable • enter coordinates if needed"}</p>
+              <button className="text-button" type="button" onClick={() => fillBrowserMetadata()}>Refresh browser time & location</button>
+              <label>Capture time (browser local)<input type="datetime-local" value={form.recorded_at} onChange={(event) => setForm({ ...form, recorded_at: event.target.value })} /></label>
               <button className="button primary" disabled={busy} type="submit">Create scene</button>
             </form>
           </details>
