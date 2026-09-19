@@ -1,4 +1,4 @@
-export type State = "no_coverage" | "no_reliable_signal" | "possible_motion" | "strong_motion";
+export type State = "no_coverage" | "no_reliable_signal" | "possible_motion" | "strong_motion" | "early_warning" | "entered_view";
 export type MediaRole = "calibration" | "main" | "ground_truth";
 
 export interface Scene {
@@ -53,6 +53,7 @@ export interface Job {
 export interface TimelinePoint {
   timestamp_s: number;
   presence_probability: number;
+  los_probability?: number;
   position_norm: number;
   position_bins: number[];
   signal_energy: number;
@@ -68,6 +69,10 @@ export interface AnalysisResult {
   direction: string;
   speed_class: string;
   velocity_track_units_per_s: number | null;
+  lead_time_s?: number | null;
+  shadow_onset_s?: number | null;
+  los_onset_s?: number | null;
+  los_detected?: boolean;
   reasons: string[];
   timeline: TimelinePoint[];
   metrics: Record<string, number | null>;

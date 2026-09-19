@@ -55,19 +55,17 @@ Nume, semnătură și dată pentru fiecare participant: [DE COMPLETAT].
 
 ### Întrebarea de cercetare
 
-Poate o cameră RGB fixă, calibrată cu o secvență fără țintă, să extragă indicii utile despre mișcarea ascunsă din variațiile luminii de lângă un colț? Ipoteza de testat este că adaptarea la scenă și selecția conservatoare a rezultatelor reduc alarmele false față de o regulă fixă. Ipoteza nu este considerată confirmată.
+Poate o cameră RGB fixă, calibrată pe un colț gol, să avertizeze din umbra de soare de pe pavaj **înainte** ca o persoană să intre în cadru, și să măsoare acest avans (lead time)? Ipoteza: residualul adaptat pe pavaj dă lead time pozitiv față de așteptarea line-of-sight, cu puține alarme pe scene goale. Ipoteza nu este considerată confirmată.
 
 ### Fundament și limite fizice
 
-Un colț poate modula lumina care ajunge pe o suprafață vizibilă. Lucrarea de referință a lui Bouman și colaboratorii motivează cercetarea [S3]. Umbra explorează practic acest subiect cu echipament accesibil. O umbră direct vizibilă și o variație slabă de penumbră sunt condiții distincte și trebuie etichetate separat în experimente.
+Umbra folosește o **umbră vizibilă** proiectată pe pavajul de lângă colț, nu reconstrucția de penumbră din Bouman et al. 2017 [S3]. Acea lucrare rămâne literatură conexă. O umbră tăioasă de soare și o penumbră de 0,1% sunt fizici diferite și se etichetează separat. Sistemul nu vede prin pereți.
 
 ### Implementarea actuală
 
-Calibrarea folosește mediana cadrelor, variația pixelilor și o mască stabilă. Detecția liniilor caută o muchie aproximativ verticală și alege o regiune relativ uniformă. O muchie din imagine nu dovedește singură că geometria fizică este adecvată. Cadrele sunt redimensionate la cel mult 480 pixeli lățime și eșantionate aproximativ la 10 cadre/s; analiza este limitată la 600 de eșantioane.
+Calibrarea folosește mediana cadrelor. Detecția de muchie preferă un contrast stânga/dreapta (perete vs pavaj) și un ROI jos, pe sol. Analiza măsoară întunecarea în ROI (umbră) și energia reziduală într-o bandă deasupra (persoana care intră). Lead time = momentul umbrei minus momentul line-of-sight pe aceeași cameră. Cadrele sunt redimensionate și eșantionate ~10 cadre/s, maxim 600 de eșantioane.
 
-Normalizarea expunerii și diferența față de fundal produc un semnal de întunecare. Centrul ponderat al acestui semnal este transformat într-o distribuție pe 16 poziții și netezit temporal. Scorurile combină intensitatea semnalului, stabilitatea, coerența și dezacordul unor reguli simple. Valorile denumite probabilitate și încredere în API sunt scoruri euristice, fără calibrare probabilistică pe date de teren.
-
-Regulile de comparație implementate folosesc energia diferenței, un prag fix și acoperirea/coerența. Nu reprezintă o comparație realizată între patru modele instruite. Poziția solară este metadată contextuală, nu un model optic invers utilizat în inferență. Rețeaua PyTorch opțională produce numai o indicație separată după preantrenare sintetică.
+Poziția este un centroid al întunecării pe pavaj, 16 bin-uri, netezit. Scorurile de probabilitate și încredere sunt euristice, necalibrate. Soarele e metadată, nu e inversat în inferență. PyTorch opțional rămâne advisory. Cele patru „metode” de comparație nu sunt modele antrenate.
 
 ### Evaluarea
 

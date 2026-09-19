@@ -1,17 +1,17 @@
 # Umbra
 
-Umbra is a local, confidence-aware research kit for testing whether subtle natural-light changes beside a building corner can support a coarse estimate of hidden motion.
+Umbra is a local research kit for testing whether a **visible cast shadow** at a blind corner can warn that someone is approaching **before they walk into the camera**.
 
-It is not a camera that sees through walls. It reports anonymous movement only—track position range, direction, speed class, and confidence—and explicitly returns no coverage or no reliable signal when the evidence is weak.
+It is not a camera that sees through walls. It is not Bouman-style penumbra reconstruction. It compares an empty calibration to a trial clip, tracks darkening on the pavement, then timestamps when a walker enters the frame. Lead time is that gap. It reports no coverage or no reliable signal when the evidence is weak.
 
 ## What is included
 
 - A FastAPI local experiment service with SQLite metadata and external video storage.
 - A React dashboard for browser-camera recording, local video import, job progress, result review, and exports.
-- Automatic corner/ROI selection with refusal rather than manual ROI drawing.
-- Empty-scene calibration, exposure normalization, temporal residual analysis, a 1D probability tracker, and confidence gating.
+- Automatic corner/pavement ROI with refusal rather than manual drawing.
+- Empty-scene calibration, pavement-shadow residual tracking, a line-of-sight band for when the walker enters, a 1D shadow tracker, lead-time measurement, and confidence gating.
 - Four heuristic signal summaries: frame difference, fixed signal threshold, coverage/coherence rule, and Umbra's adaptive method. These are not four trained-model evaluations.
-- Controlled ground-truth support using ArUco IDs 10 and 11, plus synthetic data for an immediate end-to-end demo.
+- Optional ArUco 10/11 ground-truth camera for hidden-path labels, plus synthetic shadow-then-entry demos.
 - Saved analysis history, self-contained HTML evidence reports, result JSON, prediction CSV, and downloadable evidence ZIP files kept locally.
 
 ## Quick start
@@ -44,13 +44,13 @@ The dashboard then enables **Pretrain temporal model**; the same route is availa
 
 ## Field workflow
 
-1. Create a local scene and provide approximate capture time and location. Browser location permission is optional; imported footage can use typed values.
-2. Lock the main camera on the visible pavement or wall near the corner. Record an empty calibration clip first, then a trial clip where the target stays out of direct view.
-3. Record the hidden track with a separate ground-truth camera. Put printed ArUco marker **10** at the corner-side endpoint and marker **11** at the far endpoint. Use a shared clap or audible cue when possible.
-4. Import or record the main clips, import ground truth, register a trial, and run analysis.
-5. Read the confidence reasons before interpreting the estimated trace. Low-confidence, no-signal, and no-coverage outputs are valid outcomes.
+1. Create a local scene and provide approximate capture time and location.
+2. Tape the main camera on the **visible pavement + corner edge**, with enough of the opening that a walker can later enter the frame. Record an empty calibration, then one continuous trial: walker starts hidden, shadow should appear first, then they step into view.
+3. Optional: a second camera on the hidden path with ArUco **10** (corner) and **11** (far). Clap for sync. This scores position; it is not the warning.
+4. Import or record the clips, register a trial, run analysis.
+5. Read lead time, shadow onset, line-of-sight onset, and the refusal reasons. Empty trials and no-coverage results count.
 
-See [the field protocol](docs/field-protocol.md) for the controlled-study checklist.
+See [the field protocol](docs/field-protocol.md). The sun must throw the walker's shadow **onto the pavement the main camera sees**.
 
 ## RoSEF paperwork and demonstration
 
@@ -64,7 +64,7 @@ Reproduce the documented software checks with:
 uv run python scripts/validate_synthetic.py --data-dir ../umbra-data/submission-fixtures --output docs/competition/software-results.json
 ```
 
-The current estimator is heuristic. Its confidence scores are not calibrated probabilities. Position is an image-derived proxy; multiplying it by a track length does not establish physical accuracy. Solar data is contextual metadata; the current inference does not invert sun/corner geometry. The optional neural checkpoint is advisory and does not replace the primary estimator. No held-out field performance or superiority over trained baselines has been established.
+The estimator is heuristic. Confidence scores are not calibrated probabilities. Position is an image-derived proxy. Solar data is metadata only. Lead time is measured on the same main camera (pavement-shadow onset vs first in-frame body). The optional neural checkpoint is advisory. No held-out field performance has been established.
 
 ## Data and privacy
 
@@ -80,4 +80,4 @@ make lint
 make build
 ```
 
-The scientific framing is based on [Bouman et al., “Turning Corners into Cameras: Principles and Methods” (ICCV 2017)](https://openaccess.thecvf.com/content_iccv_2017/html/Bouman_Turning_Corners_Into_ICCV_2017_paper.html). Synthetic results validate only the software pipeline, not real-world non-line-of-sight performance.
+Related work: [Bouman et al., “Turning Corners into Cameras” (ICCV 2017)](https://openaccess.thecvf.com/content_iccv_2017/html/Bouman_Turning_Corners_Into_ICCV_2017_paper.html). Umbra does not implement that inverse problem. Synthetic results validate the software pipeline, not outdoor lead-time performance.

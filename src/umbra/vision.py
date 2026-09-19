@@ -17,6 +17,7 @@ from .video import read_frames
 class CalibrationModel:
     background: np.ndarray
     stable_mask: np.ndarray
+    lit_mask: np.ndarray
     noise: float
     stability: float
 
@@ -47,7 +48,15 @@ def build_calibration_model(frames: list[np.ndarray]) -> CalibrationModel:
     frame_means = gray_frames[:, stable_mask].mean(axis=1)
     brightness_drift = float(np.std(frame_means))
     stability = float(np.clip(1.0 - (noise / 8.0 + brightness_drift / 22.0), 0.0, 1.0))
-    return CalibrationModel(background=background, stable_mask=stable_mask, noise=noise, stability=stability)
+    pavement_level = float(np.quantile(background, 0.65))
+    lit_mask = background >= (0.78 * pavement_level)
+    return CalibrationModel(
+        background=background,
+        stable_mask=stable_mask,
+        lit_mask=lit_mask,
+        noise=noise,
+        stability=stability,
+    )
 
 
 def _roi_score(image: np.ndarray, roi: tuple[int, int, int, int]) -> float:
@@ -58,17 +67,54 @@ def _roi_score(image: np.ndarray, roi: tuple[int, int, int, int]) -> float:
     laplacian = cv2.Laplacian(patch.astype(np.uint8), cv2.CV_32F)
     texture = float(np.std(laplacian))
     luminance = float(np.mean(patch))
-    # A quiet, exposed patch is preferable to a busy or near-black surface.
+    frame_height = image.shape[0]
     texture_score = float(np.clip(1.0 - texture / 28.0, 0.0, 1.0))
-    exposure_score = float(np.clip(1.0 - abs(luminance - 132.0) / 132.0, 0.0, 1.0))
-    return 0.62 * texture_score + 0.38 * exposure_score
+    exposure_score = float(np.clip(1.0 - abs(luminance - 140.0) / 140.0, 0.0, 1.0))
+    ground_bias = float(np.clip(y / max(1, frame_height), 0.0, 1.0))
+    bright_bias = float(np.clip((luminance - 70.0) / 90.0, 0.0, 1.0))
+    shadow_frac = float(np.mean(patch < float(np.quantile(image, 0.42))))
+    sunlit_score = float(np.clip(1.0 - shadow_frac, 0.0, 1.0))
+    return (
+        0.18 * texture_score
+        + 0.12 * exposure_score
+        + 0.14 * ground_bias
+        + 0.12 * bright_bias
+        + 0.44 * sunlit_score
+    )
+
+
+def _edge_contrast(image: np.ndarray, edge: tuple[int, int, int, int]) -> float:
+    height, width = image.shape[:2]
+    mid_x = int((edge[0] + edge[2]) / 2)
+    pad = 14
+    left = image[:, max(0, mid_x - pad) : max(1, mid_x)]
+    right = image[:, mid_x : min(width, mid_x + pad)]
+    if left.size == 0 or right.size == 0:
+        return 0.0
+    return float(np.clip(abs(float(np.mean(left)) - float(np.mean(right))) / 70.0, 0.0, 1.0))
+
+
+def los_band(
+    roi: tuple[int, int, int, int],
+    frame_height: int,
+    edge: tuple[int, int, int, int] | None = None,
+) -> tuple[int, int, int, int]:
+    """Far/top strip covering the opening from the edge through the pavement ROI."""
+    x, _y, width, _height = roi
+    band_h = max(18, int(frame_height * 0.16))
+    if edge is not None:
+        edge_x = int((edge[0] + edge[2]) / 2)
+        x0 = min(x, edge_x)
+        x1 = max(x + width, edge_x + 24)
+        return (max(0, x0), 0, max(32, x1 - x0), band_h)
+    return (x, 0, width, band_h)
 
 
 def detect_corner_and_roi(background: np.ndarray, stability: float) -> SceneAssessment:
-    """Find the strongest vertical corner-like edge and a visible-side patch.
+    """Find a vertical corner edge and a pavement patch for cast-shadow tracking.
 
-    The method deliberately returns no coverage when it cannot make a
-    defensible automatic choice. It never substitutes a manual rectangle.
+    The method returns no coverage when it cannot make a defensible automatic
+    choice. It never substitutes a manual rectangle.
     """
 
     image = background.astype(np.uint8)
@@ -90,9 +136,16 @@ def detect_corner_and_roi(background: np.ndarray, stability: float) -> SceneAsse
             length = float(np.hypot(dx, dy))
             verticality = abs(dy) / (length + 1e-6)
             centrality = 1.0 - abs(((x1 + x2) / 2) - width / 2) / (width / 2)
-            score = 0.7 * min(1.0, length / (height * 0.75)) + 0.22 * verticality + 0.08 * centrality
-            if verticality > 0.78:
-                candidates.append((score, (x1, y1, x2, y2)))
+            edge = (x1, y1, x2, y2)
+            contrast = _edge_contrast(image, edge)
+            score = (
+                0.42 * min(1.0, length / (height * 0.75))
+                + 0.18 * verticality
+                + 0.08 * centrality
+                + 0.32 * contrast
+            )
+            if verticality > 0.82:
+                candidates.append((score, edge))
     if not candidates:
         return SceneAssessment(None, None, 0.0, 0.0, 0.0, ["No stable corner-like edge found"])
 
@@ -100,14 +153,22 @@ def detect_corner_and_roi(background: np.ndarray, stability: float) -> SceneAsse
     edge_x = int((edge[0] + edge[2]) / 2)
     candidate_rois: list[tuple[float, tuple[int, int, int, int]]] = []
     patch_width = max(44, int(width * 0.28))
-    patch_height = max(44, int(height * 0.42))
-    y = max(0, int(height * 0.48))
-    patch_height = min(patch_height, height - y)
-    for side in (-1, 1):
-        x = edge_x + 8 if side == 1 else edge_x - patch_width - 8
-        x = max(0, min(x, width - patch_width))
-        roi = (x, y, patch_width, patch_height)
-        candidate_rois.append((_roi_score(image, roi), roi))
+    for y_frac in (0.50, 0.58):
+        y = max(0, int(height * y_frac))
+        patch_height = min(max(44, int(height * 0.38)), height - y)
+        if patch_height < 32:
+            continue
+        for side in (-1, 1):
+            for inset in (8, int(patch_width * 0.4), int(patch_width * 0.8), int(patch_width * 1.15)):
+                x = edge_x + inset if side == 1 else edge_x - patch_width - inset
+                x = max(0, min(x, width - patch_width))
+                roi = (x, y, patch_width, patch_height)
+                candidate_rois.append((_roi_score(image, roi), roi))
+        for x in (int(width * 0.40), int(width * 0.52), int(width * 0.64)):
+            x = max(0, min(x, width - patch_width))
+            candidate_rois.append((_roi_score(image, (x, y, patch_width, patch_height)), (x, y, patch_width, patch_height)))
+    if not candidate_rois:
+        return SceneAssessment(edge, None, edge_score, 0.0, 0.0, ["No pavement patch could be placed"])
     roi_score, roi = max(candidate_rois, key=lambda item: item[0])
     coverage = float(np.clip(0.50 * edge_score + 0.28 * roi_score + 0.22 * stability, 0.0, 1.0))
     reasons: list[str] = []
@@ -118,7 +179,7 @@ def detect_corner_and_roi(background: np.ndarray, stability: float) -> SceneAsse
     if stability < 0.52:
         reasons.append("Calibration contains camera movement or changing exposure")
     if not reasons:
-        reasons.append("Automatic corner and analysis region selected")
+        reasons.append("Automatic corner and pavement region selected")
     else:
         coverage = min(coverage, 0.43)
     return SceneAssessment(edge, roi, edge_score, roi_score, coverage, reasons)
@@ -137,21 +198,30 @@ def normalised_residual(frame: np.ndarray, calibration: CalibrationModel) -> np.
 
 
 def extract_temporal_signal(
-    frames: list[np.ndarray], calibration: CalibrationModel, roi: tuple[int, int, int, int]
+    frames: list[np.ndarray],
+    calibration: CalibrationModel,
+    roi: tuple[int, int, int, int],
+    edge: tuple[int, int, int, int] | None = None,
 ) -> list[dict[str, float | np.ndarray]]:
     x, y, width, height = roi
+    lx, ly, lw, lh = los_band(roi, frames[0].shape[0], edge)
     signal: list[dict[str, float | np.ndarray]] = []
     prior_patch: np.ndarray | None = None
     for frame in frames:
         residual = normalised_residual(frame, calibration)
         patch = residual[y : y + height, x : x + width]
+        person = residual[ly : ly + lh, lx : lx + lw]
+        lit = calibration.lit_mask[y : y + height, x : x + width]
         darkness = np.maximum(-patch, 0.0)
-        energy = float(np.mean(darkness))
+        if lit.shape == darkness.shape:
+            darkness = np.where(lit, darkness, 0.0)
+        energy = float(darkness[lit].mean()) if lit.any() else 0.0
+        los_energy = float(np.mean(np.maximum(-person, 0.0))) if person.size else 0.0
         weights = darkness**1.35
         total = float(weights.sum())
         if total > 1e-4:
             yy, xx = np.indices(weights.shape)
-            position = float(np.clip(1.0 - (yy * weights).sum() / (total * max(1, height - 1)), 0.0, 1.0))
+            position = float(np.clip((yy * weights).sum() / (total * max(1, height - 1)), 0.0, 1.0))
             lateral = float((xx * weights).sum() / (total * max(1, width - 1)))
         else:
             position, lateral = 0.5, 0.5
@@ -164,6 +234,7 @@ def extract_temporal_signal(
         signal.append(
             {
                 "energy": energy,
+                "los_energy": los_energy,
                 "position": position,
                 "lateral": lateral,
                 "coherence": coherence,
@@ -222,8 +293,48 @@ def find_aruco_track_labels(path: Path) -> list[dict[str, float | bool]]:
     return labels
 
 
+def find_person_track_labels(path: Path) -> list[dict[str, float | bool]]:
+    """Label a walker facing the camera when ArUco 10/11 are absent.
+
+    Larger apparent height means closer to the camera / corner.
+    """
+
+    frames, timestamps, _ = read_frames(path, target_fps=10, resize_width=480)
+    subtractor = cv2.createBackgroundSubtractorMOG2(history=18, varThreshold=20, detectShadows=False)
+    labels: list[dict[str, float | bool]] = []
+    for index, frame in enumerate(frames):
+        foreground = subtractor.apply(frame)
+        foreground = cv2.morphologyEx(foreground, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+        contours, _ = cv2.findContours(foreground, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        height, width = frame.shape[:2]
+        min_area = height * width * 0.004
+        people = []
+        for contour in contours:
+            if cv2.contourArea(contour) < min_area:
+                continue
+            x, y, box_w, box_h = cv2.boundingRect(contour)
+            if box_h < box_w * 1.15 or box_h < height * 0.12:
+                continue
+            people.append((box_h, y + box_h))
+        valid = index >= 12
+        present = bool(people and valid)
+        position = 0.5
+        if present:
+            box_h, _foot = max(people, key=lambda item: item[0])
+            position = float(np.clip((box_h / height - 0.12) / 0.70, 0.0, 1.0))
+        labels.append(
+            {
+                "timestamp_s": timestamps[index],
+                "position_norm": position,
+                "present": present,
+                "valid": valid and present,
+            }
+        )
+    return labels
+
+
 def load_ground_truth(path: Path) -> tuple[list[dict[str, float | bool]], dict[str, Any]]:
-    """Prefer a synthetic fixture's labels; otherwise auto-label marker-based footage."""
+    """Prefer a synthetic fixture's labels; otherwise auto-label marker or person footage."""
 
     sibling = path.with_name("ground_truth.csv")
     if sibling.exists():
@@ -238,11 +349,22 @@ def load_ground_truth(path: Path) -> tuple[list[dict[str, float | bool]], dict[s
             for row in rows
         ]
         return labels, {"method": "synthetic_clock", "offset_s": 0.0, "confidence": 1.0}
-    labels = find_aruco_track_labels(path)
-    usable = sum(bool(label.get("valid")) for label in labels)
-    return labels, {
-        "method": "aruco_foreground", "offset_s": 0.0,
-        "confidence": 0.65 if usable else 0.0,
-        "valid_samples": usable,
-        "label_limitations": "Automatic foreground estimates require visual review; stationary targets may be missed.",
+    marker_labels = find_aruco_track_labels(path)
+    marker_usable = sum(bool(label.get("valid")) for label in marker_labels)
+    if marker_usable:
+        return marker_labels, {
+            "method": "aruco_foreground",
+            "offset_s": 0.0,
+            "confidence": 0.65,
+            "valid_samples": marker_usable,
+            "label_limitations": "Automatic foreground estimates require visual review; stationary targets may be missed.",
+        }
+    person_labels = find_person_track_labels(path)
+    person_usable = sum(bool(label.get("valid")) for label in person_labels)
+    return person_labels, {
+        "method": "person_foreground",
+        "offset_s": 0.0,
+        "confidence": 0.5 if person_usable else 0.0,
+        "valid_samples": person_usable,
+        "label_limitations": "No ArUco 10/11; person blob height is a coarse distance proxy and needs review.",
     }

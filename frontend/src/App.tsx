@@ -13,15 +13,17 @@ import type {
 
 const roleLabel: Record<MediaRole, string> = {
   calibration: "Empty-scene calibration",
-  main: "Visible-side trial",
-  ground_truth: "Ground-truth track"
+  main: "Corner trial (shadow, then person)",
+  ground_truth: "Hidden-path ground truth"
 };
 
 const stateLabel: Record<State, string> = {
   no_coverage: "No coverage",
   no_reliable_signal: "No reliable signal",
-  possible_motion: "Possible motion",
-  strong_motion: "Strong motion"
+  possible_motion: "Shadow possible",
+  strong_motion: "Shadow approaching",
+  early_warning: "Early warning",
+  entered_view: "Entered view"
 };
 
 const sleep = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
@@ -96,13 +98,13 @@ function ResultPanel({ result }: { result: AnalysisResult }) {
       </div>
       <div className="metrics-grid">
         <Metric label="Confidence" value={`${Math.round(result.confidence * 100)}%`} />
-        <Metric label="Motion evidence" value={result.presence_probability == null ? "—" : `${Math.round(result.presence_probability * 100)}%`} />
-        <Metric label="Position range" value={positions} />
+        <Metric label="Shadow evidence" value={result.presence_probability == null ? "—" : `${Math.round(result.presence_probability * 100)}%`} />
+        <Metric label="Lead time" value={result.lead_time_s == null ? "—" : `${result.lead_time_s.toFixed(2)} s`} detail={result.los_detected ? "shadow → line of sight" : "person not yet in frame"} />
         <Metric label="Direction" value={result.direction.replaceAll("_", " ")} detail={result.speed_class} />
       </div>
-      <p className="privacy-note"><strong>{result.evidence?.kind === "synthetic" ? "Synthetic demonstration" : "Experimental video analysis"}.</strong> {result.evidence?.limitation ?? "Field performance has not been established."} Position is an unvalidated image-derived track proxy.</p>
+      <p className="privacy-note"><strong>{result.evidence?.kind === "synthetic" ? "Synthetic demonstration" : "Experimental video analysis"}.</strong> {result.evidence?.limitation ?? "Field performance has not been established."} Lead time is pavement-shadow onset versus the first frame the walker enters this camera.</p>
       <div className="chart-card">
-        <div className="chart-label"><span>Temporal motion evidence</span><span>{result.timeline.length} samples</span></div>
+        <div className="chart-label"><span>Pavement-shadow evidence</span><span>{result.timeline.length} samples</span></div>
         <SignalChart result={result} />
       </div>
       <div className="result-columns">
@@ -514,7 +516,7 @@ export default function App() {
               <section className="panel capture-panel">
                 <div className="panel-heading"><h2>Camera capture</h2><span className="step">1</span></div>
                 <video ref={videoRef} autoPlay muted playsInline className={streaming ? "camera active" : "camera"} />
-                <p className="hint">Record an empty calibration, then a visible-side trial. Analysis starts after recording ends.</p>
+                <p className="hint">Empty calibration first. Then one trial: walker hidden, shadow on pavement, then they enter the frame.</p>
                 <div className="capture-actions">
                   {!streaming ? <button className="button secondary" disabled={busy} onClick={() => void startCamera()}>Enable camera</button> : <button className="button ghost" onClick={stopCamera}>Stop camera</button>}
                   {streaming && !captureRole && <><button className="button secondary" disabled={busy} onClick={() => record("calibration")}>Record calibration</button><button className="button primary" disabled={busy} onClick={() => record("main")}>Record trial</button></>}
@@ -526,7 +528,7 @@ export default function App() {
                 <div className="media-list">
                   {(["calibration", "main", "ground_truth"] as MediaRole[]).map((role) => <MediaSlot key={role} role={role} media={mediaByRole[role]} disabled={busy} onUpload={upload} />)}
                 </div>
-                <p className="hint">Ground truth is optional for inference and required for position-error metrics. Marker 10 is the corner side; marker 11 is the far endpoint.</p>
+                <p className="hint">Ground truth is optional for the warning. Use it to score hidden-path position. Marker 10 is the corner; 11 is far.</p>
               </section>
             </div>
 

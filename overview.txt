@@ -1,178 +1,159 @@
 UMBRA
-Seeing hidden motion around corners from natural light
+Early warning at a blind corner from a visible cast shadow
 
-STATUS NOTE: This file describes the research design and longer-term ambitions.
-It is not a record of demonstrated capabilities. See README.md and
-docs/competition/ for the current implementation, reproducible synthetic
-results, limitations and field work still required. In particular, the current
-primary estimator and comparison summaries are heuristic, the optional neural
-model is advisory, and no outdoor performance has been established.
+STATUS NOTE: This file is the research design. README.md and
+docs/competition/ describe the current software. The estimator is
+heuristic. Lead time is measured on the main camera (shadow onset vs
+the moment a person enters the frame). It is not Bouman-style
+non-line-of-sight reconstruction and does not invert sun/corner
+geometry.
 
 1. The idea in one sentence
 
-Umbra is a camera-based system that watches the visible pavement beside a building corner and uses tiny changes in natural shadow and light patterns to estimate motion on the hidden side of that corner.
+Umbra watches the pavement beside a building corner. When someone
+approaches from the hidden side, their sun shadow often reaches that
+pavement before their body does. Umbra tries to raise an early warning
+from that shadow, then measures how many seconds later the person
+walks into view.
 
-It is not a camera that sees through walls. It uses the fact that a corner blocks light in a structured way: when an object moves out of view, it can still change the penumbra (the soft edge of a shadow) visible near the corner.
+It is not a camera that sees through walls. It is not the faint
+penumbra method from Bouman et al. 2017. It uses a normal, visible
+cast shadow as a precursor to line-of-sight.
 
 2. What Umbra is trying to solve
 
-At a blind corner, a normal camera only reacts after an object enters its direct view. Umbra tries to extract information that is already present in the light on the visible side of the corner. Its output is an early estimate of hidden movement, before direct line-of-sight is available.
+At a blind corner a camera (or a driver, or a pedestrian) only reacts
+after the other person appears. The practical question is:
 
-The project is about the sensing method itself, not about recognizing a particular kind of object. The hidden target can be any moving opaque object.
+Can a fixed RGB camera, calibrated on an empty corner, detect an
+approaching person from the shadow on the visible pavement before
+that person enters the frame, and report how much lead time that
+gives?
 
 3. Core principle
 
-Sunlight and other directional outdoor light reaches the area behind a building corner. A moving object changes which rays of light are blocked or reflected. Those changes can create either:
+Sunlight (or another strong directional light) throws a hard shadow of
+the hidden walker onto the visible ground near the edge. That shadow
+is ordinary photometry: dark pixels on pavement. It is not a 0.1%
+penumbra.
 
-- a visible shadow that spills into the camera's view; or
-- a much fainter penumbra pattern on the pavement or wall near the corner.
+Sequence in one continuous main-camera clip:
 
-The camera records only the visible side. Umbra compares a live video sequence with a reference recording of the empty corner, finds temporal light-pattern changes, and infers which hidden motion is most likely to have produced them.
+1. Empty pavement (matches the calibration).
+2. Shadow creeps in / grows toward the corner. The walker is still
+   out of frame.
+3. The walker steps into view.
 
-One corner normally gives a rough one-dimensional estimate: for example, whether something is approaching or moving away along the hidden side. Two visible edges, two cameras, or an extra geometric cue can improve this into a two-dimensional estimate.
+Umbra timestamps (2) and (3). Lead time is t_line_of_sight minus
+t_shadow. A useful system warns in (2) and does not invent a person
+when the corner stays empty.
 
 4. System design
 
 Inputs
 
-- A fixed RGB camera aimed at the pavement and edge of a real outdoor corner.
-- A short empty-scene calibration video.
-- The date, time, and approximate location when outdoors, used to estimate the direction of the sun.
-- Camera/corner geometry estimated from the image: the edge, ground region, and useful analysis area.
+- A fixed RGB camera aimed at the visible pavement and the vertical
+  corner edge, with enough of the opening that a walker can later
+  enter the frame.
+- A short empty-scene calibration video (same lock-off, nobody
+  approaching).
+- Optional second camera on the hidden path for independent labels
+  (ArUco 10 near the corner, 11 far). Not used for the warning.
 
 Processing
 
-1. Umbra detects the corner edge and selects a small visible ground/wall region of interest.
-2. It builds a stable background model from the empty calibration video.
-3. It removes ordinary frame noise, camera auto-exposure changes, and slow lighting changes.
-4. It measures the remaining shadow/penumbra movement across several frames.
-5. A small temporal machine-learning model and geometric rules convert that signal into a probability map of hidden motion.
-6. A tracker estimates direction and speed over time.
-7. A confidence model decides whether there is enough visual evidence to make a prediction.
+1. Detect the corner edge and a pavement region of interest.
+2. Build a background from the empty calibration.
+3. On the trial clip, measure darkening in the pavement ROI (shadow)
+   and residual energy in a band above that ROI (person entering).
+4. Track a coarse 1-D shadow position along the pavement.
+5. Gate on calibration quality, shadow strength, and temporal
+   coherence. Refuse when the scene or signal is unusable.
 
 Outputs
 
-- No reliable signal / possible hidden motion / strong hidden motion.
-- Approximate hidden position or position range.
-- Movement direction and estimated speed class.
-- A confidence score and a clear "cannot determine" state.
+- no coverage / no reliable signal / approaching (shadow only) /
+  early warning (shadow then person) / entered view (person with no
+  prior shadow).
+- Shadow onset time, line-of-sight onset time, lead time in seconds.
+- Coarse shadow position range, approach direction, speed class.
+- Confidence and explicit refusal reasons.
 
-5. What the AI part actually does
+5. Research question
 
-The AI is not simply trained to say "shadow" or "no shadow." It learns the relationship between a sequence of tiny visible changes and the labelled hidden movement that caused them. It should also adapt to a new corner after a short empty-scene calibration instead of assuming every pavement, wall, and light condition looks the same.
+Can empty-scene calibration plus pavement-shadow tracking warn of an
+approaching person at an unfamiliar outdoor corner with positive lead
+time versus the moment they become directly visible, and with a low
+false-alert rate on empty trials?
 
-The core research question is:
+Hypothesis
 
-Can a self-calibrating camera system infer hidden motion around an unfamiliar outdoor corner from natural light patterns more reliably than fixed, non-adaptive methods?
+When the sun casts the walker's shadow onto the visible pavement
+before they clear the edge, an adaptive residual on that pavement
+alerts earlier than waiting for the body to enter the frame, and
+refuses more empty trials than a fixed intensity threshold.
 
-Hypothesis:
+6. What this is not
 
-Using short-scene calibration, temporal features, and sun/corner geometry will improve hidden-motion detection, reduce position error, and reduce false alerts compared with simple image differencing and a fixed model trained at only one corner.
-
-6. What makes the project different
-
-The basic physics is real research. Umbra must not claim to have invented "seeing around corners." Its contribution is the specific practical question: can a low-cost, self-calibrating system work across real outdoor corner conditions and know when the signal is too weak to trust?
-
-The important difference is confidence-aware inference. A safety-related system should not confidently invent a hidden object in darkness, cloud cover, wet reflective pavement, or unsuitable sun direction. Umbra should explicitly report low confidence or no coverage in those cases.
+- Not "seeing around corners" from penumbra (Bouman 2017). Cite that
+  paper as related work and as a stricter, harder method. Umbra's
+  contribution is a measurable early-warning protocol on a visible
+  shadow.
+- Not identity, pose, or through-wall imaging.
+- Not a trained detector that you feed random clips. Analysis is
+  per-trial residual comparison. The optional PyTorch net remains
+  synthetic/advisory.
 
 7. Controlled experiment
 
-Use a tall opaque board or a wheeled silhouette target on a measured hidden track. This keeps the first experiments controlled and avoids relying on recordings of strangers.
+Camera 1 (main): visible pavement + edge + a bit of the opening.
+Tape it down. Same pose for empty and trial.
 
-For every trial:
+Camera 2 (optional ground truth): hidden path, markers 10 and 11.
 
-- Main camera: looks only at the visible pavement/corner region.
-- Ground-truth camera: records the hidden track solely to label real target position and time.
-- Target: moves through known positions at known speeds while staying out of the main camera's direct view.
-- Metadata: corner location, surface type, date/time, weather/light conditions, sun direction estimate, and camera placement.
+For every trial
 
-Test across:
+- Empty calibration, 8–15 s, nobody on either side.
+- One continuous main clip: walker starts fully hidden, shadow should
+  appear first, then the walker enters the frame.
+- Sun must throw the shadow toward the main camera. If the shadow
+  falls behind the walker, pick another corner or time of day.
+- Empty-target trials (nobody comes) for false alerts.
 
-- at least three real outdoor corners;
-- different times of day, especially morning and afternoon;
-- different ground surfaces and light levels;
-- different target distances, speeds, and directions;
-- target absent trials, which are essential for measuring false alerts.
+Compare
 
-Compare four methods:
+1. Frame/background differencing on the whole image.
+2. A fixed shadow-energy threshold.
+3. Coverage/coherence without a shadow tracker.
+4. Umbra: scene-normalized pavement residual, shadow tracker,
+   line-of-sight band, lead time, confidence gate.
 
-1. Simple frame/background differencing.
-2. A fixed model trained at one corner only.
-3. Geometry and sun-direction rules without learned temporal features.
-4. Umbra: self-calibration + temporal model + geometry + confidence score.
+Measure
 
-Measure:
-
-- Presence-detection precision, recall, and F1 score.
-- Hidden-position error in centimetres/metres or track sections.
-- Direction accuracy.
-- Lead time before the target becomes directly visible.
-- False-alert rate during empty scenes.
-- Calibration time and the percentage of situations where Umbra correctly declines to predict.
+- Shadow-onset precision/recall vs empty trials.
+- Lead time (seconds) when the person does enter.
+- Fraction of approaches with lead time > 0.
+- False-alert rate on empty scenes.
+- Correct-refusal rate when there is no usable edge or light.
 
 8. Honest limits
 
-Umbra will not work everywhere. It requires a stationary camera, a usable corner edge, visible pavement/wall near that edge, and enough directional light. It will be weakest at night, in flat overcast light, with unsuitable sun angles, or when the surface is highly reflective or visually busy.
+Needs directional light and a geometry where the shadow hits the
+visible pavement before the body does. Fails in overcast light, when
+the sun is behind the walker, on busy/reflective ground, or if the
+camera moves. A hard shadow in the main camera is line-of-sight
+photometry of the shadow, not reconstruction of a hidden scene.
 
-That limitation is part of the research, not a failure. The project should map the conditions where Umbra works, where it degrades, and whether its confidence score correctly identifies unreliable conditions.
+9. Technology
 
-9. Two-week build order
+Local laptop. Python, OpenCV, FastAPI, optional PyTorch. Browser
+dashboard for import, recording, analysis, and evidence export. No
+cloud.
 
-Days 1-2: feasibility gate. Record an empty corner and a hidden target at marked positions. Confirm that any repeatable shadow/penumbra signal exists before building a large model.
+10. Starting literature (related, not implemented)
 
-Days 3-5: collect labelled, controlled data at the first usable corner. Build a basic OpenCV difference baseline.
+Bouman et al., "Turning Corners Into Cameras," ICCV 2017 — penumbra
+NLOS; Umbra does not run that inverse problem.
 
-Days 6-8: create the first temporal model and position/direction tracker. Add the calibration procedure.
-
-Days 9-11: collect unseen-corner and changed-light tests. Run the baselines and record every result.
-
-Days 12-14: analyse results, make graphs, prepare the visual demonstration, and write the report in the team's own words.
-
-If the faint passive signal is not measurable by the end of Day 2, narrow the experiment to situations where a natural shadow visibly spills into the analysis area. Do not make claims beyond the conditions actually tested.
-
-10. Technology plan
-
-The scientific core runs locally on a laptop using Python, OpenCV, and a small CPU-friendly PyTorch model. A local browser dashboard is the primary interface: it supports recorded-file import, browser-camera capture, analysis, training, and evidence review. It does not require a cloud service, account, or external data upload.
-
-11. Research starting point
-
-Bouman et al., "Turning Corners Into Cameras: Principles and Methods," ICCV 2017:
-https://openaccess.thecvf.com/content_iccv_2017/html/Bouman_Turning_Corners_Into_ICCV_2017_paper.html
-
-This work showed that ordinary RGB video can recover hidden motion from subtle light variations near a corner edge. Umbra uses it as background research, then tests a narrower, practical self-calibration and confidence-aware approach.
-
-12. Product implementation commitments
-
-Umbra is a local, single-user research kit rather than a surveillance product. It estimates anonymous, coarse movement along a one-dimensional hidden track: a position range, approach/retreat direction, speed class, and confidence. It does not identify a person, reconstruct their appearance, or infer pose or actions behind a wall.
-
-The dashboard supports two ways to add footage:
-
-- record a finished calibration or main-camera trial from the browser, then analyse it after recording; or
-- import local calibration, main-camera, and separately recorded ground-truth videos.
-
-The ground-truth workflow is designed for controlled, consent-based experiments. Two printed ArUco markers at known hidden-track endpoints let the system automatically locate the track in ground-truth footage. A separate camera can be synchronised from audio cues, with timestamp fallback. If alignment or automatic labeling is uncertain, evaluation is withheld instead of pretending that a label is trustworthy.
-
-13. Automatic scene setup and refusal behavior
-
-Umbra automatically finds a likely building-corner edge and useful visible-side analysis region from calibration footage. Version one deliberately has no manual ROI or corner drawing: a scene that lacks a stable camera, strong enough edge, usable directional light, or a coherent penumbra signal receives a clear no-coverage or no-reliable-signal result with recapture guidance.
-
-Location and capture time are acquired through browser permission where available, with typed latitude/longitude and timestamp fallback for imported footage. Solar information is used as one geometric clue, not as a substitute for visual evidence.
-
-14. Models, baselines, and evidence
-
-Before field recordings exist, Umbra generates deterministic synthetic corner trials with known hidden motion, calibration footage, and ground truth. These are used to exercise the entire workflow and pretrain a compact temporal model. Field recordings can later fine-tune the same model.
-
-Every experiment compares four methods:
-
-1. Simple frame/background differencing.
-2. A fixed temporal model without scene adaptation.
-3. Geometry and sun-direction rules.
-4. Umbra's scene-normalized temporal model, track-aware smoothing, and confidence gate.
-
-The output state is one of: no coverage, no reliable signal, possible motion, or strong motion. Confidence combines calibration quality, scene coverage, signal strength, temporal consistency, model uncertainty, and disagreement with simpler methods. Bad weather, flat light, glare, camera motion, and ambiguous video must bias the system toward refusal rather than a false alert.
-
-15. Data, privacy, and reports
-
-Large videos, model runs, generated data, and reports are kept in a configurable local data directory outside Git. Each result records its source files, calibration measurements, auto-selected region, metadata, model version, seed/configuration, predicted timeline, ground truth when available, and evaluation metrics.
-
-Completed experiments export a readable HTML evidence report and machine-readable JSON/CSV data. The report shows calibration quality, selected corner/ROI, signal heatmaps, predicted and ground-truth track traces, confidence reasons, and baseline comparison. It exports anonymised trajectory overlays by default; direct-view identity footage remains local. Trials use consented team participants or opaque targets only.
+The project measures a simpler, testable quantity: seconds of warning
+from a cast shadow at a blind corner.

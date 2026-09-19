@@ -53,7 +53,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="Umbra local experiment kit",
         version=__version__,
-        description="Confidence-aware, consent-based hidden-motion corner research.",
+        description="Local kit: pavement-shadow early warning at a blind corner, with measured lead time.",
         lifespan=lifespan,
     )
     app.state.settings = settings

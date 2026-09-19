@@ -1,4 +1,4 @@
-"""Confidence-aware 1D hidden-motion analysis pipeline."""
+"""Confidence-aware pavement-shadow early-warning pipeline."""
 
 from __future__ import annotations
 
@@ -106,24 +106,49 @@ def _speed_and_direction(positions: list[float], timestamps: list[float]) -> tup
     if abs(net_velocity) < 0.035:
         direction = "unknown"
     elif net_velocity > 0:
-        direction = "away_from_corner"
-    else:
         direction = "toward_corner"
+    else:
+        direction = "away_from_corner"
     return direction, speed_class, velocity
 
 
-def _status(coverage: float, present: float, confidence: float) -> tuple[str, list[str]]:
+def _onset(timestamps: list[float], scores: list[float], threshold: float = 0.5, persist: int = 2) -> float | None:
+    run = 0
+    for index, score in enumerate(scores):
+        if score >= threshold:
+            run += 1
+            if run >= persist:
+                return float(timestamps[index - persist + 1])
+        else:
+            run = 0
+    return None
+
+
+def _status(
+    coverage: float,
+    present: float,
+    confidence: float,
+    los_present: bool,
+    lead_time: float | None,
+    shadow_seen: bool,
+) -> tuple[str, list[str]]:
     reasons: list[str] = []
     if coverage < 0.44:
         reasons.append("The corner, visible-side patch, or calibration is unsuitable")
         return "no_coverage", reasons
-    if present < 0.5 or confidence < 0.35:
-        reasons.append("No repeatable hidden-motion signal exceeds calibration noise")
+    if los_present and (not shadow_seen or confidence < 0.35 or lead_time is None or lead_time <= 0):
+        reasons.append("A person entered the frame without a prior pavement-shadow warning")
+        return "entered_view", reasons
+    if not shadow_seen or present < 0.5 or confidence < 0.35:
+        reasons.append("No repeatable pavement-shadow signal exceeds calibration noise")
         return "no_reliable_signal", reasons
+    if los_present and lead_time is not None and lead_time > 0:
+        reasons.append(f"Pavement shadow preceded line-of-sight by {lead_time:.2f} s")
+        return "early_warning", reasons
     if confidence < 0.67:
-        reasons.append("A motion-like cue exists, but confidence is below the strong-evidence threshold")
+        reasons.append("A pavement shadow is present; the walker has not entered the frame")
         return "possible_motion", reasons
-    reasons.append("Temporal signal, calibration, and geometry are mutually consistent")
+    reasons.append("A pavement shadow is approaching the corner before line-of-sight")
     return "strong_motion", reasons
 
 
@@ -251,36 +276,45 @@ def analyse_trial(
             "direction": "unknown",
             "speed_class": "unknown",
             "velocity_track_units_per_s": None,
+            "lead_time_s": None,
+            "shadow_onset_s": None,
+            "los_onset_s": None,
+            "los_detected": False,
             "reasons": assessment.reasons,
             "confidence_factors": {},
-            "model": {"name": "calibration_temporal_evidence", "version": "0.1", "trained": False},
+            "model": {"name": "calibration_temporal_evidence", "version": "0.2", "trained": False},
             "scene_assessment": _serialise_assessment(assessment, calibration),
             "sun": sun,
             "timeline": [],
             "baselines": {},
-            "metrics": {"ground_truth_available": 0, "f1": None, "position_error_norm": None},
+            "metrics": {"ground_truth_available": 0, "f1": None, "position_error_norm": None, "lead_time_s": None},
             "message": "Umbra did not find a defensible automatic corner region. Reframe and recalibrate.",
             "video": {"calibration": calibration_info, "main": main_info},
         }
     update(0.42, "Normalising exposure and extracting temporal residuals")
-    signal = extract_temporal_signal(main_frames, calibration, assessment.roi)
+    signal = extract_temporal_signal(main_frames, calibration, assessment.roi, assessment.edge)
     energies = [float(item["energy"]) for item in signal]
+    los_energies = [float(item["los_energy"]) for item in signal]
     coherences = [float(item["coherence"]) for item in signal]
     energy_scale = calibration.noise * 1.35 + 1.2
+    los_scale = calibration.noise * 2.2 + 1.6
     presence = [_sigmoid((energy - 1.35 * calibration.noise) / energy_scale) for energy in energies]
+    los_scores = [_sigmoid((energy - 3.2 * calibration.noise) / los_scale) for energy in los_energies]
     raw_probabilities = [
         _position_distribution(float(item["position"]), present) for item, present in zip(signal, presence, strict=True)
     ]
     filtered = _track_probabilities(raw_probabilities)
     positions = [_position_from_probability(probability) for probability in filtered]
+    peak_energy = float(np.max(energies)) if energies else 0.0
+    peak_presence = float(np.max(presence)) if presence else 0.0
     coherence = float(np.mean(coherences))
-    signal_strength = float(np.clip(np.median(energies) / (calibration.noise * 3.2 + 1.0), 0.0, 1.0))
-    present_probability = float(np.mean(presence))
+    signal_strength = float(np.clip(peak_energy / (calibration.noise * 3.2 + 1.0), 0.0, 1.0))
+    present_probability = peak_presence
     disagreement = float(
         np.std(
             [
                 _sigmoid((float(np.mean(energies)) - 1.5 * calibration.noise) / (calibration.noise + 1.0)),
-                _sigmoid((float(np.mean(energies)) - 2.8) / 1.7),
+                _sigmoid((peak_energy - 2.8) / 1.7),
                 assessment.coverage_score * (0.35 + 0.65 * coherence),
             ]
         )
@@ -293,7 +327,18 @@ def analyse_trial(
             1.0,
         )
     )
-    state, state_reasons = _status(assessment.coverage_score, present_probability, confidence)
+    shadow_onset = _onset(timestamps, presence)
+    los_onset = _onset(timestamps, los_scores)
+    if shadow_onset is not None and los_onset is not None and los_onset < shadow_onset:
+        los_onset = None
+    lead_time = None
+    if shadow_onset is not None and los_onset is not None:
+        lead_time = round(los_onset - shadow_onset, 3)
+    los_present = los_onset is not None
+    state, state_reasons = _status(
+        assessment.coverage_score, present_probability, confidence, los_present, lead_time,
+        shadow_onset is not None,
+    )
     direction, speed_class, velocity = _speed_and_direction(positions, timestamps)
     if state in {"no_coverage", "no_reliable_signal"}:
         direction, speed_class, velocity = "unknown", "unknown", None
@@ -301,12 +346,13 @@ def analyse_trial(
         {
             "timestamp_s": round(timestamp, 3),
             "presence_probability": round(present, 4),
+            "los_probability": round(los_score, 4),
             "position_norm": round(position, 4),
             "position_bins": [round(float(value), 5) for value in probability],
             "signal_energy": round(energy, 4),
         }
-        for timestamp, present, position, probability, energy in zip(
-            timestamps, presence, positions, filtered, energies, strict=True
+        for timestamp, present, los_score, position, probability, energy in zip(
+            timestamps, presence, los_scores, positions, filtered, energies, strict=True
         )
     ]
     baselines = _baseline_summary(energies, calibration.noise, assessment.coverage_score, coherence, present_probability)
@@ -318,13 +364,25 @@ def analyse_trial(
         if alignment["method"] != "synthetic_clock":
             sync = estimate_audio_offset(main_path, ground_truth_path)
             label_confidence = float(alignment["confidence"])
-            alignment = {**alignment, **sync, "label_method": "aruco_foreground", "label_confidence": label_confidence}
-            alignment["confidence"] = min(label_confidence, float(sync["confidence"]))
-            if float(alignment["confidence"]) < 0.45:
+            label_method = str(alignment.get("method", "unknown"))
+            alignment = {**alignment, **sync, "label_method": label_method, "label_confidence": label_confidence}
+            if float(sync["confidence"]) >= 0.45:
+                alignment["confidence"] = min(label_confidence, float(sync["confidence"]))
+            elif label_confidence >= 0.45:
+                alignment["offset_s"] = 0.0
+                alignment["confidence"] = round(label_confidence * 0.7, 3)
+                alignment["sync_note"] = "Audio sync was unreliable; labels use zero offset and need review."
+            else:
+                alignment["confidence"] = min(label_confidence, float(sync["confidence"]))
+            if float(alignment["confidence"]) < 0.35:
                 labels = []
                 alignment["withheld"] = "Ground-truth alignment confidence is too low"
     metrics = _metrics(timeline, labels, track_length_m, float(alignment.get("offset_s", 0.0)))
+    metrics["lead_time_s"] = lead_time
+    metrics["shadow_onset_s"] = shadow_onset
+    metrics["los_onset_s"] = los_onset
     update(0.90, "Preparing confidence-aware result")
+    tracked = state in {"possible_motion", "strong_motion", "early_warning"}
     return {
         "state": state,
         "confidence": round(confidence, 4),
@@ -332,17 +390,23 @@ def analyse_trial(
         "position_range_norm": [
             round(float(np.quantile(positions, 0.2)), 4),
             round(float(np.quantile(positions, 0.8)), 4),
-        ] if state in {"possible_motion", "strong_motion"} else None,
+        ]
+        if tracked
+        else None,
         "position_range_m": [
             round(float(np.quantile(positions, 0.2)) * track_length_m, 3),
             round(float(np.quantile(positions, 0.8)) * track_length_m, 3),
         ]
-        if track_length_m is not None and state in {"possible_motion", "strong_motion"}
+        if track_length_m is not None and tracked
         else None,
         "direction": direction,
         "speed_class": speed_class,
         "velocity_track_units_per_s": round(velocity, 4) if velocity is not None else None,
-        "model": {"name": "calibration_temporal_evidence", "version": "0.1", "trained": False},
+        "lead_time_s": lead_time,
+        "shadow_onset_s": round(shadow_onset, 3) if shadow_onset is not None else None,
+        "los_onset_s": round(los_onset, 3) if los_onset is not None else None,
+        "los_detected": los_present,
+        "model": {"name": "calibration_temporal_evidence", "version": "0.2", "trained": False},
         "confidence_factors": {
             "coverage": round(assessment.coverage_score, 4),
             "signal_strength": round(signal_strength, 4),

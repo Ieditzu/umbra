@@ -94,7 +94,13 @@ def write_artifacts(
     with predictions_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(
             handle,
-            fieldnames=["timestamp_s", "presence_probability", "position_norm", "signal_energy"],
+            fieldnames=[
+                "timestamp_s",
+                "presence_probability",
+                "los_probability",
+                "position_norm",
+                "signal_energy",
+            ],
         )
         writer.writeheader()
         writer.writerows({key: item.get(key) for key in writer.fieldnames} for item in timeline)
@@ -137,18 +143,18 @@ svg {{ width:100%; background:#0e1a22; border-radius:8px; }} img {{ max-width:10
 <p><strong>Evidence: {_value(result.get('evidence', {}).get('kind', 'unclassified'))}.</strong>
 {_value(result.get('evidence', {}).get('limitation', 'Field performance has not been established.'))}</p>
 <div class="grid"><section class="card"><strong>Confidence</strong><br>{_value(result['confidence'])}</section>
-<section class="card"><strong>Motion probability</strong><br>{_value(result.get('presence_probability'))}</section>
-<section class="card"><strong>Direction</strong><br>{_value(result.get('direction'))}</section>
-<section class="card"><strong>Speed class</strong><br>{_value(result.get('speed_class'))}</section></div>
+<section class="card"><strong>Shadow evidence</strong><br>{_value(result.get('presence_probability'))}</section>
+<section class="card"><strong>Lead time (s)</strong><br>{_value(result.get('lead_time_s'))}</section>
+<section class="card"><strong>Line of sight</strong><br>{_value(result.get('los_onset_s'))}</section></div>
 <h2>Why Umbra made this decision</h2><ul>{reasons}</ul>
 <h2>Automatic scene assessment</h2>{overlay}
 <div class="grid"><section class="card"><strong>Coverage</strong><br>{_value(scene['coverage_score'])}</section>
 <section class="card"><strong>Calibration stability</strong><br>{_value(scene['calibration_stability'])}</section>
 <section class="card"><strong>ROI quality</strong><br>{_value(scene['roi_score'])}</section></div>
-<h2>Presence probability over time</h2>{_line_chart(probability)}
-<h2>Estimated hidden-track probability</h2>{_track_heatmap(timeline)}
-<h2>Estimated normalized position</h2>{_line_chart(positions, colour='#6dd6ff')}
-<p>Position is an unvalidated image-derived track proxy. These curves use independent vertical scales; they are not calibrated distance measurements.</p>
+<h2>Pavement-shadow probability over time</h2>{_line_chart(probability)}
+<h2>Estimated shadow-track probability</h2>{_track_heatmap(timeline)}
+<h2>Estimated normalized shadow position</h2>{_line_chart(positions, colour='#6dd6ff')}
+<p>Position is an unvalidated image-derived track proxy. Lead time is shadow onset minus the first line-of-sight frame on the same camera. These are not Bouman penumbra reconstructions.</p>
 <h2>Method comparison</h2><table><tr><th>Method</th><th>Presence probability</th><th>State</th></tr>{baseline_rows}</table>
 <h2>Ground-truth evaluation</h2><table>{metrics_rows}</table>
 <p>Metrics use timestamp-matched valid labels. Missing metrics mean evaluation was unavailable. Automatic field labels require review.</p>

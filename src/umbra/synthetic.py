@@ -1,7 +1,7 @@
 """Deterministic synthetic trials used before field recordings are available.
 
-The synthetic renderer is a test fixture and pretraining aid, not a claim that
-its simplified optics validate real-world non-line-of-sight performance.
+The renderer draws a visible cast shadow that approaches a corner, then a
+walker entering the frame. It does not simulate Bouman-style penumbra NLOS.
 """
 
 from __future__ import annotations
@@ -53,26 +53,32 @@ def _base_corner(height: int, width: int, rng: np.random.Generator) -> tuple[np.
     return image, edge_x
 
 
-def _add_penumbra(
-    image: np.ndarray,
-    edge_x: int,
-    position: float,
-    strength: float,
-    frame_index: int,
-) -> np.ndarray:
+def _add_cast_shadow(image: np.ndarray, edge_x: int, position: float, strength: float) -> np.ndarray:
+    """Hard-ish shadow on the pavement; position 0 is far, 1 is at the corner."""
     result = image.astype(np.float32)
     height, width = image.shape[:2]
-    center_y = int(height * (0.80 - 0.47 * position))
-    center_x = int(edge_x + width * 0.19)
+    center_y = int(height * (0.64 + 0.22 * position))
+    center_x = int(edge_x + width * (0.22 - 0.06 * position))
     yy, xx = np.mgrid[0:height, 0:width]
-    spread_x, spread_y = width * 0.16, height * 0.11
-    gaussian = np.exp(-(((xx - center_x) / spread_x) ** 2 + ((yy - center_y) / spread_y) ** 2) * 2.2)
-    # A soft, shifting shade is the only target-dependent main-camera cue.
-    shade = strength * gaussian * (0.82 + 0.18 * np.sin(frame_index * 0.7))
+    spread_x, spread_y = width * 0.13, height * 0.07
+    gaussian = np.exp(-(((xx - center_x) / spread_x) ** 2 + ((yy - center_y) / spread_y) ** 2) * 2.6)
+    shade = strength * gaussian
     result[:, :, 0] -= shade * 0.9
     result[:, :, 1] -= shade
-    result[:, :, 2] -= shade * 1.1
+    result[:, :, 2] -= shade * 1.15
     return result.clip(0, 255).astype(np.uint8)
+
+
+def _add_person(image: np.ndarray, edge_x: int, enter: float) -> np.ndarray:
+    """Vertical body in the upper frame, on the visible side of the edge."""
+    result = image.copy()
+    height, _width = image.shape[:2]
+    x = edge_x + 10
+    person_width = 18
+    person_height = int(height * 0.28 * float(np.clip(enter, 0.35, 1.0)))
+    y = int(height * 0.04)
+    cv2.rectangle(result, (x, y), (x + person_width, y + person_height), (38, 40, 44), -1)
+    return result
 
 
 def _ground_truth_frame(height: int, width: int, position: float | None) -> np.ndarray:
@@ -116,25 +122,35 @@ def generate_synthetic_bundle(
 
     for index in range(frames):
         phase = index / max(1, frames - 1)
-        position = 0.08 + 0.84 * phase
-        if seed % 2:
-            position = 0.92 - 0.84 * phase
         exposure = 0.95 + 0.06 * np.sin(index / 15)
         frame = (base.astype(np.float32) * exposure + rng.normal(0, 1.2, base.shape)).clip(0, 255).astype(np.uint8)
-        strength = {"directional": 21.0, "flat": 3.0, "reflective": 11.0}.get(lighting, 21.0)
-        if target_present:
-            frame = _add_penumbra(frame, edge_x, position, strength, index)
+        strength = {"directional": 48.0, "flat": 4.0, "reflective": 22.0}.get(lighting, 48.0)
+        position = 0.0
+        present = False
+        los = False
+        if target_present and phase >= 0.15:
+            if phase < 0.70:
+                position = (phase - 0.15) / 0.55
+                present = True
+                frame = _add_cast_shadow(frame, edge_x, position, strength)
+            else:
+                position = 1.0
+                present = True
+                los = True
+                frame = _add_cast_shadow(frame, edge_x, 1.0, strength)
+                frame = _add_person(frame, edge_x, (phase - 0.70) / 0.30)
         if lighting == "reflective":
             glare = int(18 + 15 * np.sin(index / 4))
             cv2.ellipse(frame, (width - 65, 65), (55, 25), 0, 0, 360, (glare, glare, glare), -1)
         main.append(frame)
-        ground_truth.append(_ground_truth_frame(height, width, position if target_present else None))
+        ground_truth.append(_ground_truth_frame(height, width, position if present else None))
         labels.append(
             {
                 "frame": index,
                 "timestamp_s": round(index / fps, 4),
                 "position_norm": round(position, 5),
-                "present": target_present,
+                "present": present,
+                "los": los,
             }
         )
 
@@ -151,7 +167,7 @@ def generate_synthetic_bundle(
         writer.writeheader()
         writer.writerows(labels)
     metadata = {
-        "generator": "umbra.synthetic.v1",
+        "generator": "umbra.synthetic.v2",
         "seed": seed,
         "frames": frames,
         "fps": fps,
@@ -159,7 +175,7 @@ def generate_synthetic_bundle(
         "lighting": lighting,
         "track_length_m": 4.0,
         "corner_edge_x": edge_x,
-        "warning": "Synthetic optical cues are for pipeline tests and pretraining only.",
+        "warning": "Synthetic cast-shadow cues test the pipeline only, not outdoor lead time.",
     }
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     return SyntheticBundle(

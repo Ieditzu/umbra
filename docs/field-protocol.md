@@ -1,31 +1,43 @@
-# Umbra controlled field protocol
+# Umbra field protocol — shadow before line-of-sight
 
-## Before recording
+Film a **building corner** (a wall you can hide behind), not a pillar in an open plaza unless the walker is truly behind it.
 
-- Obtain consent from every participant. Use an opaque board or wheeled silhouette if a person is not necessary.
-- Do not point the main camera at people who are directly visible. It should see only the visible-side pavement/wall and corner edge.
-- Fix the main camera physically. Disable digital stabilization if it causes crop changes.
-- Print ArUco dictionary `DICT_4X4_50` markers with IDs **10** and **11**. Put ID 10 at the hidden-track endpoint nearest the corner and ID 11 at the far endpoint. Measure their separation.
-- Place the ground-truth camera so both markers and the full controlled track are visible. It is a labeling device, not an input to the main inference model.
-- Start the ground-truth camera with at least three seconds of an empty track for foreground-model warm-up. Missing markers and warm-up samples are excluded from evaluation; they are not negative examples. Review automatic labels: foreground subtraction can miss stationary objects or confuse unrelated movement with the target.
+## Geometry
 
-## Capture order
+```
+  hidden path: walker starts here
+  11 · · · · · 10
+  =================  wall
+                   | edge
+                   | visible pavement  ← Camera 1
+                   | walker later ENTERS the frame here
+```
 
-1. Record 8–15 seconds of empty main-camera calibration footage under the same lighting and exposure conditions as the trial.
-2. Start the main and ground-truth cameras. Make a shared audible clap or sharp visual cue in both recordings if possible.
-3. Move the target along the hidden track while keeping it outside the main camera's direct line of sight.
-4. Repeat target-present and target-absent trials. Record surface, weather, cloud cover, time, and any camera changes in the scene notes.
+Sun must throw the walker's shadow **onto Camera 1's pavement** before their body clears the edge. If the shadow falls behind them, change corner or time of day.
 
-## Acceptance rules
+## Camera 1 (main)
 
-- If Umbra reports `no_coverage`, reframe the main camera or wait for directional light; do not hand-draw a replacement ROI.
-- If ground-truth synchronization confidence is low, do not report position error for that trial.
-- Audio synchronization requires local `ffmpeg`. Without usable audio, the zero-offset fallback has low confidence and evaluation is withheld. The estimated offset is main-camera time minus reference-camera time. Matching accepts only valid labels within 75 ms.
-- Treat `possible_motion` as an observation requiring further controlled trials, not an alert.
-- Test at least three corners and leave one whole corner out of each model comparison split.
+- Tape it down. Same pose for empty and trial. Stabilization off if it crops.
+- Frame: vertical edge + 1–2 m of pavement + a bit of the opening so the walker can enter at the end.
+- **empty**: 8–15 s, nobody approaching.
+- **trial (mers)**: one continuous clip. Walker starts fully hidden. Shadow should appear on the pavement first. Then they walk into view.
+
+If you see the person the whole time, or a hard shadow of someone walking in front of the camera, you are not testing a blind corner.
+
+## Camera 2 (optional ground truth)
+
+On the hidden path. Markers: ArUco `DICT_4X4_50` **10** near the corner, **11** far. Clap once so both cameras hear it. This labels where they were; Umbra does not use these pixels for the warning.
+
+## Analysis outcomes
+
+- `no_coverage` — no usable edge/pavement patch. Reframe.
+- `no_reliable_signal` — empty or too weak. Valid on empty trials.
+- `possible_motion` / `strong_motion` — pavement shadow, person not yet in frame.
+- `early_warning` — shadow, then person; **lead time > 0**.
+- `entered_view` — person appeared with no prior shadow warning.
 
 ## What to report
 
-For each method, retain presence precision/recall/F1, false-alert rate, normalized or metric position error, direction accuracy, lead time where direct visibility can be measured, calibration time, and correct-refusal rate. Report lighting and surface conditions with every aggregate result.
+Lead time (s), fraction of approaches with lead time > 0, false-alert rate on empty trials, correct refusals, lighting and surface. Keep failures.
 
-This is the intended field evaluation, not a list of metrics already implemented. Current exports provide timestamp-matched frame-level confusion counts, precision/recall/F1, false-alert rate and position-proxy error. Baseline panels contain clip-level heuristic scores only. Direction accuracy, lead time, calibrated metric position, correct-refusal ground truth and held-out-corner comparisons require additional field measurements and analysis. Report unavailable quantities explicitly instead of substituting synthetic scores.
+Do not hand-draw an ROI. Do not describe a synthetic demo as outdoor footage.
