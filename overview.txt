@@ -52,9 +52,10 @@ when the corner stays empty.
 
 Inputs
 
-- A fixed RGB camera aimed at the visible pavement and the vertical
-  corner edge, with enough of the opening that a walker can later
-  enter the frame.
+- A fixed RGB camera with a wide, clear view of the vertical corner
+  edge, the visible pavement where the shadow will arrive, and the
+  full body of the walker after they clear the edge. This is a route
+  view, not a close facial shot.
 - A short empty-scene calibration video (same lock-off, nobody
   approaching).
 - Optional second camera on the hidden path for independent labels
@@ -65,7 +66,8 @@ Processing
 1. Detect the corner edge and a pavement region of interest.
 2. Build a background from the empty calibration.
 3. On the trial clip, measure darkening in the pavement ROI (shadow)
-   and residual energy in a band above that ROI (person entering).
+   and anonymous foreground residual in a broad entry zone above it
+   (the full body becoming visible).
 4. Track a coarse 1-D shadow position along the pavement.
 5. Gate on calibration quality, shadow strength, and temporal
    coherence. Refuse when the scene or signal is unusable.
@@ -106,8 +108,9 @@ refuses more empty trials than a fixed intensity threshold.
 
 7. Controlled experiment
 
-Camera 1 (main): visible pavement + edge + a bit of the opening.
-Tape it down. Same pose for empty and trial.
+Camera 1 (main): full route view — visible pavement + edge + shadow
+path + enough of the opening to show the walker's full body after
+entry. Tape it down. Same pose for empty and trial.
 
 Camera 2 (optional ground truth): hidden path, markers 10 and 11.
 
@@ -115,7 +118,7 @@ For every trial
 
 - Empty calibration, 8–15 s, nobody on either side.
 - One continuous main clip: walker starts fully hidden, shadow should
-  appear first, then the walker enters the frame.
+  appear first, then their full body enters the frame.
 - Sun must throw the shadow toward the main camera. If the shadow
   falls behind the walker, pick another corner or time of day.
 - Empty-target trials (nobody comes) for false alerts.
@@ -143,6 +146,11 @@ visible pavement before the body does. Fails in overcast light, when
 the sun is behind the walker, on busy/reflective ground, or if the
 camera moves. A hard shadow in the main camera is line-of-sight
 photometry of the shadow, not reconstruction of a hidden scene.
+
+The full-body view is used only to make the entry timestamp and the
+shadow-to-body comparison reviewable. Umbra does not identify the
+walker, infer pose, or reconstruct appearance; keep the camera a
+wide route view rather than a close facial shot.
 
 9. Technology
 

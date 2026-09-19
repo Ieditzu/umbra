@@ -45,7 +45,7 @@ The dashboard then enables **Pretrain temporal model**; the same route is availa
 ## Field workflow
 
 1. Create a local scene and provide approximate capture time and location.
-2. Tape the main camera on the **visible pavement + corner edge**, with enough of the opening that a walker can later enter the frame. Record an empty calibration, then one continuous trial: walker starts hidden, shadow should appear first, then they step into view.
+2. Tape the main camera on a **wide route view**: the visible pavement, corner edge, shadow path, and enough of the opening to show the walker’s full body after entry. Record an empty calibration, then one continuous trial: walker starts hidden, shadow should appear first, then they step into view. Avoid a close facial shot; Umbra only uses anonymous foreground entry to timestamp the comparison.
 3. Optional: a second camera on the hidden path with ArUco **10** (corner) and **11** (far). Clap for sync. This scores position; it is not the warning.
 4. Import or record the clips, register a trial, run analysis.
 5. Read lead time, shadow onset, line-of-sight onset, and the refusal reasons. Empty trials and no-coverage results count.

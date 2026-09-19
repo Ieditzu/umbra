@@ -99,9 +99,16 @@ def los_band(
     frame_height: int,
     edge: tuple[int, int, int, int] | None = None,
 ) -> tuple[int, int, int, int]:
-    """Far/top strip covering the opening from the edge through the pavement ROI."""
+    """Broad upper entry zone for anonymous walker/foreground onset.
+
+    A main camera is intentionally framed wide enough to show the corner,
+    the pavement shadow path, and a walker after they clear the corner.  The
+    upper half is a useful conservative entry zone: it sees the upper body as
+    it becomes visible while remaining largely separate from the lower
+    pavement-shadow ROI.
+    """
     x, _y, width, _height = roi
-    band_h = max(18, int(frame_height * 0.16))
+    band_h = max(32, int(frame_height * 0.50))
     if edge is not None:
         edge_x = int((edge[0] + edge[2]) / 2)
         x0 = min(x, edge_x)

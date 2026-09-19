@@ -119,6 +119,7 @@ function ResultPanel({ result }: { result: AnalysisResult }) {
             <div><dt>Calibration stability</dt><dd>{fmt(result.scene_assessment.calibration_stability)}</dd></div>
             <div><dt>ROI quality</dt><dd>{fmt(result.scene_assessment.roi_score)}</dd></div>
             <div><dt>Selected ROI</dt><dd>{result.scene_assessment.roi ? "Automatic" : "None"}</dd></div>
+            <div><dt>Entry zone</dt><dd>{result.scene_assessment.entry_zone ? "Automatic" : "None"}</dd></div>
           </dl>
         </div>
       </div>
@@ -143,7 +144,7 @@ function ResultPanel({ result }: { result: AnalysisResult }) {
         <a className="button secondary" href={reportUrl} target="_blank" rel="noreferrer">Open HTML report</a>
         <a className="button ghost" href={predictionsUrl}>Download predictions CSV</a>
       </div>
-      <p className="privacy-note">Umbra reports coarse anonymous motion only. It does not identify a person, reconstruct appearance, or infer pose.</p>
+      <p className="privacy-note">Umbra uses the full-body entry only to timestamp anonymous foreground motion. It does not identify a person, reconstruct appearance, or infer pose.</p>
     </section>
   );
 }
@@ -516,7 +517,7 @@ export default function App() {
               <section className="panel capture-panel">
                 <div className="panel-heading"><h2>Camera capture</h2><span className="step">1</span></div>
                 <video ref={videoRef} autoPlay muted playsInline className={streaming ? "camera active" : "camera"} />
-                <p className="hint">Empty calibration first. Then one trial: walker hidden, shadow on pavement, then they enter the frame.</p>
+                <p className="hint">Frame the corner, the shadow path, and the walker’s full-body entry. Record an empty calibration first; then one trial: walker hidden, shadow on pavement, then body enters view.</p>
                 <div className="capture-actions">
                   {!streaming ? <button className="button secondary" disabled={busy} onClick={() => void startCamera()}>Enable camera</button> : <button className="button ghost" onClick={stopCamera}>Stop camera</button>}
                   {streaming && !captureRole && <><button className="button secondary" disabled={busy} onClick={() => record("calibration")}>Record calibration</button><button className="button primary" disabled={busy} onClick={() => record("main")}>Record trial</button></>}

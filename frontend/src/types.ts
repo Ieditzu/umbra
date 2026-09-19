@@ -80,6 +80,7 @@ export interface AnalysisResult {
   scene_assessment: {
     edge: number[] | null;
     roi: number[] | null;
+    entry_zone?: number[] | null;
     coverage_score: number;
     calibration_stability: number;
     roi_score: number;

@@ -19,6 +19,7 @@ from .vision import (
     detect_corner_and_roi,
     extract_temporal_signal,
     load_ground_truth,
+    los_band,
 )
 
 Progress = Callable[[float, str], None]
@@ -32,6 +33,9 @@ def _serialise_assessment(assessment: SceneAssessment, calibration: CalibrationM
     return {
         "edge": list(assessment.edge) if assessment.edge else None,
         "roi": list(assessment.roi) if assessment.roi else None,
+        "entry_zone": list(los_band(assessment.roi, calibration.background.shape[0], assessment.edge))
+        if assessment.roi
+        else None,
         "edge_score": round(assessment.edge_score, 4),
         "roi_score": round(assessment.roi_score, 4),
         "coverage_score": round(assessment.coverage_score, 4),

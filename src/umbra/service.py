@@ -146,6 +146,7 @@ class UmbraService:
             analysis_id=analysis_id,
             result=result,
             calibration_path=Path(calibration["path"]),
+            main_path=Path(main["path"]),
         )
         self.store.create_analysis(trial_id, artifact_paths["result"], analysis_id=analysis_id)
         return {"analysis_id": analysis_id, "artifacts": artifact_paths, **result}

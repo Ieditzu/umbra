@@ -10,6 +10,9 @@ from pathlib import Path
 from typing import Any
 
 import cv2
+import numpy as np
+
+from .vision import los_band
 
 
 def _line_chart(values: list[float], *, width: int = 760, height: int = 150, colour: str = "#87f5c6") -> str:
@@ -47,23 +50,85 @@ def _track_heatmap(timeline: list[dict[str, Any]]) -> str:
     return f'<svg viewBox="0 0 760 160" role="img" aria-label="hidden-track probability heatmap">{"".join(cells)}</svg>'
 
 
-def _scene_overlay(calibration_path: Path, assessment: dict[str, Any], destination: Path) -> str | None:
-    capture = cv2.VideoCapture(str(calibration_path))
+def _read_frame(path: Path, timestamp_s: float = 0.0) -> np.ndarray | None:
+    capture = cv2.VideoCapture(str(path))
+    if timestamp_s:
+        capture.set(cv2.CAP_PROP_POS_MSEC, timestamp_s * 1000)
     ok, frame = capture.read()
     capture.release()
     if not ok:
         return None
-    # ROI coordinates belong to the analysis image (maximum width 480).
     if frame.shape[1] > 480:
         frame = cv2.resize(frame, (480, round(frame.shape[0] * 480 / frame.shape[1])))
+    return frame
+
+
+def _label(frame: np.ndarray, text: str, origin: tuple[int, int], colour: tuple[int, int, int]) -> None:
+    x, y = origin
+    (width, height), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.43, 1)
+    cv2.rectangle(frame, (x - 3, max(0, y - height - 5)), (x + width + 3, y + 4), (8, 18, 24), -1)
+    cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.43, colour, 1, cv2.LINE_AA)
+
+
+def _annotate_scene(
+    frame: np.ndarray,
+    assessment: dict[str, Any],
+    title: str,
+) -> np.ndarray:
+    """Draw the automatically selected geometry, not an identity annotation."""
+
+    overlay = frame.copy()
     edge, roi = assessment.get("edge"), assessment.get("roi")
     if edge:
-        cv2.line(frame, tuple(edge[:2]), tuple(edge[2:]), (255, 221, 90), 3)
+        cv2.line(overlay, tuple(edge[:2]), tuple(edge[2:]), (255, 221, 90), 3)
+        _label(overlay, "corner edge", (12, 22), (90, 221, 255))
     if roi:
         x, y, width, height = roi
-        cv2.rectangle(frame, (x, y), (x + width, y + height), (112, 243, 196), 2)
+        cv2.rectangle(overlay, (x, y), (x + width, y + height), (112, 243, 196), 2)
+        _label(overlay, "pavement shadow ROI", (x + 4, min(overlay.shape[0] - 6, y + 18)), (196, 243, 112))
+    entry_zone = assessment.get("entry_zone")
+    if not entry_zone and roi:
+        entry_zone = list(los_band(tuple(roi), overlay.shape[0], tuple(edge) if edge else None))
+    if entry_zone:
+        x, y, width, height = entry_zone
+        cv2.rectangle(overlay, (x, y), (x + width, y + height), (230, 142, 255), 2)
+        _label(overlay, "anonymous body-entry zone", (x + 4, min(overlay.shape[0] - 6, y + height - 6)), (255, 182, 243))
+    _label(overlay, title, (12, overlay.shape[0] - 12), (235, 245, 242))
+    return overlay
+
+
+def _scene_overlay(
+    calibration_path: Path,
+    main_path: Path,
+    assessment: dict[str, Any],
+    result: dict[str, Any],
+    destination: Path,
+) -> str | None:
+    """Create a contact sheet with the geometry and detected event frames."""
+
+    frames: list[np.ndarray] = []
+    calibration = _read_frame(calibration_path)
+    if calibration is not None:
+        frames.append(_annotate_scene(calibration, assessment, "calibration: selected geometry"))
+    for key, label in (("shadow_onset_s", "shadow onset"), ("los_onset_s", "body-entry onset")):
+        timestamp = result.get(key)
+        if isinstance(timestamp, (int, float)):
+            frame = _read_frame(main_path, float(timestamp))
+            if frame is not None:
+                frames.append(_annotate_scene(frame, assessment, f"{label}: {float(timestamp):.2f} s"))
+    if not frames:
+        return None
+    widest = max(frame.shape[1] for frame in frames)
+    normalized = [
+        frame if frame.shape[1] == widest else cv2.resize(frame, (widest, round(frame.shape[0] * widest / frame.shape[1])))
+        for frame in frames
+    ]
+    divider = np.full((5, widest, 3), (8, 18, 24), dtype=np.uint8)
+    sheet = normalized[0]
+    for frame in normalized[1:]:
+        sheet = np.vstack((sheet, divider, frame))
     overlay_path = destination / "scene_assessment.png"
-    cv2.imwrite(str(overlay_path), frame)
+    cv2.imwrite(str(overlay_path), sheet)
     return overlay_path.name
 
 
@@ -82,6 +147,7 @@ def write_artifacts(
     analysis_id: str,
     result: dict[str, Any],
     calibration_path: Path,
+    main_path: Path,
 ) -> dict[str, str]:
     """Persist JSON/CSV/HTML plus a non-identifying scene diagnostic image."""
 
@@ -104,7 +170,7 @@ def write_artifacts(
         )
         writer.writeheader()
         writer.writerows({key: item.get(key) for key in writer.fieldnames} for item in timeline)
-    overlay_name = _scene_overlay(calibration_path, result["scene_assessment"], destination)
+    overlay_name = _scene_overlay(calibration_path, main_path, result["scene_assessment"], result, destination)
     probability = [float(item["presence_probability"]) for item in timeline]
     positions = [float(item["position_norm"]) for item in timeline]
     baselines = result.get("baselines", {})
@@ -147,7 +213,7 @@ svg {{ width:100%; background:#0e1a22; border-radius:8px; }} img {{ max-width:10
 <section class="card"><strong>Lead time (s)</strong><br>{_value(result.get('lead_time_s'))}</section>
 <section class="card"><strong>Line of sight</strong><br>{_value(result.get('los_onset_s'))}</section></div>
 <h2>Why Umbra made this decision</h2><ul>{reasons}</ul>
-<h2>Automatic scene assessment</h2>{overlay}
+<h2>Automatic scene assessment and event frames</h2>{overlay}
 <div class="grid"><section class="card"><strong>Coverage</strong><br>{_value(scene['coverage_score'])}</section>
 <section class="card"><strong>Calibration stability</strong><br>{_value(scene['calibration_stability'])}</section>
 <section class="card"><strong>ROI quality</strong><br>{_value(scene['roi_score'])}</section></div>
@@ -159,7 +225,7 @@ svg {{ width:100%; background:#0e1a22; border-radius:8px; }} img {{ max-width:10
 <h2>Ground-truth evaluation</h2><table>{metrics_rows}</table>
 <p>Metrics use timestamp-matched valid labels. Missing metrics mean evaluation was unavailable. Automatic field labels require review.</p>
 <h2>Reproduction details</h2><pre style="white-space:pre-wrap;overflow-wrap:anywhere">{html.escape(json.dumps(result.get('provenance', {}), indent=2))}</pre>
-<p class="muted">This report is not evidence of a person's identity, pose, or appearance. Low-confidence and no-coverage results are expected safety behavior.</p>
+<p class="muted">The annotated frames show only automatic corner, pavement, and anonymous entry-zone geometry. Umbra does not identify a person or infer pose. Low-confidence and no-coverage results are expected safety behavior.</p>
 </main></body></html>"""
     report_directory.mkdir(parents=True, exist_ok=True)
     report_path = report_directory / f"{analysis_id}.html"

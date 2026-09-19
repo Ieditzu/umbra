@@ -18,7 +18,7 @@ Sun must throw the walker's shadow **onto Camera 1's pavement** before their bod
 ## Camera 1 (main)
 
 - Tape it down. Same pose for empty and trial. Stabilization off if it crops.
-- Frame: vertical edge + 1–2 m of pavement + a bit of the opening so the walker can enter at the end.
+- Frame a wide route view: vertical edge + 1–2 m of pavement + the shadow path + enough of the opening for the walker’s **full body** to enter at the end. This is clearer evidence of `shadow → body entry`; do not make it a close facial shot.
 - **empty**: 8–15 s, nobody approaching.
 - **trial (mers)**: one continuous clip. Walker starts fully hidden. Shadow should appear on the pavement first. Then they walk into view.
 
