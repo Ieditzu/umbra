@@ -59,7 +59,10 @@ Inputs
 - A short empty-scene calibration video (same lock-off, nobody
   approaching).
 - Optional second camera on the hidden path for independent labels
-  (ArUco 10 near the corner, 11 far). Not used for the warning.
+  (ArUco 10 near the corner, 11 far). If markers are unavailable,
+  the local dashboard can save a manual review: click a corner-side
+  reference point, a far reference point, and the walker in selected
+  frames. Not used for the warning.
 
 Processing
 
@@ -71,6 +74,10 @@ Processing
 4. Track a coarse 1-D shadow position along the pavement.
 5. Gate on calibration quality, shadow strength, and temporal
    coherence. Refuse when the scene or signal is unusable.
+6. For controlled evaluation, use ArUco labels when available or
+   clearly label a markerless truth video as operator-reviewed. A
+   reviewer can also mark the first full-body entry frame in the main
+   video; that timestamp is reported as manual, not automatic.
 
 Outputs
 
@@ -113,6 +120,10 @@ path + enough of the opening to show the walker's full body after
 entry. Tape it down. Same pose for empty and trial.
 
 Camera 2 (optional ground truth): hidden path, markers 10 and 11.
+When you cannot use markers, film the whole route stably; in Umbra's
+Manual labels panel, click the near/far route endpoints once and the
+walker's feet in several paused frames. These become manual labels,
+not model predictions.
 
 For every trial
 

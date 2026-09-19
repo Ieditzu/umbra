@@ -110,6 +110,7 @@ class UmbraService:
             ground_truth_path=Path(ground_truth["path"]) if ground_truth else None,
             scene=scene,
             track_length_m=trial.get("track_length_m"),
+            manual_ground_truth=self.store.get_manual_ground_truth(trial_id),
             progress=progress,
         )
         checkpoint = self.settings.model_dir / "synthetic_temporal_v1.pt"

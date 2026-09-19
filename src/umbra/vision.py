@@ -340,6 +340,35 @@ def find_person_track_labels(path: Path) -> list[dict[str, float | bool]]:
     return labels
 
 
+def manual_track_labels(review: dict[str, Any]) -> tuple[list[dict[str, float | bool]], dict[str, Any]]:
+    """Turn reviewed endpoint and walker clicks into normalized route labels."""
+
+    corner, far = review.get("corner"), review.get("far_point")
+    samples = review.get("samples", [])
+    if not isinstance(corner, dict) or not isinstance(far, dict) or not isinstance(samples, list):
+        return [], {"method": "manual_review", "offset_s": 0.0, "confidence": 0.0, "label_limitations": "Set both route endpoints and at least one walker point."}
+    start = np.array([float(corner.get("x", 0)), float(corner.get("y", 0))])
+    end = np.array([float(far.get("x", 0)), float(far.get("y", 0))])
+    vector = end - start
+    denominator = float(np.dot(vector, vector))
+    if denominator < 1e-5 or not samples:
+        return [], {"method": "manual_review", "offset_s": 0.0, "confidence": 0.0, "label_limitations": "Route endpoints are too close or no walker points were saved."}
+    labels: list[dict[str, float | bool]] = []
+    for sample in sorted(samples, key=lambda item: float(item.get("timestamp_s", 0))):
+        if not isinstance(sample, dict):
+            continue
+        point = np.array([float(sample.get("x", 0)), float(sample.get("y", 0))])
+        position = float(np.clip(np.dot(point - start, vector) / denominator, 0.0, 1.0))
+        labels.append({"timestamp_s": float(sample.get("timestamp_s", 0)), "position_norm": position, "present": True, "valid": True})
+    return labels, {
+        "method": "manual_review",
+        "offset_s": 0.0,
+        "confidence": 0.9 if labels else 0.0,
+        "valid_samples": len(labels),
+        "label_limitations": "Route endpoints and walker positions were manually clicked; review remains operator-supplied.",
+    }
+
+
 def load_ground_truth(path: Path) -> tuple[list[dict[str, float | bool]], dict[str, Any]]:
     """Prefer a synthetic fixture's labels; otherwise auto-label marker or person footage."""
 

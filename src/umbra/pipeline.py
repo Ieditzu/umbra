@@ -20,6 +20,7 @@ from .vision import (
     extract_temporal_signal,
     load_ground_truth,
     los_band,
+    manual_track_labels,
 )
 
 Progress = Callable[[float, str], None]
@@ -257,6 +258,7 @@ def analyse_trial(
     ground_truth_path: Path | None,
     scene: dict[str, Any],
     track_length_m: float | None,
+    manual_ground_truth: dict[str, Any] | None = None,
     progress: Progress | None = None,
 ) -> dict[str, Any]:
     """Run the complete, conservative analysis for one locally stored trial."""
@@ -333,6 +335,11 @@ def analyse_trial(
     )
     shadow_onset = _onset(timestamps, presence)
     los_onset = _onset(timestamps, los_scores)
+    entry_source = "automatic"
+    manual_entry = manual_ground_truth.get("main_entry_timestamp_s") if manual_ground_truth else None
+    if isinstance(manual_entry, (int, float)) and 0 <= manual_entry <= (timestamps[-1] if timestamps else 0):
+        los_onset = float(manual_entry)
+        entry_source = "manual_review"
     if shadow_onset is not None and los_onset is not None and los_onset < shadow_onset:
         los_onset = None
     lead_time = None
@@ -362,25 +369,28 @@ def analyse_trial(
     baselines = _baseline_summary(energies, calibration.noise, assessment.coverage_score, coherence, present_probability)
     labels: list[dict[str, float | bool]] = []
     alignment: dict[str, Any] = {"method": "not_requested", "confidence": 0.0}
-    if ground_truth_path:
+    if manual_ground_truth:
+        update(0.76, "Using manually reviewed ground-truth labels")
+        labels, alignment = manual_track_labels(manual_ground_truth)
+    elif ground_truth_path:
         update(0.76, "Auto-labeling controlled ground-truth footage")
         labels, alignment = load_ground_truth(ground_truth_path)
-        if alignment["method"] != "synthetic_clock":
-            sync = estimate_audio_offset(main_path, ground_truth_path)
-            label_confidence = float(alignment["confidence"])
-            label_method = str(alignment.get("method", "unknown"))
-            alignment = {**alignment, **sync, "label_method": label_method, "label_confidence": label_confidence}
-            if float(sync["confidence"]) >= 0.45:
-                alignment["confidence"] = min(label_confidence, float(sync["confidence"]))
-            elif label_confidence >= 0.45:
-                alignment["offset_s"] = 0.0
-                alignment["confidence"] = round(label_confidence * 0.7, 3)
-                alignment["sync_note"] = "Audio sync was unreliable; labels use zero offset and need review."
-            else:
-                alignment["confidence"] = min(label_confidence, float(sync["confidence"]))
-            if float(alignment["confidence"]) < 0.35:
-                labels = []
-                alignment["withheld"] = "Ground-truth alignment confidence is too low"
+    if labels and ground_truth_path and alignment["method"] != "synthetic_clock":
+        sync = estimate_audio_offset(main_path, ground_truth_path)
+        label_confidence = float(alignment["confidence"])
+        label_method = str(alignment.get("method", "unknown"))
+        alignment = {**alignment, **sync, "label_method": label_method, "label_confidence": label_confidence}
+        if float(sync["confidence"]) >= 0.45:
+            alignment["confidence"] = min(label_confidence, float(sync["confidence"]))
+        elif label_confidence >= 0.45:
+            alignment["offset_s"] = 0.0
+            alignment["confidence"] = round(label_confidence * 0.7, 3)
+            alignment["sync_note"] = "Audio sync was unreliable; labels use zero offset and need review."
+        else:
+            alignment["confidence"] = min(label_confidence, float(sync["confidence"]))
+        if float(alignment["confidence"]) < 0.35:
+            labels = []
+            alignment["withheld"] = "Ground-truth alignment confidence is too low"
     metrics = _metrics(timeline, labels, track_length_m, float(alignment.get("offset_s", 0.0)))
     metrics["lead_time_s"] = lead_time
     metrics["shadow_onset_s"] = shadow_onset
@@ -410,6 +420,7 @@ def analyse_trial(
         "shadow_onset_s": round(shadow_onset, 3) if shadow_onset is not None else None,
         "los_onset_s": round(los_onset, 3) if los_onset is not None else None,
         "los_detected": los_present,
+        "entry_source": entry_source,
         "model": {"name": "calibration_temporal_evidence", "version": "0.2", "trained": False},
         "confidence_factors": {
             "coverage": round(assessment.coverage_score, 4),

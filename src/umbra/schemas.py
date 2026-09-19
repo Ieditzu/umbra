@@ -57,6 +57,28 @@ class Trial(TrialCreate):
     created_at: datetime
 
 
+class ManualPoint(BaseModel):
+    """A click position normalized to the displayed video frame."""
+
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+
+
+class ManualTrackSample(ManualPoint):
+    timestamp_s: float = Field(ge=0, le=86_400)
+
+
+class ManualGroundTruth(BaseModel):
+    """Reviewed labels for one markerless ground-truth recording."""
+
+    ground_truth_media_id: str
+    corner: ManualPoint | None = None
+    far_point: ManualPoint | None = None
+    samples: list[ManualTrackSample] = Field(default_factory=list, max_length=1_000)
+    main_entry_timestamp_s: float | None = Field(default=None, ge=0, le=86_400)
+    updated_at: datetime | None = None
+
+
 class Job(BaseModel):
     id: str
     kind: str

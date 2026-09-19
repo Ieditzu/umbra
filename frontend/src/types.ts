@@ -33,6 +33,25 @@ export interface Trial {
   created_at: string;
 }
 
+export interface ManualPoint {
+  x: number;
+  y: number;
+}
+
+export interface ManualTrackSample extends ManualPoint {
+  timestamp_s: number;
+}
+
+export interface ManualGroundTruth {
+  trial_id: string;
+  ground_truth_media_id: string;
+  corner: ManualPoint | null;
+  far_point: ManualPoint | null;
+  samples: ManualTrackSample[];
+  main_entry_timestamp_s: number | null;
+  updated_at?: string | null;
+}
+
 export interface SceneDetail {
   scene: Scene;
   media: MediaAsset[];

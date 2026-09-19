@@ -97,6 +97,11 @@ textarea { min-height: 68px; resize: vertical; }
 .trial-list .panel-heading > span { color: #95d9c2; font-size: .8rem; }
 .trial-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 0; border-top: 1px solid #294247; }
 .trial-row:first-of-type { border-top: 0; }.trial-row div { display: grid; gap: 4px; }.trial-row strong { font-size: .82rem; }.trial-row span { color: #8da3a4; font-size: .72rem; }
+.trial-actions { display: flex !important; align-items: center; gap: 8px; }
+.manual-review { margin-top: 14px; padding: 18px; }.manual-review .panel-heading { align-items: flex-start; }.manual-review h2 { margin-bottom: 0; }
+.review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }.review-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; min-height: 34px; margin-bottom: 8px; }
+.review-video { position: relative; overflow: hidden; border: 1px solid #385358; border-radius: 6px; background: #071014; line-height: 0; }.review-video video { display: block; width: 100%; max-height: 360px; background: #071014; }.review-click-surface { position: absolute; z-index: 1; inset: 0 0 42px; width: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; cursor: crosshair; }.manual-point { position: absolute; z-index: 2; transform: translate(-50%, -50%); padding: 4px 6px; border: 2px solid; border-radius: 999px; background: #0b1519dd; color: #eefaf5; font-size: .63rem; font-weight: 800; line-height: 1; pointer-events: none; white-space: nowrap; }.manual-point.corner { border-color: #ffdd5a; }.manual-point.far { border-color: #78e9c2; }.manual-point.walker { border-color: #e68cff; }
+.review-time { margin: 7px 0 0; color: #8da3a4; font-size: .72rem; }.review-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 13px; border-top: 1px solid #294247; color: #96acab; font-size: .74rem; }
 
 .results { margin-top: 14px; }
 .results .panel-heading { margin-bottom: 14px; }.results .eyebrow { margin-bottom: 5px; }
@@ -114,9 +119,9 @@ textarea { min-height: 68px; resize: vertical; }
 footer { display: flex; justify-content: space-between; gap: 16px; padding: 12px 22px; border-top: 1px solid #284046; color: #71898b; font-size: .68rem; }
 
 @media (max-width: 940px) {
-  .app-layout { grid-template-columns: 230px minmax(0, 1fr); }.capture-grid, .metrics-grid, .baseline-grid { grid-template-columns: 1fr 1fr; }.trial-panel { align-items: stretch; flex-direction: column; }.trial-controls { min-width: 0; }
+  .app-layout { grid-template-columns: 230px minmax(0, 1fr); }.capture-grid, .metrics-grid, .baseline-grid, .review-grid { grid-template-columns: 1fr 1fr; }.trial-panel { align-items: stretch; flex-direction: column; }.trial-controls { min-width: 0; }
 }
 
 @media (max-width: 720px) {
-  .app-header { padding: 10px 14px; align-items: flex-start; flex-direction: column; }.app-actions { width: 100%; }.app-layout { display: block; }.sidebar { border-right: 0; border-bottom: 1px solid #284046; }.scene-list { max-height: 190px; }.workbench { padding: 16px 14px; }.capture-grid, .metrics-grid, .baseline-grid, .result-columns { grid-template-columns: 1fr; }.active-scene { align-items: flex-start; flex-direction: column; }.trial-controls { grid-template-columns: 1fr; }.trial-row { align-items: flex-start; flex-direction: column; }.form-row { grid-template-columns: 1fr; }.notice, .job-card { margin-left: 14px; margin-right: 14px; } footer { padding: 12px 14px; flex-direction: column; }
+  .app-header { padding: 10px 14px; align-items: flex-start; flex-direction: column; }.app-actions { width: 100%; }.app-layout { display: block; }.sidebar { border-right: 0; border-bottom: 1px solid #284046; }.scene-list { max-height: 190px; }.workbench { padding: 16px 14px; }.capture-grid, .metrics-grid, .baseline-grid, .result-columns, .review-grid { grid-template-columns: 1fr; }.active-scene { align-items: flex-start; flex-direction: column; }.trial-controls { grid-template-columns: 1fr; }.trial-row { align-items: flex-start; flex-direction: column; }.form-row { grid-template-columns: 1fr; }.notice, .job-card { margin-left: 14px; margin-right: 14px; } footer { padding: 12px 14px; flex-direction: column; }.review-footer { align-items: flex-start; flex-direction: column; }
 }

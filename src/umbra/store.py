@@ -76,6 +76,12 @@ class Store:
                     path TEXT NOT NULL,
                     created_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS manual_ground_truth (
+                    trial_id TEXT PRIMARY KEY REFERENCES trials(id) ON DELETE CASCADE,
+                    ground_truth_media_id TEXT NOT NULL REFERENCES media(id),
+                    payload_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
                 """
             )
 
@@ -212,6 +218,44 @@ class Store:
                 "SELECT * FROM trials WHERE scene_id = ? ORDER BY created_at DESC", (scene_id,)
             ).fetchall()
         return [self._row(row) for row in rows if row is not None]
+
+    def get_manual_ground_truth(self, trial_id: str) -> dict[str, Any] | None:
+        with self._connection() as connection:
+            row = connection.execute(
+                "SELECT trial_id, ground_truth_media_id, payload_json, updated_at FROM manual_ground_truth WHERE trial_id = ?",
+                (trial_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        payload = json.loads(str(row["payload_json"]))
+        return {
+            "trial_id": str(row["trial_id"]),
+            "ground_truth_media_id": str(row["ground_truth_media_id"]),
+            **payload,
+            "updated_at": str(row["updated_at"]),
+        }
+
+    def save_manual_ground_truth(self, trial_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        stored = {
+            "corner": payload.get("corner"),
+            "far_point": payload.get("far_point"),
+            "samples": payload.get("samples", []),
+            "main_entry_timestamp_s": payload.get("main_entry_timestamp_s"),
+        }
+        now = utc_now()
+        with self._connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO manual_ground_truth (trial_id, ground_truth_media_id, payload_json, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(trial_id) DO UPDATE SET
+                    ground_truth_media_id = excluded.ground_truth_media_id,
+                    payload_json = excluded.payload_json,
+                    updated_at = excluded.updated_at
+                """,
+                (trial_id, payload["ground_truth_media_id"], json.dumps(stored), now),
+            )
+        return {"trial_id": trial_id, "ground_truth_media_id": payload["ground_truth_media_id"], **stored, "updated_at": now}
 
     def create_job(self, kind: str, message: str = "Queued") -> dict[str, Any]:
         now = utc_now()

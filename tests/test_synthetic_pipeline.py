@@ -53,3 +53,32 @@ def test_directional_synthetic_reports_positive_lead_time(tmp_path: Path) -> Non
     assert result["lead_time_s"] > 0
     assert result["state"] == "early_warning"
     assert result["shadow_onset_s"] < result["los_onset_s"]
+
+
+def test_manual_review_overrides_body_entry_timestamp(tmp_path: Path) -> None:
+    bundle = generate_synthetic_bundle(tmp_path / "manual", seed=7, frames=100, lighting="directional")
+    automatic = analyse_trial(
+        calibration_path=bundle.calibration_path,
+        main_path=bundle.main_path,
+        ground_truth_path=None,
+        scene=scene(),
+        track_length_m=4.0,
+    )
+    assert automatic["shadow_onset_s"] is not None
+    entry_time = float(automatic["shadow_onset_s"]) + 0.4
+    result = analyse_trial(
+        calibration_path=bundle.calibration_path,
+        main_path=bundle.main_path,
+        ground_truth_path=bundle.ground_truth_path,
+        scene=scene(),
+        track_length_m=4.0,
+        manual_ground_truth={
+            "corner": {"x": 0.15, "y": 0.8},
+            "far_point": {"x": 0.85, "y": 0.8},
+            "samples": [{"timestamp_s": 1.0, "x": 0.5, "y": 0.8}],
+            "main_entry_timestamp_s": entry_time,
+        },
+    )
+    assert result["entry_source"] == "manual_review"
+    assert result["los_onset_s"] == entry_time
+    assert result["ground_truth"]["alignment"]["method"] == "timestamp_fallback"

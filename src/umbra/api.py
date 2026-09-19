@@ -21,6 +21,7 @@ from .schemas import (
     AnalysisRequest,
     Health,
     Job,
+    ManualGroundTruth,
     MediaAsset,
     MediaRole,
     Scene,
@@ -173,6 +174,43 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if media is None or media["scene_id"] != scene_id or media["role"] != role:
                 raise HTTPException(status_code=422, detail=f"Invalid {role} media for this scene")
         return database.create_trial(scene_id, payload.model_dump())
+
+    @app.get("/api/v1/trials/{trial_id}/manual-ground-truth", response_model=ManualGroundTruth, tags=["trials"])
+    def get_manual_ground_truth(
+        trial_id: str,
+        database: Annotated[Store, Depends(get_store)],
+    ) -> dict[str, Any]:
+        if database.get_trial(trial_id) is None:
+            raise HTTPException(status_code=404, detail="Trial not found")
+        review = database.get_manual_ground_truth(trial_id)
+        if review is None:
+            raise HTTPException(status_code=404, detail="No manual labels saved for this trial")
+        return review
+
+    @app.put("/api/v1/trials/{trial_id}/manual-ground-truth", response_model=ManualGroundTruth, tags=["trials"])
+    def save_manual_ground_truth(
+        trial_id: str,
+        payload: ManualGroundTruth,
+        database: Annotated[Store, Depends(get_store)],
+    ) -> dict[str, Any]:
+        trial = database.get_trial(trial_id)
+        if trial is None:
+            raise HTTPException(status_code=404, detail="Trial not found")
+        if trial.get("ground_truth_media_id") != payload.ground_truth_media_id:
+            raise HTTPException(status_code=422, detail="Manual labels must use this trial's attached ground-truth video")
+        return database.save_manual_ground_truth(trial_id, payload.model_dump(mode="json", exclude={"updated_at"}))
+
+    @app.get("/api/v1/media/{media_id}/stream", tags=["media"])
+    def stream_media(media_id: str, database: Annotated[Store, Depends(get_store)]) -> FileResponse:
+        media = database.get_media(media_id)
+        if media is None:
+            raise HTTPException(status_code=404, detail="Media not found")
+        path = Path(media["path"])
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="The local media file is missing")
+        # No Content-Disposition attachment: this endpoint is used by the local
+        # review player's <video> element and must be streamable in place.
+        return FileResponse(path, media_type=media.get("content_type") or "video/mp4")
 
     @app.post("/api/v1/trials/{trial_id}/analysis", response_model=Job, tags=["analysis"])
     def start_analysis(

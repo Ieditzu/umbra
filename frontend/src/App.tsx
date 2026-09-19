@@ -1,8 +1,11 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { API, request } from "./api";
 import type {
   AnalysisResult,
   Job,
+  ManualGroundTruth,
+  ManualPoint,
+  ManualTrackSample,
   MediaAsset,
   MediaRole,
   Scene,
@@ -178,6 +181,125 @@ function MediaSlot({
   );
 }
 
+type ReviewMode = "corner" | "far" | "walker";
+
+function emptyManualReview(trial: Trial): ManualGroundTruth {
+  return {
+    trial_id: trial.id,
+    ground_truth_media_id: trial.ground_truth_media_id ?? "",
+    corner: null,
+    far_point: null,
+    samples: [],
+    main_entry_timestamp_s: null
+  };
+}
+
+function ManualReview({ trial, busy, onClose, onNotice }: {
+  trial: Trial;
+  busy: boolean;
+  onClose: () => void;
+  onNotice: (notice: string) => void;
+}) {
+  const [review, setReview] = useState<ManualGroundTruth>(() => emptyManualReview(trial));
+  const [mode, setMode] = useState<ReviewMode>("corner");
+  const [truthTime, setTruthTime] = useState(0);
+  const [mainTime, setMainTime] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const truthRef = useRef<HTMLVideoElement>(null);
+  const mainRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    setReview(emptyManualReview(trial));
+    setMode("corner");
+    void request<ManualGroundTruth>(`/trials/${trial.id}/manual-ground-truth`)
+      .then((saved) => setReview(saved))
+      .catch(() => undefined);
+  }, [trial.id]);
+
+  function pointFromClick(event: MouseEvent<HTMLElement>): ManualPoint {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    return {
+      x: Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width)),
+      y: Math.min(1, Math.max(0, (event.clientY - bounds.top) / bounds.height))
+    };
+  }
+
+  function markTruth(event: MouseEvent<HTMLElement>) {
+    const point = pointFromClick(event);
+    if (mode === "corner") {
+      setReview((current) => ({ ...current, corner: point }));
+      setMode("far");
+    } else if (mode === "far") {
+      setReview((current) => ({ ...current, far_point: point }));
+      setMode("walker");
+    } else {
+      const sample: ManualTrackSample = { ...point, timestamp_s: truthRef.current?.currentTime ?? truthTime };
+      setReview((current) => ({
+        ...current,
+        samples: [...current.samples.filter((item) => Math.abs(item.timestamp_s - sample.timestamp_s) > 0.12), sample]
+          .sort((first, second) => first.timestamp_s - second.timestamp_s)
+      }));
+    }
+  }
+
+  function markEntry() {
+    const timestamp = mainRef.current?.currentTime ?? mainTime;
+    setReview((current) => ({ ...current, main_entry_timestamp_s: timestamp }));
+  }
+
+  async function save() {
+    if (!review.corner || !review.far_point || review.samples.length === 0) {
+      onNotice("Set corner, far endpoint, and at least one walker point before saving manual labels.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const saved = await request<ManualGroundTruth>(`/trials/${trial.id}/manual-ground-truth`, {
+        method: "PUT",
+        body: JSON.stringify(review)
+      });
+      setReview(saved);
+      onNotice(`Saved ${saved.samples.length} manual ground-truth point${saved.samples.length === 1 ? "" : "s"}. Re-run analysis to use them.`);
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "Could not save manual labels");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const points: Array<{ label: string; point: ManualPoint; className: string }> = [
+    ...(review.corner ? [{ label: "Corner", point: review.corner, className: "corner" }] : []),
+    ...(review.far_point ? [{ label: "Far", point: review.far_point, className: "far" }] : []),
+    ...review.samples.map((sample, index) => ({ label: `Walker ${index + 1}`, point: sample, className: "walker" }))
+  ];
+  const disabled = busy || saving;
+
+  return <section className="manual-review panel">
+    <div className="panel-heading"><div><p className="eyebrow">Markerless ground truth</p><h2>Manual review — {trial.name}</h2></div><button className="button ghost" disabled={disabled} onClick={onClose}>Close</button></div>
+    <p className="hint">Pause the truth video. Click <strong>corner</strong> once, then a <strong>far route point</strong> once. On several frames, click the walker’s feet. In the main video, pause when their full body first enters and save that time.</p>
+    <div className="review-grid">
+      <div>
+        <div className="review-toolbar">
+          {(["corner", "far", "walker"] as ReviewMode[]).map((item) => <button key={item} className={`button ${mode === item ? "primary" : "secondary"}`} disabled={disabled} onClick={() => setMode(item)}>Mark {item === "far" ? "far point" : item}</button>)}
+          <button className="text-button" disabled={disabled || review.samples.length === 0} onClick={() => setReview((current) => ({ ...current, samples: current.samples.slice(0, -1) }))}>Undo last walker</button>
+        </div>
+        <div className="review-video">
+          <video ref={truthRef} controls src={`${API}/media/${trial.ground_truth_media_id}/stream`} onTimeUpdate={(event) => setTruthTime(event.currentTarget.currentTime)} />
+          <button className="review-click-surface" type="button" onClick={markTruth} aria-label={`Click truth video to mark ${mode}`} />
+          {points.map(({ label, point, className }) => <span key={`${label}-${point.x}-${point.y}`} className={`manual-point ${className}`} style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }}>{label}</span>)}
+        </div>
+        <p className="review-time">Truth frame: {truthTime.toFixed(2)} s · mode: {mode}</p>
+      </div>
+      <div>
+        <div className="review-toolbar"><button className="button primary" disabled={disabled} onClick={markEntry}>Use current time as body entry</button><button className="text-button" disabled={disabled || review.main_entry_timestamp_s === null} onClick={() => setReview((current) => ({ ...current, main_entry_timestamp_s: null }))}>Clear entry time</button></div>
+        <div className="review-video"><video ref={mainRef} controls src={`${API}/media/${trial.main_media_id}/stream`} onTimeUpdate={(event) => setMainTime(event.currentTarget.currentTime)} /></div>
+        <p className="review-time">Main frame: {mainTime.toFixed(2)} s · body entry: {review.main_entry_timestamp_s === null ? "not set" : `${review.main_entry_timestamp_s.toFixed(2)} s`}</p>
+      </div>
+    </div>
+    <div className="review-footer"><span>{review.corner && review.far_point ? "Route endpoints ready" : "Set two route endpoints"} · {review.samples.length} walker points</span><button className="button primary" disabled={disabled} onClick={() => void save()}>{saving ? "Saving…" : "Save manual labels"}</button></div>
+  </section>;
+}
+
 export default function App() {
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [detail, setDetail] = useState<SceneDetail | null>(null);
@@ -190,6 +312,7 @@ export default function App() {
   const [locationStatus, setLocationStatus] = useState<"checking" | "ready" | "unavailable">("checking");
   const [trialName, setTrialName] = useState("Trial 1");
   const [trackLength, setTrackLength] = useState("");
+  const [manualTrialId, setManualTrialId] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
   const [captureRole, setCaptureRole] = useState<MediaRole | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -211,6 +334,7 @@ export default function App() {
     const next = await request<SceneDetail>(`/scenes/${sceneId}`);
     setDetail(next);
     setResult(null);
+    setManualTrialId(null);
   }
 
   async function deleteScene(scene: Scene) {
@@ -537,7 +661,8 @@ export default function App() {
               <div><h2>Trial</h2><p>Umbra auto-selects the edge and visible-side region. A poor scene returns no coverage instead of accepting a manual ROI.</p></div>
               <div className="trial-controls"><label>Trial name<input value={trialName} onChange={(event) => setTrialName(event.target.value)} /></label><label>Track length (m)<input type="number" min="0" step="0.1" value={trackLength} onChange={(event) => setTrackLength(event.target.value)} /></label><button className="button primary" disabled={busy || !mediaByRole.calibration || !mediaByRole.main} onClick={() => void createTrial()}>Register</button></div>
             </section>
-            {detail.trials.length > 0 && <section className="trial-list panel"><div className="panel-heading"><h2>Registered trials</h2><span>{detail.trials.length}</span></div>{detail.trials.map((trial) => <div className="trial-row" key={trial.id}><div><strong>{trial.name}</strong><span>{trial.ground_truth_media_id ? "Ground truth attached" : "Inference only"}</span></div><button className="button secondary" disabled={busy} onClick={() => void analyse(trial)}>Analyse</button></div>)}</section>}
+            {detail.trials.length > 0 && <section className="trial-list panel"><div className="panel-heading"><h2>Registered trials</h2><span>{detail.trials.length}</span></div>{detail.trials.map((trial) => <div className="trial-row" key={trial.id}><div><strong>{trial.name}</strong><span>{trial.ground_truth_media_id ? "Ground truth attached" : "Inference only"}</span></div><div className="trial-actions">{trial.ground_truth_media_id && <button className="button ghost" disabled={busy} onClick={() => setManualTrialId(trial.id)}>Manual labels</button>}<button className="button secondary" disabled={busy} onClick={() => void analyse(trial)}>Analyse</button></div></div>)}</section>}
+            {manualTrialId && detail.trials.find((trial) => trial.id === manualTrialId) && <ManualReview trial={detail.trials.find((trial) => trial.id === manualTrialId)!} busy={busy} onClose={() => setManualTrialId(null)} onNotice={setNotice} />}
             {(detail.analyses ?? []).length > 0 && <section className="trial-list panel"><h2>Saved analyses</h2>{detail.analyses.map((analysis) => <div className="trial-row" key={analysis.id}><div><strong>{analysis.trial_name}</strong><span>{new Date(analysis.created_at).toLocaleString()}</span></div><button className="button secondary" disabled={busy} onClick={() => void request<{ result: AnalysisResult }>(`/analyses/${analysis.id}`).then((value) => setResult(value.result)).catch((error: Error) => setNotice(error.message))}>Review result</button></div>)}</section>}
           </>}
           {result && <ResultPanel result={result} />}
