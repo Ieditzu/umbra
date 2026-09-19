@@ -126,11 +126,13 @@ function ResultPanel({ result }: { result: AnalysisResult }) {
           </dl>
         </div>
       </div>
-      {result.visualization?.available && <details className="visualization-card" open>
-        <summary>What Umbra detected — analysis video</summary>
-        <p>Magenta pixels are darkening in the selected pavement-shadow area. Yellow is the corner edge, green is the shadow ROI, and purple is the anonymous body-entry zone.</p>
-        <video controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/visualization`} type="video/mp4" /></video>
-      </details>}
+      {(result.visualizations?.corner_trial_available || result.visualization?.available) && <section className="visualization-card">
+        <h3>What Umbra saw — moving video evidence</h3>
+        <div className={`visualization-grid ${result.visualizations?.hidden_path_available ? "two-videos" : ""}`}>
+          <div><strong>Corner trial · warning camera</strong><p>Magenta pixels are shadow darkening. Yellow is the corner, green the shadow ROI, and purple the anonymous body-entry zone.</p><video controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/visualization`} type="video/mp4" /></video></div>
+          {result.visualizations?.hidden_path_available && <div><strong>Hidden path · reference camera</strong><p>Shows the reviewed corner/far route line and the manually reviewed walker position when you saved labels.</p><video controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/hidden-path-visualization`} type="video/mp4" /></video></div>}
+        </div>
+      </section>}
       <h3>Method comparison</h3>
       <div className="baseline-grid">
         {Object.entries(result.baselines).map(([name, baseline]) => (

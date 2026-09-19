@@ -104,13 +104,14 @@ class UmbraService:
             if trial.get("ground_truth_media_id")
             else None
         )
+        manual_ground_truth = self.store.get_manual_ground_truth(trial_id)
         result = analyse_trial(
             calibration_path=Path(calibration["path"]),
             main_path=Path(main["path"]),
             ground_truth_path=Path(ground_truth["path"]) if ground_truth else None,
             scene=scene,
             track_length_m=trial.get("track_length_m"),
-            manual_ground_truth=self.store.get_manual_ground_truth(trial_id),
+            manual_ground_truth=manual_ground_truth,
             progress=progress,
         )
         checkpoint = self.settings.model_dir / "synthetic_temporal_v1.pt"
@@ -148,6 +149,8 @@ class UmbraService:
             result=result,
             calibration_path=Path(calibration["path"]),
             main_path=Path(main["path"]),
+            ground_truth_path=Path(ground_truth["path"]) if ground_truth else None,
+            manual_ground_truth=manual_ground_truth,
         )
         self.store.create_analysis(trial_id, artifact_paths["result"], analysis_id=analysis_id)
         return {"analysis_id": analysis_id, "artifacts": artifact_paths, **result}

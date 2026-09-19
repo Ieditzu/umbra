@@ -109,4 +109,5 @@ export interface AnalysisResult {
   model: Record<string, unknown>;
   evidence?: { kind: string; limitation: string };
   visualization?: { available: boolean; filename: string | null };
+  visualizations?: { corner_trial_available: boolean; hidden_path_available: boolean };
 }

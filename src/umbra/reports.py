@@ -134,6 +134,27 @@ def _scene_overlay(
     return overlay_path.name
 
 
+def _encode_h264(temporary_path: Path, output_path: Path) -> bool:
+    """Convert OpenCV's intermediate video into a video browser can play."""
+
+    try:
+        encoded = subprocess.run(
+            [
+                "ffmpeg", "-y", "-v", "error", "-i", str(temporary_path), "-an", "-c:v", "libx264",
+                "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(output_path),
+            ],
+            check=False, capture_output=True, timeout=120,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        temporary_path.unlink(missing_ok=True)
+        return False
+    temporary_path.unlink(missing_ok=True)
+    if encoded.returncode != 0 or not output_path.exists():
+        output_path.unlink(missing_ok=True)
+        return False
+    return True
+
+
 def _analysis_visualization(
     calibration_path: Path,
     main_path: Path,
@@ -205,22 +226,69 @@ def _analysis_visualization(
             writer.write(visual)
     finally:
         writer.release()
+    return output_path.name if _encode_h264(temporary_path, output_path) else None
+
+
+def _hidden_path_visualization(
+    ground_truth_path: Path | None,
+    manual_review: dict[str, Any] | None,
+    destination: Path,
+) -> str | None:
+    """Render the optional hidden-path reference as a second annotated movie."""
+
+    if ground_truth_path is None:
+        return None
     try:
-        encoded = subprocess.run(
-            [
-                "ffmpeg", "-y", "-v", "error", "-i", str(temporary_path), "-an", "-c:v", "libx264",
-                "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(output_path),
-            ],
-            check=False, capture_output=True, timeout=120,
+        frames, timestamps, _ = read_frames(ground_truth_path, target_fps=10, max_frames=600)
+    except (OSError, ValueError):
+        return None
+    if not frames:
+        return None
+    height, width = frames[0].shape[:2]
+    temporary_path = destination / "_hidden-path-source.mp4"
+    output_path = destination / "hidden-path-visualization.mp4"
+    writer = cv2.VideoWriter(str(temporary_path), cv2.VideoWriter_fourcc(*"mp4v"), 10.0, (width, height))
+    if not writer.isOpened():
+        return None
+    review = manual_review or {}
+    corner, far = review.get("corner"), review.get("far_point")
+    raw_samples = review.get("samples", [])
+    samples = sorted(
+        [sample for sample in raw_samples if isinstance(sample, dict)], key=lambda sample: float(sample.get("timestamp_s", 0))
+    ) if isinstance(raw_samples, list) else []
+
+    def pixel(point: dict[str, Any]) -> tuple[int, int]:
+        return (
+            int(np.clip(float(point.get("x", 0.0)), 0.0, 1.0) * (width - 1)),
+            int(np.clip(float(point.get("y", 0.0)), 0.0, 1.0) * (height - 1)),
         )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        temporary_path.unlink(missing_ok=True)
-        return None
-    temporary_path.unlink(missing_ok=True)
-    if encoded.returncode != 0 or not output_path.exists():
-        output_path.unlink(missing_ok=True)
-        return None
-    return output_path.name
+
+    try:
+        for frame, timestamp in zip(frames, timestamps, strict=True):
+            visual = frame.copy()
+            cv2.rectangle(visual, (7, 7), (width - 7, 44), (7, 17, 22), -1)
+            label = "MANUAL ROUTE REVIEW" if corner and far and samples else "HIDDEN-PATH REFERENCE"
+            cv2.putText(visual, label, (15, 31), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (112, 243, 196), 2, cv2.LINE_AA)
+            cv2.putText(visual, f"t {timestamp:05.2f}s", (width - 105, 31), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (232, 244, 240), 1, cv2.LINE_AA)
+            if isinstance(corner, dict) and isinstance(far, dict):
+                start, end = pixel(corner), pixel(far)
+                cv2.line(visual, start, end, (112, 243, 196), 2)
+                cv2.circle(visual, start, 7, (90, 221, 255), -1)
+                cv2.circle(visual, end, 7, (196, 243, 112), -1)
+                _label(visual, "corner", (start[0] + 8, max(16, start[1] - 8)), (90, 221, 255))
+                _label(visual, "far point", (end[0] + 8, max(16, end[1] - 8)), (196, 243, 112))
+            if len(samples) >= 1:
+                sample_times = [float(sample.get("timestamp_s", 0)) for sample in samples]
+                if sample_times[0] <= timestamp <= sample_times[-1]:
+                    x = float(np.interp(timestamp, sample_times, [float(sample.get("x", 0)) for sample in samples]))
+                    y = float(np.interp(timestamp, sample_times, [float(sample.get("y", 0)) for sample in samples]))
+                    walker = (int(np.clip(x, 0, 1) * (width - 1)), int(np.clip(y, 0, 1) * (height - 1)))
+                    cv2.circle(visual, walker, 10, (230, 142, 255), 2)
+                    _label(visual, "reviewed walker", (walker[0] + 10, max(16, walker[1] - 9)), (255, 182, 243))
+            writer.write(visual)
+    finally:
+        writer.release()
+    return output_path.name if _encode_h264(temporary_path, output_path) else None
 
 
 def _value(value: Any) -> str:
@@ -239,6 +307,8 @@ def write_artifacts(
     result: dict[str, Any],
     calibration_path: Path,
     main_path: Path,
+    ground_truth_path: Path | None = None,
+    manual_ground_truth: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     """Persist JSON/CSV/HTML plus a non-identifying scene diagnostic image."""
 
@@ -247,7 +317,12 @@ def write_artifacts(
     visualization_name = _analysis_visualization(
         calibration_path, main_path, result["scene_assessment"], result, destination
     )
+    hidden_visualization_name = _hidden_path_visualization(ground_truth_path, manual_ground_truth, destination)
     result["visualization"] = {"available": bool(visualization_name), "filename": visualization_name}
+    result["visualizations"] = {
+        "corner_trial_available": bool(visualization_name),
+        "hidden_path_available": bool(hidden_visualization_name),
+    }
     result_path = destination / "result.json"
     result_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
     predictions_path = destination / "predictions.csv"
@@ -309,7 +384,7 @@ svg {{ width:100%; background:#0e1a22; border-radius:8px; }} img {{ max-width:10
 <section class="card"><strong>Line of sight</strong><br>{_value(result.get('los_onset_s'))}</section></div>
 <h2>Why Umbra made this decision</h2><ul>{reasons}</ul>
 <h2>Automatic scene assessment and event frames</h2>{overlay}
-<p class="muted">The downloadable evidence ZIP includes the browser-playable analysis visualization when rendering was available. It draws the automatically selected geometry and shadow evidence; it does not identify the walker.</p>
+<p class="muted">The downloadable evidence ZIP includes browser-playable corner-trial and hidden-path videos when rendering was available. They draw the selected geometry and review labels; they do not identify the walker.</p>
 <div class="grid"><section class="card"><strong>Coverage</strong><br>{_value(scene['coverage_score'])}</section>
 <section class="card"><strong>Calibration stability</strong><br>{_value(scene['calibration_stability'])}</section>
 <section class="card"><strong>ROI quality</strong><br>{_value(scene['roi_score'])}</section></div>
@@ -332,4 +407,5 @@ svg {{ width:100%; background:#0e1a22; border-radius:8px; }} img {{ max-width:10
         "report": str(report_path),
         "overlay": str(destination / overlay_name) if overlay_name else "",
         "visualization": str(destination / visualization_name) if visualization_name else "",
+        "hidden_path_visualization": str(destination / hidden_visualization_name) if hidden_visualization_name else "",
     }

@@ -278,6 +278,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="This analysis has no visualization video")
         return FileResponse(visualization_path, media_type="video/mp4")
 
+    @app.get("/api/v1/analyses/{analysis_id}/hidden-path-visualization", tags=["analysis"])
+    def get_hidden_path_visualization(
+        analysis_id: str, database: Annotated[Store, Depends(get_store)]
+    ) -> FileResponse:
+        record = database.get_analysis(analysis_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+        visualization_path = Path(record["path"]).with_name("hidden-path-visualization.mp4")
+        if not visualization_path.exists():
+            raise HTTPException(status_code=404, detail="This analysis has no hidden-path visualization video")
+        return FileResponse(visualization_path, media_type="video/mp4")
+
     @app.get("/api/v1/analyses/{analysis_id}/bundle", tags=["analysis"])
     def get_bundle(analysis_id: str, database: Annotated[Store, Depends(get_store)]) -> Response:
         record = database.get_analysis(analysis_id)
@@ -288,12 +300,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not all(path.exists() for path in paths):
             raise HTTPException(status_code=404, detail="Evidence bundle is incomplete")
         buffer = io.BytesIO()
-        visualization = run / "analysis-visualization.mp4"
-        if visualization.exists():
-            paths.append(visualization)
-        names = ["result.json", "predictions.csv", "report.html", "analysis-visualization.mp4"]
+        visualizations = [
+            (run / "analysis-visualization.mp4", "corner-trial-visualization.mp4"),
+            (run / "hidden-path-visualization.mp4", "hidden-path-visualization.mp4"),
+        ]
+        paths_and_names = list(zip(paths, ("result.json", "predictions.csv", "report.html"), strict=True))
+        paths_and_names.extend((path, name) for path, name in visualizations if path.exists())
         with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-            for path, name in zip(paths, names, strict=True):
+            for path, name in paths_and_names:
                 archive.write(path, name)
         return Response(buffer.getvalue(), media_type="application/zip", headers={
             "Content-Disposition": f'attachment; filename="umbra-{analysis_id}.zip"'

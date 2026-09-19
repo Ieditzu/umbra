@@ -86,14 +86,16 @@ def test_evidence_bundle_is_portable_and_reopenable(tmp_path):
         result = client.get(f"/api/v1/analyses/{analysis_id}").json()["result"]
         assert result["evidence"]["kind"] == "synthetic"
         assert result["visualization"]["available"] is True
+        assert result["visualizations"] == {"corner_trial_available": True, "hidden_path_available": True}
         assert result["provenance"]["sources"][1]["metadata"]["seed"] == 7
         history = client.get(f"/api/v1/scenes/{demo['scene_id']}").json()["analyses"]
         assert history[0]["id"] == analysis_id
         response = client.get(f"/api/v1/analyses/{analysis_id}/bundle")
         assert response.status_code == 200
         with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
-            assert set(archive.namelist()) == {"report.html", "result.json", "predictions.csv", "analysis-visualization.mp4"}
-            assert archive.read("analysis-visualization.mp4")[4:8] == b"ftyp"
+            assert set(archive.namelist()) == {"report.html", "result.json", "predictions.csv", "corner-trial-visualization.mp4", "hidden-path-visualization.mp4"}
+            assert archive.read("corner-trial-visualization.mp4")[4:8] == b"ftyp"
+            assert archive.read("hidden-path-visualization.mp4")[4:8] == b"ftyp"
             report = archive.read("report.html").decode()
             assert "data:image/png;base64," in report
             assert "Evidence: synthetic" in report
