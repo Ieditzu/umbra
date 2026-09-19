@@ -6,13 +6,15 @@ import base64
 import csv
 import html
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 
 import cv2
 import numpy as np
 
-from .vision import los_band
+from .video import read_frames
+from .vision import build_calibration_model, los_band, normalised_residual
 
 
 def _line_chart(values: list[float], *, width: int = 760, height: int = 150, colour: str = "#87f5c6") -> str:
@@ -80,7 +82,7 @@ def _annotate_scene(
     overlay = frame.copy()
     edge, roi = assessment.get("edge"), assessment.get("roi")
     if edge:
-        cv2.line(overlay, tuple(edge[:2]), tuple(edge[2:]), (255, 221, 90), 3)
+        cv2.line(overlay, tuple(edge[:2]), tuple(edge[2:]), (90, 221, 255), 3)
         _label(overlay, "corner edge", (12, 22), (90, 221, 255))
     if roi:
         x, y, width, height = roi
@@ -132,6 +134,95 @@ def _scene_overlay(
     return overlay_path.name
 
 
+def _analysis_visualization(
+    calibration_path: Path,
+    main_path: Path,
+    assessment: dict[str, Any],
+    result: dict[str, Any],
+    destination: Path,
+) -> str | None:
+    """Render a browser-compatible visual explanation of the analysis stream."""
+
+    if not assessment.get("roi"):
+        return None
+    try:
+        calibration_frames, _, _ = read_frames(calibration_path, target_fps=10, max_frames=180)
+        calibration = build_calibration_model(calibration_frames)
+        main_frames, timestamps, _ = read_frames(main_path, target_fps=10, max_frames=600)
+    except (OSError, ValueError):
+        return None
+    target_height, target_width = calibration.background.shape
+    main_frames = [
+        frame if frame.shape[:2] == (target_height, target_width)
+        else cv2.resize(frame, (target_width, target_height), interpolation=cv2.INTER_AREA)
+        for frame in main_frames
+    ]
+    if not main_frames:
+        return None
+    temporary_path = destination / "_analysis-visualization-source.mp4"
+    output_path = destination / "analysis-visualization.mp4"
+    writer = cv2.VideoWriter(
+        str(temporary_path), cv2.VideoWriter_fourcc(*"mp4v"), 10.0, (target_width, target_height)
+    )
+    if not writer.isOpened():
+        return None
+    roi = tuple(assessment["roi"])
+    timeline = result.get("timeline", [])
+    shadow_onset = result.get("shadow_onset_s")
+    entry_onset = result.get("los_onset_s")
+    entry_source = str(result.get("entry_source", "automatic")).replace("_", " ")
+    try:
+        for index, (frame, timestamp) in enumerate(zip(main_frames, timestamps, strict=True)):
+            point = timeline[min(index, len(timeline) - 1)] if timeline else {}
+            visual = _annotate_scene(frame, assessment, "")
+            x, y, width, height = roi
+            residual = normalised_residual(frame, calibration)
+            patch = residual[y : y + height, x : x + width]
+            lit = calibration.lit_mask[y : y + height, x : x + width]
+            shadow_mask = (patch < -max(3.0, calibration.noise * 1.35)) & lit
+            tint = visual[y : y + height, x : x + width].copy()
+            tint[shadow_mask] = (190, 72, 245)
+            visual[y : y + height, x : x + width] = cv2.addWeighted(
+                visual[y : y + height, x : x + width], 0.55, tint, 0.45, 0
+            )
+            shadow_seen = isinstance(shadow_onset, (int, float)) and timestamp >= shadow_onset
+            body_seen = isinstance(entry_onset, (int, float)) and timestamp >= entry_onset
+            state = "BODY ENTERED" if body_seen else "SHADOW DETECTED" if shadow_seen else "WATCHING PAVEMENT"
+            colour = (112, 243, 196) if shadow_seen else (90, 221, 255)
+            cv2.rectangle(visual, (7, 7), (target_width - 7, 65), (7, 17, 22), -1)
+            cv2.putText(visual, f"UMBRA  {state}", (15, 29), cv2.FONT_HERSHEY_SIMPLEX, 0.53, colour, 2, cv2.LINE_AA)
+            shadow_score = float(point.get("presence_probability", 0.0)) * 100
+            body_score = float(point.get("los_probability", 0.0)) * 100
+            cv2.putText(
+                visual,
+                f"t {timestamp:05.2f}s   shadow {shadow_score:02.0f}%   body {body_score:02.0f}%",
+                (15, 51), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (232, 244, 240), 1, cv2.LINE_AA,
+            )
+            if body_seen:
+                _label(visual, f"body entry ({entry_source})", (12, target_height - 31), (255, 182, 243))
+            elif shadow_seen:
+                _label(visual, "shadow precedes body", (12, target_height - 31), (196, 243, 112))
+            writer.write(visual)
+    finally:
+        writer.release()
+    try:
+        encoded = subprocess.run(
+            [
+                "ffmpeg", "-y", "-v", "error", "-i", str(temporary_path), "-an", "-c:v", "libx264",
+                "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(output_path),
+            ],
+            check=False, capture_output=True, timeout=120,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        temporary_path.unlink(missing_ok=True)
+        return None
+    temporary_path.unlink(missing_ok=True)
+    if encoded.returncode != 0 or not output_path.exists():
+        output_path.unlink(missing_ok=True)
+        return None
+    return output_path.name
+
+
 def _value(value: Any) -> str:
     if value is None:
         return "—"
@@ -153,6 +244,10 @@ def write_artifacts(
 
     destination = run_directory / analysis_id
     destination.mkdir(parents=True, exist_ok=True)
+    visualization_name = _analysis_visualization(
+        calibration_path, main_path, result["scene_assessment"], result, destination
+    )
+    result["visualization"] = {"available": bool(visualization_name), "filename": visualization_name}
     result_path = destination / "result.json"
     result_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
     predictions_path = destination / "predictions.csv"
@@ -214,6 +309,7 @@ svg {{ width:100%; background:#0e1a22; border-radius:8px; }} img {{ max-width:10
 <section class="card"><strong>Line of sight</strong><br>{_value(result.get('los_onset_s'))}</section></div>
 <h2>Why Umbra made this decision</h2><ul>{reasons}</ul>
 <h2>Automatic scene assessment and event frames</h2>{overlay}
+<p class="muted">The downloadable evidence ZIP includes the browser-playable analysis visualization when rendering was available. It draws the automatically selected geometry and shadow evidence; it does not identify the walker.</p>
 <div class="grid"><section class="card"><strong>Coverage</strong><br>{_value(scene['coverage_score'])}</section>
 <section class="card"><strong>Calibration stability</strong><br>{_value(scene['calibration_stability'])}</section>
 <section class="card"><strong>ROI quality</strong><br>{_value(scene['roi_score'])}</section></div>
@@ -235,4 +331,5 @@ svg {{ width:100%; background:#0e1a22; border-radius:8px; }} img {{ max-width:10
         "predictions": str(predictions_path),
         "report": str(report_path),
         "overlay": str(destination / overlay_name) if overlay_name else "",
+        "visualization": str(destination / visualization_name) if visualization_name else "",
     }

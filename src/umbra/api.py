@@ -268,6 +268,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Report was not generated")
         return FileResponse(report_path, media_type="text/html")
 
+    @app.get("/api/v1/analyses/{analysis_id}/visualization", tags=["analysis"])
+    def get_visualization(analysis_id: str, database: Annotated[Store, Depends(get_store)]) -> FileResponse:
+        record = database.get_analysis(analysis_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+        visualization_path = Path(record["path"]).with_name("analysis-visualization.mp4")
+        if not visualization_path.exists():
+            raise HTTPException(status_code=404, detail="This analysis has no visualization video")
+        return FileResponse(visualization_path, media_type="video/mp4")
+
     @app.get("/api/v1/analyses/{analysis_id}/bundle", tags=["analysis"])
     def get_bundle(analysis_id: str, database: Annotated[Store, Depends(get_store)]) -> Response:
         record = database.get_analysis(analysis_id)
@@ -278,8 +288,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not all(path.exists() for path in paths):
             raise HTTPException(status_code=404, detail="Evidence bundle is incomplete")
         buffer = io.BytesIO()
+        visualization = run / "analysis-visualization.mp4"
+        if visualization.exists():
+            paths.append(visualization)
+        names = ["result.json", "predictions.csv", "report.html", "analysis-visualization.mp4"]
         with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-            for path, name in zip(paths, ("result.json", "predictions.csv", "report.html"), strict=True):
+            for path, name in zip(paths, names, strict=True):
                 archive.write(path, name)
         return Response(buffer.getvalue(), media_type="application/zip", headers={
             "Content-Disposition": f'attachment; filename="umbra-{analysis_id}.zip"'

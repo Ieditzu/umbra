@@ -87,6 +87,9 @@ Outputs
 - Shadow onset time, line-of-sight onset time, lead time in seconds.
 - Coarse shadow position range, approach direction, speed class.
 - Confidence and explicit refusal reasons.
+- A replayable analysis video: corner edge, pavement shadow region,
+  anonymous entry zone, darkening pixels, signal scores, and the
+  detected shadow/body events drawn over the main footage.
 
 5. Research question
 

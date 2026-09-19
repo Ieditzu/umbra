@@ -126,6 +126,11 @@ function ResultPanel({ result }: { result: AnalysisResult }) {
           </dl>
         </div>
       </div>
+      {result.visualization?.available && <details className="visualization-card" open>
+        <summary>What Umbra detected — analysis video</summary>
+        <p>Magenta pixels are darkening in the selected pavement-shadow area. Yellow is the corner edge, green is the shadow ROI, and purple is the anonymous body-entry zone.</p>
+        <video controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/visualization`} type="video/mp4" /></video>
+      </details>}
       <h3>Method comparison</h3>
       <div className="baseline-grid">
         {Object.entries(result.baselines).map(([name, baseline]) => (

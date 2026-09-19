@@ -108,4 +108,5 @@ export interface AnalysisResult {
   confidence_factors: Record<string, number>;
   model: Record<string, unknown>;
   evidence?: { kind: string; limitation: string };
+  visualization?: { available: boolean; filename: string | null };
 }
