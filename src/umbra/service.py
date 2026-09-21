@@ -195,9 +195,15 @@ class UmbraService:
         for bundle in synthetic_bundles:
             rmtree(bundle, ignore_errors=True)
 
+        self._remove_analysis_artifacts(deleted["analyses"])
+        return True
+
+    def _remove_analysis_artifacts(self, analyses: list[dict[str, Any]]) -> None:
+        """Only remove artifact paths contained in Umbra's owned data roots."""
+
         runs_root = self.settings.run_dir.resolve()
         reports_root = self.settings.report_dir.resolve()
-        for analysis in deleted["analyses"]:
+        for analysis in analyses:
             result_path = Path(analysis["path"]).resolve()
             run = result_path.parent
             if run.parent == runs_root:
@@ -205,6 +211,19 @@ class UmbraService:
             report = (reports_root / f"{analysis['id']}.html").resolve()
             if self._within(report, reports_root):
                 report.unlink(missing_ok=True)
+
+    def delete_trial(self, trial_id: str) -> bool:
+        deleted = self.store.delete_trial(trial_id)
+        if deleted is None:
+            return False
+        self._remove_analysis_artifacts(deleted["analyses"])
+        return True
+
+    def delete_analysis(self, analysis_id: str) -> bool:
+        deleted = self.store.delete_analysis(analysis_id)
+        if deleted is None:
+            return False
+        self._remove_analysis_artifacts([deleted])
         return True
 
     def train_model(self, request: dict[str, Any], progress: Progress) -> dict[str, Any]:

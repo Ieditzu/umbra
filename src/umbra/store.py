@@ -219,6 +219,22 @@ class Store:
             ).fetchall()
         return [self._row(row) for row in rows if row is not None]
 
+    def delete_trial(self, trial_id: str) -> dict[str, Any] | None:
+        """Delete one trial and return its analysis artifact records.
+
+        Media belongs to the scene, not a trial, so it is intentionally kept.
+        """
+
+        with self._connection() as connection:
+            trial = connection.execute("SELECT * FROM trials WHERE id = ?", (trial_id,)).fetchone()
+            if trial is None:
+                return None
+            analysis_rows = connection.execute(
+                "SELECT id, path FROM analyses WHERE trial_id = ?", (trial_id,)
+            ).fetchall()
+            connection.execute("DELETE FROM trials WHERE id = ?", (trial_id,))
+        return {"trial": self._row(trial), "analyses": [dict(row) for row in analysis_rows]}
+
     def get_manual_ground_truth(self, trial_id: str) -> dict[str, Any] | None:
         with self._connection() as connection:
             row = connection.execute(
@@ -307,6 +323,14 @@ class Store:
         with self._connection() as connection:
             row = connection.execute("SELECT * FROM analyses WHERE id = ?", (analysis_id,)).fetchone()
         return self._row(row)
+
+    def delete_analysis(self, analysis_id: str) -> dict[str, Any] | None:
+        with self._connection() as connection:
+            row = connection.execute("SELECT * FROM analyses WHERE id = ?", (analysis_id,)).fetchone()
+            if row is None:
+                return None
+            connection.execute("DELETE FROM analyses WHERE id = ?", (analysis_id,))
+        return dict(row)
 
     def list_analyses(self, scene_id: str) -> list[dict[str, Any]]:
         with self._connection() as connection:

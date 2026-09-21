@@ -367,6 +367,41 @@ export default function App() {
     }
   }
 
+  async function deleteTrial(trial: Trial) {
+    const accepted = window.confirm(
+      `Delete trial “${trial.name}”? Its saved analyses and generated videos will be removed. Your uploaded videos stay in this scene.`
+    );
+    if (!accepted || !detail) return;
+    setBusy(true);
+    try {
+      await request<{ trial_id: string }>(`/trials/${trial.id}`, { method: "DELETE" });
+      if (manualTrialId === trial.id) setManualTrialId(null);
+      setResult(null);
+      await loadScene(detail.scene.id);
+      setNotice(`Deleted trial “${trial.name}”. The uploaded videos were kept.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not delete trial");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteAnalysis(analysisId: string, trialName: string) {
+    const accepted = window.confirm(`Delete this saved analysis for “${trialName}”? Its report and annotated videos will be removed.`);
+    if (!accepted || !detail) return;
+    setBusy(true);
+    try {
+      await request<{ analysis_id: string }>(`/analyses/${analysisId}`, { method: "DELETE" });
+      if (result?.analysis_id === analysisId) setResult(null);
+      await loadScene(detail.scene.id);
+      setNotice(`Deleted saved analysis for “${trialName}”.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not delete analysis");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   useEffect(() => {
     void Promise.all([
       refreshScenes(),
@@ -668,9 +703,9 @@ export default function App() {
               <div><h2>Trial</h2><p>Umbra auto-selects the edge and visible-side region. A poor scene returns no coverage instead of accepting a manual ROI.</p></div>
               <div className="trial-controls"><label>Trial name<input value={trialName} onChange={(event) => setTrialName(event.target.value)} /></label><label>Track length (m)<input type="number" min="0" step="0.1" value={trackLength} onChange={(event) => setTrackLength(event.target.value)} /></label><button className="button primary" disabled={busy || !mediaByRole.calibration || !mediaByRole.main} onClick={() => void createTrial()}>Register</button></div>
             </section>
-            {detail.trials.length > 0 && <section className="trial-list panel"><div className="panel-heading"><h2>Registered trials</h2><span>{detail.trials.length}</span></div>{detail.trials.map((trial) => <div className="trial-row" key={trial.id}><div><strong>{trial.name}</strong><span>{trial.ground_truth_media_id ? "Ground truth attached" : "Inference only"}</span></div><div className="trial-actions">{trial.ground_truth_media_id && <button className="button ghost" disabled={busy} onClick={() => setManualTrialId(trial.id)}>Manual labels</button>}<button className="button secondary" disabled={busy} onClick={() => void analyse(trial)}>Analyse</button></div></div>)}</section>}
+            {detail.trials.length > 0 && <section className="trial-list panel"><div className="panel-heading"><h2>Registered trials</h2><span>{detail.trials.length}</span></div>{detail.trials.map((trial) => <div className="trial-row" key={trial.id}><div><strong>{trial.name}</strong><span>{trial.ground_truth_media_id ? "Ground truth attached" : "Inference only"}</span></div><div className="trial-actions">{trial.ground_truth_media_id && <button className="button ghost" disabled={busy} onClick={() => setManualTrialId(trial.id)}>Manual labels</button>}<button className="button secondary" disabled={busy} onClick={() => void analyse(trial)}>Analyse</button><button className="button danger row-delete" disabled={busy} onClick={() => void deleteTrial(trial)}>Delete</button></div></div>)}</section>}
             {manualTrialId && detail.trials.find((trial) => trial.id === manualTrialId) && <ManualReview trial={detail.trials.find((trial) => trial.id === manualTrialId)!} busy={busy} onClose={() => setManualTrialId(null)} onNotice={setNotice} />}
-            {(detail.analyses ?? []).length > 0 && <section className="trial-list panel"><h2>Saved analyses</h2>{detail.analyses.map((analysis) => <div className="trial-row" key={analysis.id}><div><strong>{analysis.trial_name}</strong><span>{new Date(analysis.created_at).toLocaleString()}</span></div><button className="button secondary" disabled={busy} onClick={() => void request<{ result: AnalysisResult }>(`/analyses/${analysis.id}`).then((value) => setResult(value.result)).catch((error: Error) => setNotice(error.message))}>Review result</button></div>)}</section>}
+            {(detail.analyses ?? []).length > 0 && <section className="trial-list panel"><h2>Saved analyses</h2>{detail.analyses.map((analysis) => <div className="trial-row" key={analysis.id}><div><strong>{analysis.trial_name}</strong><span>{new Date(analysis.created_at).toLocaleString()}</span></div><div className="trial-actions"><button className="button secondary" disabled={busy} onClick={() => void request<{ result: AnalysisResult }>(`/analyses/${analysis.id}`).then((value) => setResult(value.result)).catch((error: Error) => setNotice(error.message))}>Review result</button><button className="button danger row-delete" disabled={busy} onClick={() => void deleteAnalysis(analysis.id, analysis.trial_name)}>Delete</button></div></div>)}</section>}
           </>}
           {result && <ResultPanel result={result} />}
         </section>

@@ -88,3 +88,10 @@ def test_video_import_and_trial_registration(tmp_path: Path) -> None:
         streamed = client.get(f"/api/v1/media/{media['ground_truth']}/stream")
         assert streamed.status_code == 200
         assert "content-disposition" not in streamed.headers
+
+        deleted = client.delete(f"/api/v1/trials/{trial['id']}")
+        assert deleted.status_code == 200
+        assert client.get(f"/api/v1/trials/{trial['id']}/manual-ground-truth").status_code == 404
+        assert client.get(f"/api/v1/scenes/{scene['id']}").json()["trials"] == []
+        # Trial deletion does not delete scene-owned recordings.
+        assert client.get(f"/api/v1/media/{media['ground_truth']}/stream").status_code == 200

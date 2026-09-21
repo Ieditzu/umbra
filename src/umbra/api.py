@@ -200,6 +200,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=422, detail="Manual labels must use this trial's attached ground-truth video")
         return database.save_manual_ground_truth(trial_id, payload.model_dump(mode="json", exclude={"updated_at"}))
 
+    @app.delete("/api/v1/trials/{trial_id}", tags=["trials"])
+    def delete_trial(
+        trial_id: str,
+        current_service: Annotated[UmbraService, Depends(get_service)],
+    ) -> dict[str, str]:
+        if not current_service.delete_trial(trial_id):
+            raise HTTPException(status_code=404, detail="Trial not found")
+        return {"trial_id": trial_id}
+
     @app.get("/api/v1/media/{media_id}/stream", tags=["media"])
     def stream_media(media_id: str, database: Annotated[Store, Depends(get_store)]) -> FileResponse:
         media = database.get_media(media_id)
@@ -258,6 +267,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Analysis not found")
         record, payload = result
         return {"analysis": record, "result": payload}
+
+    @app.delete("/api/v1/analyses/{analysis_id}", tags=["analysis"])
+    def delete_analysis(
+        analysis_id: str,
+        current_service: Annotated[UmbraService, Depends(get_service)],
+    ) -> dict[str, str]:
+        if not current_service.delete_analysis(analysis_id):
+            raise HTTPException(status_code=404, detail="Analysis not found")
+        return {"analysis_id": analysis_id}
 
     @app.get("/api/v1/analyses/{analysis_id}/report", tags=["analysis"])
     def get_report(analysis_id: str, database: Annotated[Store, Depends(get_store)]) -> FileResponse:

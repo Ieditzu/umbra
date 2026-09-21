@@ -100,3 +100,12 @@ def test_evidence_bundle_is_portable_and_reopenable(tmp_path):
             assert "data:image/png;base64," in report
             assert "Evidence: synthetic" in report
             assert 'src="/artifacts/' not in report
+        record = app.state.store.get_analysis(analysis_id)
+        assert record is not None
+        run = Path(record["path"]).parent
+        report_path = settings.report_dir / f"{analysis_id}.html"
+        assert run.exists() and report_path.exists()
+        deleted = client.delete(f"/api/v1/analyses/{analysis_id}")
+        assert deleted.status_code == 200
+        assert not run.exists() and not report_path.exists()
+        assert client.get(f"/api/v1/analyses/{analysis_id}").status_code == 404
