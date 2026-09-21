@@ -295,19 +295,44 @@ def _hidden_path_visualization(
     writer = cv2.VideoWriter(str(temporary_path), cv2.VideoWriter_fourcc(*"mp4v"), 10.0, (width, height))
     if not writer.isOpened():
         return None
+    background_gray = np.median(
+        np.stack([cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) for frame in frames]), axis=0
+    ).astype(np.float32)
     review = manual_review or {}
     raw_samples = review.get("samples", [])
     samples = sorted(
         [sample for sample in raw_samples if isinstance(sample, dict)], key=lambda sample: float(sample.get("timestamp_s", 0))
     ) if isinstance(raw_samples, list) else []
 
-    def pixel(point: dict[str, Any]) -> tuple[int, int]:
-        return (
-            int(np.clip(float(point.get("x", 0.0)), 0.0, 1.0) * (width - 1)),
-            int(np.clip(float(point.get("y", 0.0)), 0.0, 1.0) * (height - 1)),
-        )
-
     subtractor = cv2.createBackgroundSubtractorMOG2(history=24, varThreshold=20, detectShadows=True)
+    hog = cv2.HOGDescriptor()
+    hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+    previous_body: tuple[int, int, int, int] | None = None
+    previous_body_age = 99
+
+    def choose_person_box(frame: np.ndarray) -> tuple[int, int, int, int] | None:
+        nonlocal previous_body, previous_body_age
+        try:
+            raw_boxes, weights = hog.detectMultiScale(frame, winStride=(8, 8), padding=(8, 8), scale=1.05)
+        except cv2.error:
+            return None
+        candidates: list[tuple[float, tuple[int, int, int, int]]] = []
+        for raw_box, raw_weight in zip(raw_boxes, weights, strict=False):
+            x, y, box_width, box_height = (int(value) for value in raw_box)
+            if box_height < box_width * 1.25:
+                continue
+            score = float(raw_weight)
+            if previous_body is not None:
+                prior_x, prior_y, prior_width, prior_height = previous_body
+                distance = float(np.hypot(x + box_width / 2 - (prior_x + prior_width / 2), y + box_height / 2 - (prior_y + prior_height / 2)))
+                score -= min(1.0, distance / max(1, width * 0.20))
+            candidates.append((score, (x, y, box_width, box_height)))
+        if not candidates:
+            return None
+        previous_body = max(candidates, key=lambda candidate: candidate[0])[1]
+        previous_body_age = 0
+        return previous_body
+
     try:
         for index, (frame, timestamp) in enumerate(zip(frames, timestamps, strict=True)):
             visual = frame.copy()
@@ -324,12 +349,36 @@ def _hidden_path_visualization(
                     x = float(np.interp(timestamp, sample_times, [float(sample.get("x", 0)) for sample in samples]))
                     y = float(np.interp(timestamp, sample_times, [float(sample.get("y", 0)) for sample in samples]))
                     preferred_point = (int(np.clip(x, 0, 1) * (width - 1)), int(np.clip(y, 0, 1) * (height - 1)))
-            if index >= 12:
+            body_box = choose_person_box(frame)
+            if body_box is None and previous_body is not None and previous_body_age < 5:
+                body_box = previous_body
+            if body_box is None and index >= 12:
                 body_box = _dynamic_box(
-                    motion == 255, min_area=max(70.0, width * height * 0.002), vertical=True, preferred_point=preferred_point
+                    motion == 255,
+                    min_area=max(70.0, width * height * 0.002),
+                    vertical=True,
+                    preferred_point=preferred_point,
                 )
                 if body_box:
-                    _draw_live_box(visual, body_box, "anonymous body", (230, 142, 255))
+                    previous_body = body_box
+                    previous_body_age = 0
+            previous_body_age += 1
+            if body_box:
+                _draw_live_box(visual, body_box, "anonymous body", (230, 142, 255))
+                bx, by, bw, bh = body_box
+                shadow_y = min(height - 1, by + int(bh * 0.62))
+                shadow_x0 = max(0, bx - int(width * 0.24))
+                shadow_x1 = min(width, bx + bw + int(width * 0.24))
+                current_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32)
+                shadow_mask = current_gray[shadow_y:height, shadow_x0:shadow_x1] < background_gray[shadow_y:height, shadow_x0:shadow_x1] - 10.0
+                shadow_box = _dynamic_box(
+                    shadow_mask,
+                    min_area=max(28.0, shadow_mask.size * 0.008),
+                )
+                if shadow_box:
+                    sx, sy, sw, sh = shadow_box
+                    _draw_live_box(visual, (shadow_x0 + sx, shadow_y + sy, sw, sh), "shadow cue", (190, 72, 245))
+            elif index >= 12:
                 shadow_box = _dynamic_box(motion == 127, min_area=max(70.0, width * height * 0.002))
                 if shadow_box:
                     _draw_live_box(visual, shadow_box, "shadow cue", (190, 72, 245))
