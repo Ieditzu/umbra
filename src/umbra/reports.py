@@ -155,6 +155,40 @@ def _encode_h264(temporary_path: Path, output_path: Path) -> bool:
     return True
 
 
+def _dynamic_box(
+    mask: np.ndarray,
+    *,
+    min_area: float,
+    vertical: bool = False,
+    preferred_point: tuple[int, int] | None = None,
+) -> tuple[int, int, int, int] | None:
+    """Return one defensible foreground box from a binary cue mask."""
+
+    cleaned = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+    contours, _ = cv2.findContours(cleaned, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    candidates: list[tuple[float, tuple[int, int, int, int]]] = []
+    for contour in contours:
+        area = float(cv2.contourArea(contour))
+        if area < min_area or area > mask.size * 0.42:
+            continue
+        x, y, width, height = cv2.boundingRect(contour)
+        if vertical and height < width * 0.72:
+            continue
+        score = area
+        if preferred_point is not None:
+            centre = (x + width / 2, y + height / 2)
+            score -= 0.14 * float(np.hypot(centre[0] - preferred_point[0], centre[1] - preferred_point[1]))
+        candidates.append((score, (x, y, width, height)))
+    return max(candidates, key=lambda candidate: candidate[0])[1] if candidates else None
+
+
+def _draw_live_box(frame: np.ndarray, box: tuple[int, int, int, int], label: str, colour: tuple[int, int, int]) -> None:
+    x, y, width, height = box
+    cv2.rectangle(frame, (x, y), (x + width, y + height), colour, 2)
+    _label(frame, label, (x + 3, max(17, y - 5)), colour)
+
+
 def _analysis_visualization(
     calibration_path: Path,
     main_path: Path,
@@ -195,7 +229,7 @@ def _analysis_visualization(
     try:
         for index, (frame, timestamp) in enumerate(zip(main_frames, timestamps, strict=True)):
             point = timeline[min(index, len(timeline) - 1)] if timeline else {}
-            visual = _annotate_scene(frame, assessment, "")
+            visual = frame.copy()
             x, y, width, height = roi
             residual = normalised_residual(frame, calibration)
             patch = residual[y : y + height, x : x + width]
@@ -210,15 +244,26 @@ def _analysis_visualization(
             body_seen = isinstance(entry_onset, (int, float)) and timestamp >= entry_onset
             state = "BODY ENTERED" if body_seen else "SHADOW DETECTED" if shadow_seen else "WATCHING PAVEMENT"
             colour = (112, 243, 196) if shadow_seen else (90, 221, 255)
-            cv2.rectangle(visual, (7, 7), (target_width - 7, 65), (7, 17, 22), -1)
-            cv2.putText(visual, f"UMBRA  {state}", (15, 29), cv2.FONT_HERSHEY_SIMPLEX, 0.53, colour, 2, cv2.LINE_AA)
             shadow_score = float(point.get("presence_probability", 0.0)) * 100
             body_score = float(point.get("los_probability", 0.0)) * 100
-            cv2.putText(
-                visual,
-                f"t {timestamp:05.2f}s   shadow {shadow_score:02.0f}%   body {body_score:02.0f}%",
-                (15, 51), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (232, 244, 240), 1, cv2.LINE_AA,
-            )
+            header = f"{state}  S {shadow_score:02.0f}%  B {body_score:02.0f}%"
+            (header_width, _), _ = cv2.getTextSize(header, cv2.FONT_HERSHEY_SIMPLEX, 0.36, 1)
+            header_x = max(7, target_width - header_width - 16)
+            cv2.rectangle(visual, (header_x - 5, 6), (target_width - 6, 27), (7, 17, 22), -1)
+            cv2.putText(visual, header, (header_x, 21), cv2.FONT_HERSHEY_SIMPLEX, 0.36, colour, 1, cv2.LINE_AA)
+            if shadow_score >= 50:
+                shadow_box = _dynamic_box(shadow_mask, min_area=max(18.0, width * height * 0.004))
+                if shadow_box:
+                    sx, sy, sw, sh = shadow_box
+                    _draw_live_box(visual, (x + sx, y + sy, sw, sh), "shadow cue", (190, 72, 245))
+            entry_zone = assessment.get("entry_zone")
+            if entry_zone:
+                ex, ey, ew, eh = (int(value) for value in entry_zone)
+                foreground = np.abs(residual[ey : ey + eh, ex : ex + ew]) > max(7.0, calibration.noise * 3.0)
+                body_box = _dynamic_box(foreground, min_area=max(35.0, ew * eh * 0.003), vertical=True)
+                if body_box and (body_score >= 35 or body_seen):
+                    bx, by, bw, bh = body_box
+                    _draw_live_box(visual, (ex + bx, ey + by, bw, bh), "anonymous body", (230, 142, 255))
             if body_seen:
                 _label(visual, f"body entry ({entry_source})", (12, target_height - 31), (255, 182, 243))
             elif shadow_seen:
@@ -251,7 +296,6 @@ def _hidden_path_visualization(
     if not writer.isOpened():
         return None
     review = manual_review or {}
-    corner, far = review.get("corner"), review.get("far_point")
     raw_samples = review.get("samples", [])
     samples = sorted(
         [sample for sample in raw_samples if isinstance(sample, dict)], key=lambda sample: float(sample.get("timestamp_s", 0))
@@ -263,28 +307,32 @@ def _hidden_path_visualization(
             int(np.clip(float(point.get("y", 0.0)), 0.0, 1.0) * (height - 1)),
         )
 
+    subtractor = cv2.createBackgroundSubtractorMOG2(history=24, varThreshold=20, detectShadows=True)
     try:
-        for frame, timestamp in zip(frames, timestamps, strict=True):
+        for index, (frame, timestamp) in enumerate(zip(frames, timestamps, strict=True)):
             visual = frame.copy()
-            cv2.rectangle(visual, (7, 7), (width - 7, 44), (7, 17, 22), -1)
-            label = "MANUAL ROUTE REVIEW" if corner and far and samples else "HIDDEN-PATH REFERENCE"
-            cv2.putText(visual, label, (15, 31), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (112, 243, 196), 2, cv2.LINE_AA)
-            cv2.putText(visual, f"t {timestamp:05.2f}s", (width - 105, 31), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (232, 244, 240), 1, cv2.LINE_AA)
-            if isinstance(corner, dict) and isinstance(far, dict):
-                start, end = pixel(corner), pixel(far)
-                cv2.line(visual, start, end, (112, 243, 196), 2)
-                cv2.circle(visual, start, 7, (90, 221, 255), -1)
-                cv2.circle(visual, end, 7, (196, 243, 112), -1)
-                _label(visual, "corner", (start[0] + 8, max(16, start[1] - 8)), (90, 221, 255))
-                _label(visual, "far point", (end[0] + 8, max(16, end[1] - 8)), (196, 243, 112))
-            if len(samples) >= 1:
+            header = f"HIDDEN PATH  {timestamp:05.2f}s"
+            (header_width, _), _ = cv2.getTextSize(header, cv2.FONT_HERSHEY_SIMPLEX, 0.36, 1)
+            header_x = max(7, width - header_width - 16)
+            cv2.rectangle(visual, (header_x - 5, 6), (width - 6, 27), (7, 17, 22), -1)
+            cv2.putText(visual, header, (header_x, 21), cv2.FONT_HERSHEY_SIMPLEX, 0.36, (112, 243, 196), 1, cv2.LINE_AA)
+            motion = subtractor.apply(frame)
+            preferred_point = None
+            if samples:
                 sample_times = [float(sample.get("timestamp_s", 0)) for sample in samples]
                 if sample_times[0] <= timestamp <= sample_times[-1]:
                     x = float(np.interp(timestamp, sample_times, [float(sample.get("x", 0)) for sample in samples]))
                     y = float(np.interp(timestamp, sample_times, [float(sample.get("y", 0)) for sample in samples]))
-                    walker = (int(np.clip(x, 0, 1) * (width - 1)), int(np.clip(y, 0, 1) * (height - 1)))
-                    cv2.circle(visual, walker, 10, (230, 142, 255), 2)
-                    _label(visual, "reviewed walker", (walker[0] + 10, max(16, walker[1] - 9)), (255, 182, 243))
+                    preferred_point = (int(np.clip(x, 0, 1) * (width - 1)), int(np.clip(y, 0, 1) * (height - 1)))
+            if index >= 12:
+                body_box = _dynamic_box(
+                    motion == 255, min_area=max(70.0, width * height * 0.002), vertical=True, preferred_point=preferred_point
+                )
+                if body_box:
+                    _draw_live_box(visual, body_box, "anonymous body", (230, 142, 255))
+                shadow_box = _dynamic_box(motion == 127, min_area=max(70.0, width * height * 0.002))
+                if shadow_box:
+                    _draw_live_box(visual, shadow_box, "shadow cue", (190, 72, 245))
             writer.write(visual)
     finally:
         writer.release()
