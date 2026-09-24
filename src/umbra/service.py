@@ -105,6 +105,9 @@ class UmbraService:
             else None
         )
         manual_ground_truth = self.store.get_manual_ground_truth(trial_id)
+        shadow_region = self.store.get_shadow_region(trial_id)
+        if shadow_region and not (manual_ground_truth or {}).get("main_shadow_region"):
+            manual_ground_truth = {**(manual_ground_truth or {}), "main_shadow_region": shadow_region}
         result = analyse_trial(
             calibration_path=Path(calibration["path"]),
             main_path=Path(main["path"]),

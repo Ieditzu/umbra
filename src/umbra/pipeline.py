@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import cv2
 import numpy as np
 
+from .sun import sun_metadata
 from .video import estimate_audio_offset, read_frames
 from .vision import (
     CalibrationModel,
@@ -47,27 +47,6 @@ def _serialise_assessment(assessment: SceneAssessment, calibration: CalibrationM
         "reasons": assessment.reasons,
         "roi_source": assessment.source,
     }
-
-
-def _sun_metadata(scene: dict[str, Any]) -> dict[str, float | str | None]:
-    latitude, longitude, recorded_at = scene.get("latitude"), scene.get("longitude"), scene.get("recorded_at")
-    if latitude is None or longitude is None or not recorded_at:
-        return {"status": "not_available", "elevation_deg": None, "azimuth_deg": None}
-    try:
-        from astral import Observer
-        from astral.sun import azimuth, elevation
-
-        moment = datetime.fromisoformat(str(recorded_at).replace("Z", "+00:00"))
-        if moment.tzinfo is None:
-            moment = moment.replace(tzinfo=UTC)
-        observer = Observer(latitude=float(latitude), longitude=float(longitude))
-        return {
-            "status": "estimated",
-            "elevation_deg": round(float(elevation(observer, moment)), 2),
-            "azimuth_deg": round(float(azimuth(observer, moment)), 2),
-        }
-    except (ImportError, TypeError, ValueError):
-        return {"status": "not_available", "elevation_deg": None, "azimuth_deg": None}
 
 
 def _position_distribution(position: float, confidence: float, bins: int = 16) -> np.ndarray:
@@ -391,7 +370,17 @@ def analyse_trial(
     update(0.27, "Decoding trial footage")
     main_frames, timestamps, main_info = read_frames(main_path, target_fps=10, max_frames=600)
     main_frames = _resize_like(main_frames, calibration.background.shape)
-    sun = _sun_metadata(scene)
+    sun = sun_metadata(scene)
+    streetlamp_mode = sun["above_horizon"] is False and isinstance(reviewed_region, dict)
+    illumination_source = "streetlamp" if streetlamp_mode else "sun" if sun["above_horizon"] is True else "unknown"
+    lamp_pool_brightness: float | None = None
+    if streetlamp_mode and assessment.roi is not None:
+        x, y, width, height = assessment.roi
+        lamp_pool_brightness = round(float(np.mean(calibration.background[y : y + height, x : x + width])), 2)
+        if lamp_pool_brightness < 55.0:
+            assessment.coverage_score = min(assessment.coverage_score, 0.43)
+            assessment.reasons.append("Selected streetlamp pavement is too dark in the empty calibration")
+    illumination = {"source": illumination_source, "selected_pool_brightness": lamp_pool_brightness}
     if assessment.roi is None:
         return {
             "state": "no_coverage",
@@ -412,6 +401,7 @@ def analyse_trial(
             "model": {"name": "calibration_temporal_evidence", "version": "0.2", "trained": False},
             "scene_assessment": _serialise_assessment(assessment, calibration),
             "sun": sun,
+            "illumination": illumination,
             "timeline": [],
             "baselines": {},
             "metrics": {"ground_truth_available": 0, "f1": None, "position_error_norm": None, "lead_time_s": None},
@@ -489,6 +479,15 @@ def analyse_trial(
     )
     if entry_source == "manual_review" and state == "early_warning" and lead_time is not None:
         state_reasons = [f"Pavement shadow preceded reviewed body entry by {lead_time:.2f} s"]
+    if sun["above_horizon"] is False and not streetlamp_mode:
+        state = "no_coverage"
+        confidence = 0.0
+        hidden_motion = None
+        state_reasons = [
+            "Sun below the horizon. Select a streetlamp-lit pavement area on the corner trial to test artificial-light shadows."
+        ]
+    elif streetlamp_mode and state == "no_coverage":
+        hidden_motion = None
     direction, speed_class, velocity = _speed_and_direction(positions, timestamps)
     if tuned or state in {"no_coverage", "no_reliable_signal"}:
         direction, speed_class, velocity = "unknown", "unknown", None
@@ -510,7 +509,7 @@ def analyse_trial(
     )
     labels: list[dict[str, float | bool]] = []
     alignment: dict[str, Any] = {"method": "not_requested", "confidence": 0.0}
-    if manual_ground_truth:
+    if manual_ground_truth and ground_truth_path:
         update(0.76, "Using manually reviewed ground-truth labels")
         labels, alignment = manual_track_labels(manual_ground_truth)
     elif ground_truth_path:
@@ -578,6 +577,7 @@ def analyse_trial(
         "reasons": [*assessment.reasons, *state_reasons],
         "scene_assessment": _serialise_assessment(assessment, calibration),
         "sun": sun,
+        "illumination": illumination,
         "timeline": timeline,
         "baselines": baselines,
         "ground_truth": {"alignment": alignment, "labels": labels},

@@ -132,6 +132,9 @@ textarea { min-height: 68px; resize: vertical; }
 .workspace-heading h1 { margin: 0; font-size: clamp(1.3rem, 2vw, 1.8rem); }
 .camera-status { padding: 5px 10px; border: 1px solid #60706d; border-radius: 999px; color: #d4dedb; font-size: .76rem; }
 .camera-status.on { border-color: #4caa8b; color: #a4f4d6; }
+.solar-reading { margin: -7px 0 12px; color: #a8d9bd; font-size: .76rem; }
+.solar-reading.below-horizon { color: #e6bb82; }
+.review-screen .solar-reading { margin: -8px 0 18px; }
 .camera-stage.main-camera { height: min(72vh, 760px); min-height: 340px; aspect-ratio: auto; margin: 0 0 12px; border: 1px solid #40595c; border-radius: 10px; }
 .camera.main-camera, .main-camera .camera { min-height: 0; }
 .camera-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; color: #b3c7c2; }

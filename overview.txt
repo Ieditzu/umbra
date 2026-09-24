@@ -89,6 +89,15 @@ Processing
    are required from the user.
 5. Gate on calibration quality, shadow strength, and temporal
    coherence. Refuse when the scene or signal is unusable.
+   Use the scene's recording date, time, and coordinates to calculate
+   sun elevation and azimuth. When the sun is below the horizon, accept
+   a reviewed streetlamp-lit pavement area instead of a solar-shadow
+   region, provided the empty calibration shows adequate stable light.
+   Withhold the warning at night if that area is missing or too dark.
+   The live scene clock shows the sun position for its displayed time,
+   including a frozen/editable time. Sun bearing or lamp illumination
+   alone cannot locate a person behind a wall without calibrated camera
+   and ground geometry.
 6. For controlled evaluation, use ArUco labels when available or
    clearly label a markerless truth video as operator-reviewed. A
    reviewer can also mark the first full-body entry frame in the main

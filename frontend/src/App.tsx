@@ -12,6 +12,7 @@ import type {
   Scene,
   SceneDetail,
   State,
+  SunPosition,
   Trial
 } from "./types";
 
@@ -73,6 +74,7 @@ function ResultPanel({ result, title }: { result: AnalysisResult; title: string 
         <article><span>Lead time</span><strong>{result.lead_time_s == null ? "—" : `${result.lead_time_s.toFixed(2)} s`}</strong></article>
         <article><span>Shadow signal</span><strong>{result.presence_probability == null ? "—" : `${Math.round(result.presence_probability * 100)}%`}</strong></article>
       </div>
+      {result.sun?.status === "estimated" && <p className="solar-reading">Sun at recording: elevation {result.sun.elevation_deg}° · bearing {result.sun.azimuth_deg}°{result.illumination?.source === "streetlamp" ? " · streetlamp area used" : result.sun.above_horizon === false ? " · shadow warning withheld" : ""}</p>}
       {(result.visualizations?.corner_trial_available || result.visualization?.available) && <div className="review-videos">
         <div className="review-clip"><h2>Corner trial</h2><video key={`corner-${result.analysis_id}`} controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/visualization`} type="video/mp4" /></video><a className="button secondary" href={`${API}/analyses/${result.analysis_id}/visualization`} download={`corner-trial-${result.analysis_id}.mp4`}>Download video</a></div>
         {result.visualizations?.hidden_path_available && <div className="review-clip"><h2>Hidden path</h2><video key={`hidden-${result.analysis_id}`} controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/hidden-path-visualization`} type="video/mp4" /></video><a className="button secondary" href={`${API}/analyses/${result.analysis_id}/hidden-path-visualization`} download={`hidden-path-${result.analysis_id}.mp4`}>Download video</a></div>}
@@ -142,10 +144,12 @@ function ManualReview({ trial, busy, onClose, onNotice }: {
   const [mainAspect, setMainAspect] = useState(16 / 9);
   const [saving, setSaving] = useState(false);
   const [loadingReview, setLoadingReview] = useState(true);
+  const sectionRef = useRef<HTMLElement>(null);
   const truthRef = useRef<HTMLVideoElement>(null);
   const mainRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
+    sectionRef.current?.scrollIntoView({ block: "start" });
     let active = true;
     setLoadingReview(true);
     setReview(emptyManualReview(trial));
@@ -153,8 +157,11 @@ function ManualReview({ trial, busy, onClose, onNotice }: {
     setReviewSource("phone");
     setShadowStart(null);
     setSelectingShadow(false);
-    void request<ManualGroundTruth>(`/trials/${trial.id}/manual-ground-truth`)
-      .then((saved) => { if (active) setReview(saved); })
+    const savedReview = trial.ground_truth_media_id
+      ? request<ManualGroundTruth>(`/trials/${trial.id}/manual-ground-truth`)
+      : request<ManualRegion>(`/trials/${trial.id}/shadow-region`);
+    void savedReview
+      .then((saved) => { if (active) setReview(trial.ground_truth_media_id ? saved as ManualGroundTruth : { ...emptyManualReview(trial), main_shadow_region: saved as ManualRegion }); })
       .catch(() => undefined)
       .finally(() => { if (active) setLoadingReview(false); });
     return () => { active = false; };
@@ -214,6 +221,26 @@ function ManualReview({ trial, busy, onClose, onNotice }: {
   }
 
   async function save() {
+    if (!trial.ground_truth_media_id) {
+      if (!review.main_shadow_region) {
+        onNotice("Select the lamp-lit pavement area before saving.");
+        return;
+      }
+      setSaving(true);
+      try {
+        const region = await request<ManualRegion>(`/trials/${trial.id}/shadow-region`, {
+          method: "PUT",
+          body: JSON.stringify(review.main_shadow_region)
+        });
+        setReview((current) => ({ ...current, main_shadow_region: region }));
+        onNotice("Shadow area saved. Re-run analysis to use it.");
+      } catch (error) {
+        onNotice(error instanceof Error ? error.message : "Could not save shadow area");
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     const truthReady = review.corner && review.far_point && review.samples.length > 0;
     if (!truthReady && !review.main_shadow_region && review.main_entry_timestamp_s === null) {
       onNotice("Select the shadow pavement on the phone shot or add drone route labels before saving.");
@@ -234,6 +261,23 @@ function ManualReview({ trial, busy, onClose, onNotice }: {
     }
   }
 
+  async function clearShadowArea() {
+    if (trial.ground_truth_media_id) {
+      setReview((current) => ({ ...current, main_shadow_region: null }));
+      return;
+    }
+    setSaving(true);
+    try {
+      await request<{ trial_id: string }>(`/trials/${trial.id}/shadow-region`, { method: "DELETE" });
+      setReview((current) => ({ ...current, main_shadow_region: null }));
+      onNotice("Shadow area cleared.");
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "Could not clear shadow area");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const points: Array<{ label: string; point: ManualPoint; className: string }> = [
     ...(review.corner ? [{ label: "Corner", point: review.corner, className: "corner" }] : []),
     ...(review.far_point ? [{ label: "Far", point: review.far_point, className: "far" }] : []),
@@ -241,11 +285,11 @@ function ManualReview({ trial, busy, onClose, onNotice }: {
   ];
   const disabled = busy || saving || loadingReview;
 
-  return <section className="manual-review panel">
+  return <section ref={sectionRef} className="manual-review panel">
     <div className="panel-heading"><div><p className="eyebrow">Scene review</p><h2>Manual review — {trial.name}</h2></div><button className="button ghost" disabled={disabled} onClick={onClose}>Close</button></div>
-    <div className="review-source-tabs"><button className={`button ${reviewSource === "phone" ? "primary" : "secondary"}`} onClick={() => setReviewSource("phone")}>Phone shot · shadow</button><button className={`button ${reviewSource === "drone" ? "primary" : "secondary"}`} onClick={() => setReviewSource("drone")}>Drone shot · route truth</button></div>
+    {trial.ground_truth_media_id && <div className="review-source-tabs"><button className={`button ${reviewSource === "phone" ? "primary" : "secondary"}`} onClick={() => setReviewSource("phone")}>Phone shot · shadow</button><button className={`button ${reviewSource === "drone" ? "primary" : "secondary"}`} onClick={() => setReviewSource("drone")}>Drone shot · route truth</button></div>}
     <div className="review-grid">
-      <div className={`review-pane ${reviewSource === "drone" ? "" : "inactive"}`}>
+      {trial.ground_truth_media_id && <div className={`review-pane ${reviewSource === "drone" ? "" : "inactive"}`}>
         <p className="hint">Pause the drone video. Click the route corner and far endpoint, then mark the walker’s feet in several frames.</p>
         <div className="review-toolbar">
           {(["corner", "far", "walker"] as ReviewMode[]).map((item) => <button key={item} className={`button ${mode === item ? "primary" : "secondary"}`} disabled={disabled} onClick={() => setMode(item)}>Mark {item === "far" ? "far point" : item}</button>)}
@@ -257,21 +301,21 @@ function ManualReview({ trial, busy, onClose, onNotice }: {
           {points.map(({ label, point, className }) => <span key={`${label}-${point.x}-${point.y}`} className={`manual-point ${className}`} style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }}>{label}</span>)}
         </div>
         <p className="review-time">Truth frame: {truthTime.toFixed(2)} s · mode: {mode}</p>
-      </div>
+      </div>}
       <div className={`review-pane ${reviewSource === "phone" ? "" : "inactive"}`}>
-        <p className="hint">Select the sunlit pavement where the approaching shadow first appears. Use two clicks for opposite corners of the area. Pause when any part of the walker first enters this camera and mark the time. Umbra estimates the hidden-side overlay automatically when it can find a nearby wall edge.</p>
-        <div className="review-toolbar"><button className={`button ${selectingShadow ? "primary" : "secondary"}`} disabled={disabled} onClick={() => { setSelectingShadow(true); setShadowStart(null); }}>Select shadow pavement</button><button className="text-button" disabled={disabled || !review.main_shadow_region} onClick={() => setReview((current) => ({ ...current, main_shadow_region: null }))}>Clear area</button></div>
+        <p className="hint">Select the pavement where the approaching shadow first appears. At night, mark the lit ground under a streetlamp, not the lamp itself. Use two clicks for opposite corners; keep the first 1.8 seconds empty for calibration.</p>
+        <div className="review-toolbar"><button className={`button ${selectingShadow ? "primary" : "secondary"}`} disabled={disabled} onClick={() => { setSelectingShadow(true); setShadowStart(null); }}>Select shadow pavement</button><button className="text-button" disabled={disabled || !review.main_shadow_region} onClick={() => void clearShadowArea()}>Clear area</button></div>
         <div className="review-video" style={{ maxWidth: `${Math.round(360 * mainAspect)}px` }}><video ref={mainRef} controls src={`${API}/media/${trial.main_media_id}/stream`} onLoadedMetadata={(event) => setMainAspect(event.currentTarget.videoWidth / event.currentTarget.videoHeight)} onTimeUpdate={(event) => setMainTime(event.currentTarget.currentTime)} />
           {selectingShadow && <button className="review-click-surface" type="button" onClick={markShadowRegion} aria-label="Click two corners of the shadow pavement area" />}
           {review.main_shadow_region && <span className="manual-region" style={{ left: `${review.main_shadow_region.x * 100}%`, top: `${review.main_shadow_region.y * 100}%`, width: `${review.main_shadow_region.width * 100}%`, height: `${review.main_shadow_region.height * 100}%` }} />}
           {shadowStart && <span className="manual-point corner" style={{ left: `${shadowStart.x * 100}%`, top: `${shadowStart.y * 100}%` }}>Start</span>}
         </div>
         <p className="review-time">Phone frame: {mainTime.toFixed(2)} s · shadow area: {review.main_shadow_region ? "selected" : selectingShadow ? shadowStart ? "click opposite corner" : "click first corner" : "not selected"}</p>
-        <div className="review-toolbar"><button className="button primary" disabled={disabled} onClick={markEntry}>Use current time as body entry</button><button className="text-button" disabled={disabled || review.main_entry_timestamp_s === null} onClick={() => setReview((current) => ({ ...current, main_entry_timestamp_s: null }))}>Clear entry time</button></div>
-        <p className="review-time">Body entry: {review.main_entry_timestamp_s === null ? "not set" : `${review.main_entry_timestamp_s.toFixed(2)} s`}. The first 1.8 seconds of the phone shot should contain empty pavement.</p>
+        {trial.ground_truth_media_id && <><div className="review-toolbar"><button className="button primary" disabled={disabled} onClick={markEntry}>Use current time as body entry</button><button className="text-button" disabled={disabled || review.main_entry_timestamp_s === null} onClick={() => setReview((current) => ({ ...current, main_entry_timestamp_s: null }))}>Clear entry time</button></div>
+        <p className="review-time">Body entry: {review.main_entry_timestamp_s === null ? "not set" : `${review.main_entry_timestamp_s.toFixed(2)} s`}. The first 1.8 seconds of the phone shot should contain empty pavement.</p></>}
       </div>
     </div>
-    <div className="review-footer"><span>{loadingReview ? "Loading saved review…" : review.main_shadow_region ? "Phone shadow area ready" : "No phone shadow area"} · {review.samples.length} drone points</span><button className="button primary" disabled={disabled} onClick={() => void save()}>{saving ? "Saving…" : "Save review"}</button></div>
+    <div className="review-footer"><span>{loadingReview ? "Loading saved review…" : review.main_shadow_region ? "Shadow area ready" : "No shadow area"}{trial.ground_truth_media_id && ` · ${review.samples.length} drone points`}</span><button className="button primary" disabled={disabled} onClick={() => void save()}>{saving ? "Saving…" : trial.ground_truth_media_id ? "Save review" : "Save area"}</button></div>
   </section>;
 }
 
@@ -291,6 +335,7 @@ export default function App() {
   const [streaming, setStreaming] = useState(false);
   const [clock, setClock] = useState(() => new Date());
   const [frozenClock, setFrozenClock] = useState<{ sceneId: string; value: string } | null>(null);
+  const [sunPosition, setSunPosition] = useState<SunPosition | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -302,6 +347,7 @@ export default function App() {
   const videosComplete = Boolean(mediaByRole.calibration && mediaByRole.main);
   const frozenTime = frozenClock && frozenClock.sceneId === detail?.scene.id ? frozenClock.value : null;
   const displayedClock = frozenTime ? new Date(frozenTime) : clock;
+  const sunMoment = frozenTime ?? localDateTimeValue(clock);
 
   useEffect(() => {
     let timer: number;
@@ -322,6 +368,21 @@ export default function App() {
       document.removeEventListener("visibilitychange", refreshOnReturn);
     };
   }, []);
+
+  useEffect(() => {
+    const sceneId = detail?.scene.id;
+    if (!sceneId) {
+      setSunPosition(null);
+      return;
+    }
+    setSunPosition(null);
+    let active = true;
+    const at = new Date(sunMoment).toISOString();
+    void request<SunPosition>(`/scenes/${sceneId}/sun?at=${encodeURIComponent(at)}`)
+      .then((position) => { if (active) setSunPosition(position); })
+      .catch(() => { if (active) setSunPosition(null); });
+    return () => { active = false; };
+  }, [detail?.scene.id, sunMoment]);
 
   useEffect(() => {
     if (detail) setTrialName(`Trial ${detail.trials.length + 1}`);
@@ -618,6 +679,7 @@ export default function App() {
             <button className={frozenTime ? "button unfreeze-button" : "button freeze-button"} type="button" disabled={!detail} onClick={toggleFrozenTime}>{frozenTime ? "Unfreeze" : "Freeze"}</button>
           </div>
           <div className="workspace-heading"><h1>Live camera</h1><span className={streaming ? "camera-status on" : "camera-status"}>{streaming ? "Live" : "Off"}</span></div>
+          {sunPosition?.status === "estimated" && <p className={sunPosition.above_horizon ? "solar-reading" : "solar-reading below-horizon"}>{sunPosition.above_horizon ? `Sun ${sunPosition.elevation_deg}° high · bearing ${sunPosition.azimuth_deg}°` : "Sun below horizon · use a streetlamp-lit shadow area for recorded trials"}</p>}
           <div className="camera-stage main-camera">
             <video ref={videoRef} autoPlay muted playsInline className={streaming ? "camera active" : "camera"} />
             {!streaming && <div className="camera-placeholder"><span>◉</span><strong>Camera is off</strong><button className="button primary" disabled={busy} onClick={() => void startCamera()}>Start camera</button></div>}
@@ -656,7 +718,7 @@ export default function App() {
                 const analyses = (detail.analyses ?? []).filter((analysis) => analysis.trial_id === trial.id).sort((a, b) => b.created_at.localeCompare(a.created_at));
                 return <article className="trial-card" key={trial.id}>
                   <div className="trial-card-head"><strong>{trial.name}</strong><button className="icon-button delete-icon" title="Delete trial" aria-label={`Delete ${trial.name}`} disabled={busy} onClick={() => void deleteTrial(trial)}>×</button></div>
-                  <div className="trial-card-actions"><button className="button secondary" disabled={busy} onClick={() => void analyse(trial)}>Analyze</button>{trial.ground_truth_media_id && <button className="button ghost" disabled={busy} onClick={() => setManualTrialId(trial.id)}>Labels</button>}</div>
+                  <div className="trial-card-actions"><button className="button secondary" disabled={busy} onClick={() => void analyse(trial)}>Analyze</button><button className="button ghost" disabled={busy} onClick={() => setManualTrialId(trial.id)}>{trial.ground_truth_media_id ? "Labels" : "Shadow area"}</button></div>
                   {analyses.length > 0 && <div className="saved-result-row"><span>Latest · {new Date(analyses[0].created_at).toLocaleString()}</span><div><button className="button primary" disabled={busy} onClick={() => void reviewAnalysis(analyses[0].id, trial.name)}>Review result</button><button className="icon-button delete-icon" title="Delete latest result" aria-label="Delete latest result" disabled={busy} onClick={() => void deleteAnalysis(analyses[0].id, trial.name)}>×</button></div></div>}
                   {analyses.length > 1 && <details className="older-results"><summary>Older results ({analyses.length - 1})</summary>{analyses.slice(1).map((analysis) => <div className="saved-result-row" key={analysis.id}><span>{new Date(analysis.created_at).toLocaleString()}</span><div><button className="button secondary" disabled={busy} onClick={() => void reviewAnalysis(analysis.id, trial.name)}>Review</button><button className="icon-button delete-icon" title="Delete result" aria-label="Delete result" disabled={busy} onClick={() => void deleteAnalysis(analysis.id, trial.name)}>×</button></div></div>)}</details>}
                 </article>;

@@ -15,6 +15,8 @@ Film a **building corner** (a wall you can hide behind), not a pillar in an open
 
 Sun must throw the walker's shadow **onto Camera 1's pavement** before their body clears the edge. If the shadow falls behind them, change corner or time of day.
 
+At night, use a fixed streetlamp that illuminates the visible pavement before the walker reaches the corner. Record an empty calibration with the lamp on, then a trial with the same camera and lighting. In **Shadow area**, mark the lit pavement patch where the shadow should arrive, not the lamp fixture. Keep the first 1.8 seconds of the trial empty. Weak lamps, shifting light, or a shadow that never reaches the marked patch should produce no reliable warning. Night analysis currently runs on recorded trials, not the live camera preview.
+
 ## Camera 1 (main)
 
 - Tape it down. Same pose for empty and trial. Stabilization off if it crops.

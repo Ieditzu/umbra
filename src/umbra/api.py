@@ -4,11 +4,12 @@ import io
 import uuid
 import zipfile
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any
 
 import uvicorn
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
+from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -22,6 +23,7 @@ from .schemas import (
     Health,
     Job,
     ManualGroundTruth,
+    ManualRegion,
     MediaAsset,
     MediaRole,
     Scene,
@@ -33,6 +35,7 @@ from .schemas import (
 )
 from .service import UmbraService
 from .store import Store
+from .sun import sun_metadata
 from .video import allowed_video_name, inspect_video
 
 
@@ -63,7 +66,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.jobs = jobs
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
+        allow_origins=["http://127.0.0.1:5173", "http://localhost:5173", "http://127.0.0.1:5174", "http://localhost:5174"],
         allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -105,6 +108,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if scene is None:
             raise HTTPException(status_code=404, detail="Scene not found")
         return {"scene": scene, "media": database.list_media(scene_id), "trials": database.list_trials(scene_id), "analyses": database.list_analyses(scene_id)}
+
+    @app.get("/api/v1/scenes/{scene_id}/sun", tags=["scenes"])
+    def get_scene_sun(
+        scene_id: str,
+        database: Annotated[Store, Depends(get_store)],
+        at_time: Annotated[datetime | None, Query(alias="at")] = None,
+    ) -> dict[str, float | str | bool | None]:
+        scene = database.get_scene(scene_id)
+        if scene is None:
+            raise HTTPException(status_code=404, detail="Scene not found")
+        if at_time is not None and at_time.tzinfo is None:
+            raise HTTPException(status_code=422, detail="Sun time must include a time zone")
+        return sun_metadata(scene, at=at_time)
 
     @app.post(
         "/api/v1/scenes/{scene_id}/media/{role}",
@@ -199,6 +215,37 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if trial.get("ground_truth_media_id") != payload.ground_truth_media_id:
             raise HTTPException(status_code=422, detail="Manual labels must use this trial's attached ground-truth video")
         return database.save_manual_ground_truth(trial_id, payload.model_dump(mode="json", exclude={"updated_at"}))
+
+    @app.get("/api/v1/trials/{trial_id}/shadow-region", response_model=ManualRegion, tags=["trials"])
+    def get_shadow_region(
+        trial_id: str,
+        database: Annotated[Store, Depends(get_store)],
+    ) -> dict[str, Any]:
+        if database.get_trial(trial_id) is None:
+            raise HTTPException(status_code=404, detail="Trial not found")
+        region = database.get_shadow_region(trial_id)
+        if region is None:
+            raise HTTPException(status_code=404, detail="No shadow area saved for this trial")
+        return region
+
+    @app.put("/api/v1/trials/{trial_id}/shadow-region", response_model=ManualRegion, tags=["trials"])
+    def save_shadow_region(
+        trial_id: str,
+        payload: ManualRegion,
+        database: Annotated[Store, Depends(get_store)],
+    ) -> dict[str, Any]:
+        if database.get_trial(trial_id) is None:
+            raise HTTPException(status_code=404, detail="Trial not found")
+        return database.save_shadow_region(trial_id, payload.model_dump())
+
+    @app.delete("/api/v1/trials/{trial_id}/shadow-region", tags=["trials"])
+    def delete_shadow_region(
+        trial_id: str,
+        database: Annotated[Store, Depends(get_store)],
+    ) -> dict[str, str]:
+        if not database.delete_shadow_region(trial_id):
+            raise HTTPException(status_code=404, detail="Trial not found")
+        return {"trial_id": trial_id}
 
     @app.delete("/api/v1/trials/{trial_id}", tags=["trials"])
     def delete_trial(

@@ -44,14 +44,14 @@ The dashboard then enables **Pretrain temporal model**; the same route is availa
 
 ## Field workflow
 
-1. Create a local scene and provide approximate capture time and location.
+1. Create a local scene and provide the recording time and location. Umbra displays the sun's elevation and bearing for the scene clock; freezing that clock lets you inspect a different time. Recorded analysis uses the scene's recording time. If the sun was below the horizon, select a stable streetlamp-lit pavement area in **Shadow area** on the trial; otherwise Umbra withholds a shadow warning. This does not map the light source into camera pixels.
 2. Tape the main camera on a **wide route view**: the visible pavement, corner edge, shadow path, and enough of the opening to show the walker’s full body after entry. Record an empty calibration, then one continuous trial: walker starts hidden, shadow should appear first, then they step into view. Avoid a close facial shot; Umbra only uses anonymous foreground entry to timestamp the comparison.
 3. Optional: a second camera on the hidden path with ArUco **10** (corner) and **11** (far). Clap for sync. This scores position; it is not the warning.
 4. Import or record the clips, register a trial, run analysis.
 5. If the automatic shadow area misses the pavement, open **Manual review → Phone shot**, pause on the empty pavement and click two corners around the place where the shadow will arrive. Mark the first visible body frame. Save, then rerun analysis. The first 1.8 seconds of the phone clip must still be empty; Umbra adapts its background to those frames. The **Drone shot** tab is for independent route labels.
 6. Read lead time, shadow onset, line-of-sight onset, and the refusal reasons. Empty trials and no-coverage results count.
 
-See [the field protocol](docs/field-protocol.md). The sun must throw the walker's shadow **onto the pavement the main camera sees**.
+See [the field protocol](docs/field-protocol.md). In daylight, the sun must throw the walker's shadow **onto the pavement the main camera sees**. At night, a streetlamp must light that pavement enough to cast a visible moving shadow. Film an empty calibration under the same lamp and keep the camera fixed. Mark the lit ground patch, not the lamp fixture. The live camera remains a clean preview; night shadow tracking currently applies to recorded trials.
 
 ## RoSEF paperwork and demonstration
 

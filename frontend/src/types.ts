@@ -11,6 +11,13 @@ export interface Scene {
   created_at: string;
 }
 
+export interface SunPosition {
+  status: "estimated" | "not_available";
+  elevation_deg: number | null;
+  azimuth_deg: number | null;
+  above_horizon: boolean | null;
+}
+
 export interface MediaAsset {
   id: string;
   scene_id: string;
@@ -100,6 +107,8 @@ export interface AnalysisResult {
   los_detected?: boolean;
   entry_source?: string;
   reasons: string[];
+  sun?: SunPosition;
+  illumination?: { source: "sun" | "streetlamp" | "unknown"; selected_pool_brightness: number | null };
   timeline: TimelinePoint[];
   metrics: Record<string, number | string | null>;
   baselines: Record<string, { presence_probability: number; state: string }>;

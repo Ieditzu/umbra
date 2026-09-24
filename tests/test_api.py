@@ -19,6 +19,29 @@ def test_health_and_scene_creation(tmp_path: Path) -> None:
         assert response.json()["name"] == "Test corner"
 
 
+def test_scene_sun_uses_requested_time(tmp_path: Path) -> None:
+    settings = Settings(data_dir=tmp_path / "data", max_upload_bytes=10_000_000)
+    settings.ensure_directories()
+    with TestClient(create_app(settings)) as client:
+        scene = client.post(
+            "/api/v1/scenes",
+            json={
+                "name": "Sun test",
+                "latitude": 44.4268,
+                "longitude": 26.1025,
+                "recorded_at": "2026-06-21T12:00:00+00:00",
+            },
+        ).json()
+        route = f"/api/v1/scenes/{scene['id']}/sun"
+        noon = client.get(route, params={"at": "2026-06-21T12:00:00+00:00"})
+        midnight = client.get(route, params={"at": "2026-06-21T00:00:00+00:00"})
+        assert noon.status_code == midnight.status_code == 200
+        assert noon.json()["above_horizon"] is True
+        assert midnight.json()["above_horizon"] is False
+        assert noon.json()["elevation_deg"] > midnight.json()["elevation_deg"]
+        assert client.get(route, params={"at": "2026-06-21T12:00:00"}).status_code == 422
+
+
 def test_scene_deletion_removes_imported_media(tmp_path: Path) -> None:
     settings = Settings(data_dir=tmp_path / "data", max_upload_bytes=10_000_000)
     settings.ensure_directories()
@@ -40,6 +63,35 @@ def test_scene_deletion_removes_imported_media(tmp_path: Path) -> None:
         assert response.json() == {"scene_id": scene["id"]}
         assert not stored_path.exists()
         assert client.get(f"/api/v1/scenes/{scene['id']}").status_code == 404
+
+
+def test_shadow_area_can_be_saved_without_a_reference_video(tmp_path: Path) -> None:
+    settings = Settings(data_dir=tmp_path / "data", max_upload_bytes=10_000_000)
+    settings.ensure_directories()
+    bundle = generate_synthetic_bundle(tmp_path / "fixture", seed=19, frames=30)
+    with TestClient(create_app(settings)) as client:
+        scene = client.post("/api/v1/scenes", json={"name": "Lamp corner"}).json()
+        media = {}
+        for role, path in (("calibration", bundle.calibration_path), ("main", bundle.main_path)):
+            with path.open("rb") as handle:
+                response = client.post(
+                    f"/api/v1/scenes/{scene['id']}/media/{role}",
+                    files={"file": (path.name, handle, "video/mp4")},
+                )
+            assert response.status_code == 201, response.text
+            media[role] = response.json()["id"]
+        trial = client.post(
+            f"/api/v1/scenes/{scene['id']}/trials",
+            json={"name": "Lamp trial", "calibration_media_id": media["calibration"], "main_media_id": media["main"]},
+        ).json()
+        route = f"/api/v1/trials/{trial['id']}/shadow-region"
+        region = {"x": 0.1, "y": 0.6, "width": 0.7, "height": 0.3}
+        assert client.get(route).status_code == 404
+        assert client.put(route, json=region).json() == region
+        assert client.get(route).json() == region
+        assert client.put(route, json={**region, "width": 1.0}).status_code == 422
+        assert client.delete(route).status_code == 200
+        assert client.get(route).status_code == 404
 
 
 def test_video_import_and_trial_registration(tmp_path: Path) -> None:

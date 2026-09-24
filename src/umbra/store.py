@@ -279,6 +279,54 @@ class Store:
             "updated_at": str(row["updated_at"]),
         }
 
+    def get_shadow_region(self, trial_id: str) -> dict[str, Any] | None:
+        with self._connection() as connection:
+            row = connection.execute(
+                """
+                SELECT scene_shadow_regions.region_json
+                FROM trials JOIN scene_shadow_regions ON scene_shadow_regions.scene_id = trials.scene_id
+                WHERE trials.id = ? AND scene_shadow_regions.calibration_media_id = trials.calibration_media_id
+                """,
+                (trial_id,),
+            ).fetchone()
+        return json.loads(str(row["region_json"])) if row is not None else None
+
+    def save_shadow_region(self, trial_id: str, region: dict[str, Any]) -> dict[str, Any]:
+        with self._connection() as connection:
+            trial = connection.execute(
+                "SELECT scene_id, calibration_media_id FROM trials WHERE id = ?", (trial_id,)
+            ).fetchone()
+            if trial is None:
+                raise ValueError("Trial was not found")
+            connection.execute(
+                """
+                INSERT INTO scene_shadow_regions (scene_id, calibration_media_id, region_json, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(scene_id) DO UPDATE SET
+                    calibration_media_id = excluded.calibration_media_id,
+                    region_json = excluded.region_json,
+                    updated_at = excluded.updated_at
+                """,
+                (trial["scene_id"], trial["calibration_media_id"], json.dumps(region), utc_now()),
+            )
+        return region
+
+    def delete_shadow_region(self, trial_id: str) -> bool:
+        with self._connection() as connection:
+            trial = connection.execute(
+                "SELECT scene_id, calibration_media_id FROM trials WHERE id = ?", (trial_id,)
+            ).fetchone()
+            if trial is None:
+                return False
+            connection.execute(
+                """
+                DELETE FROM scene_shadow_regions
+                WHERE scene_id = ? AND calibration_media_id = ?
+                """,
+                (trial["scene_id"], trial["calibration_media_id"]),
+            )
+        return True
+
     def save_manual_ground_truth(self, trial_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         stored = {
             "corner": payload.get("corner"),

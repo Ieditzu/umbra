@@ -57,6 +57,39 @@ def test_directional_synthetic_reports_positive_lead_time(tmp_path: Path) -> Non
     assert result["shadow_onset_s"] < result["los_onset_s"]
 
 
+def test_solar_shadow_warning_is_withheld_when_sun_is_below_horizon(tmp_path: Path) -> None:
+    bundle = generate_synthetic_bundle(tmp_path / "night", seed=7, frames=72, lighting="directional")
+    night_scene = {**scene(), "recorded_at": "2026-06-21T00:00:00+00:00"}
+    result = analyse_trial(
+        calibration_path=bundle.calibration_path,
+        main_path=bundle.main_path,
+        ground_truth_path=None,
+        scene=night_scene,
+        track_length_m=None,
+    )
+    assert result["sun"]["above_horizon"] is False
+    assert result["state"] == "no_coverage"
+    assert result["hidden_motion"] is None
+    assert any("sun below the horizon" in reason.lower() for reason in result["reasons"])
+
+
+def test_night_trial_can_use_a_reviewed_streetlamp_area(tmp_path: Path) -> None:
+    bundle = generate_synthetic_bundle(tmp_path / "lamp", seed=7, frames=72, lighting="directional")
+    result = analyse_trial(
+        calibration_path=bundle.calibration_path,
+        main_path=bundle.main_path,
+        ground_truth_path=None,
+        scene={**scene(), "recorded_at": "2026-06-21T00:00:00+00:00"},
+        track_length_m=None,
+        manual_ground_truth={"main_shadow_region": {"x": 0.1, "y": 0.6, "width": 0.7, "height": 0.3}},
+    )
+    assert result["sun"]["above_horizon"] is False
+    assert result["illumination"]["source"] == "streetlamp"
+    assert result["illumination"]["selected_pool_brightness"] >= 55
+    assert result["state"] != "no_coverage"
+    assert not any("Select a streetlamp-lit" in reason for reason in result["reasons"])
+
+
 def test_manual_review_overrides_body_entry_timestamp(tmp_path: Path) -> None:
     bundle = generate_synthetic_bundle(tmp_path / "manual", seed=7, frames=100, lighting="directional")
     automatic = analyse_trial(
