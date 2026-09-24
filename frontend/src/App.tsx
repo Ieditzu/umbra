@@ -1,4 +1,4 @@
-import { FormEvent, MouseEvent, RefObject, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { API, request } from "./api";
 import type {
   AnalysisResult,
@@ -16,9 +16,9 @@ import type {
 } from "./types";
 
 const roleLabel: Record<MediaRole, string> = {
-  calibration: "Empty-scene calibration",
-  main: "Corner trial (shadow, then person)",
-  ground_truth: "Hidden-path ground truth"
+  calibration: "Empty scene",
+  main: "Corner trial",
+  ground_truth: "Reference path"
 };
 
 const stateLabel: Record<State, string> = {
@@ -49,240 +49,26 @@ function newSceneForm(): SceneForm {
   return { name: "", notes: "", latitude: "", longitude: "", recorded_at: localDateTimeValue() };
 }
 
-function fmt(value: number | null | undefined, digits = 2): string {
-  return typeof value === "number" ? value.toFixed(digits) : "—";
-}
-
 function StatePill({ state }: { state: State }) {
   return <span className={`state-pill ${state}`}>{stateLabel[state]}</span>;
 }
 
-function LiveShadowOverlay({
-  videoRef,
-  calibrationId
-}: {
-  videoRef: RefObject<HTMLVideoElement | null>;
-  calibrationId?: string;
-}) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const video = videoRef.current;
-    const overlay = canvasRef.current;
-    if (!video || !overlay || !calibrationId) return;
-
-    // Compare the live feed with the saved empty-scene view. Only sustained
-    // darkening in the lower image is treated as shadow evidence.
-    const reference = document.createElement("video");
-    reference.muted = true;
-    reference.playsInline = true;
-    reference.src = `${API}/media/${calibrationId}/stream`;
-    const referenceCanvas = document.createElement("canvas");
-    const referenceContext = referenceCanvas.getContext("2d", { willReadFrequently: true });
-    const processCanvas = document.createElement("canvas");
-    processCanvas.width = 192;
-    processCanvas.height = 108;
-    const processContext = processCanvas.getContext("2d", { willReadFrequently: true });
-    const context = overlay.getContext("2d");
-    if (!referenceContext || !processContext || !context) return;
-
-    let referencePixels: Uint8ClampedArray | null = null;
-    let frame = 0;
-    let lastProcess = 0;
-    let active = true;
-    let track: Array<{ x: number; y: number; t: number }> = [];
-    const loadReference = () => {
-      if (!active || !reference.videoWidth) return;
-      referenceCanvas.width = processCanvas.width;
-      referenceCanvas.height = processCanvas.height;
-      referenceContext.drawImage(reference, 0, 0, referenceCanvas.width, referenceCanvas.height);
-      referencePixels = referenceContext.getImageData(0, 0, referenceCanvas.width, referenceCanvas.height).data;
-      reference.pause();
-    };
-    reference.addEventListener("loadeddata", loadReference, { once: true });
-    reference.load();
-
-    const draw = (now: number) => {
-      if (!active) return;
-      frame = requestAnimationFrame(draw);
-      if (!referencePixels || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || now - lastProcess < 100) return;
-      lastProcess = now;
-      const width = processCanvas.width;
-      const height = processCanvas.height;
-      processContext.drawImage(video, 0, 0, width, height);
-      const live = processContext.getImageData(0, 0, width, height).data;
-      let weight = 0;
-      let sx = 0;
-      let sy = 0;
-      let minX = width, minY = height, maxX = 0, maxY = 0;
-      // Ignore the upper scene; pavement shadows usually occupy the lower half.
-      for (let y = 52; y < height - 2; y += 2) {
-        for (let x = 2; x < width - 2; x += 2) {
-          const i = (y * width + x) * 4;
-          const base = (referencePixels[i] * 0.299 + referencePixels[i + 1] * 0.587 + referencePixels[i + 2] * 0.114);
-          const current = (live[i] * 0.299 + live[i + 1] * 0.587 + live[i + 2] * 0.114);
-          const darkening = base - current;
-          if (base > 38 && darkening > 26) {
-            const w = Math.min(100, darkening - 18);
-            weight += w; sx += x * w; sy += y * w;
-            minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-            minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-          }
-        }
-      }
-      const stamp = performance.now();
-      const enoughEvidence = weight > 1800 && maxX - minX > 5 && maxY - minY > 3;
-      if (enoughEvidence) {
-        track.push({ x: sx / weight / width, y: sy / weight / height, t: stamp });
-        track = track.filter((point) => stamp - point.t < 2200).slice(-20);
-      } else if (track.length && stamp - track[track.length - 1].t > 450) {
-        track = [];
-      }
-
-      const rect = overlay.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      const canvasWidth = Math.max(1, Math.round(rect.width * dpr));
-      const canvasHeight = Math.max(1, Math.round(rect.height * dpr));
-      if (overlay.width !== canvasWidth || overlay.height !== canvasHeight) {
-        overlay.width = canvasWidth; overlay.height = canvasHeight;
-      }
-      context.clearRect(0, 0, canvasWidth, canvasHeight);
-      context.save(); context.scale(canvasWidth, canvasHeight);
-      if (track.length >= 2) {
-        context.strokeStyle = "rgba(116, 235, 194, .9)"; context.lineWidth = 0.004;
-        context.beginPath(); track.forEach((point, index) => index ? context.lineTo(point.x, point.y) : context.moveTo(point.x, point.y)); context.stroke();
-      }
-      if (enoughEvidence) {
-        context.strokeStyle = "#75f0c2"; context.lineWidth = 0.004;
-        context.strokeRect(minX / width, minY / height, (maxX - minX) / width, (maxY - minY) / height);
-      }
-      if (track.length >= 4) {
-        const first = track[0], last = track[track.length - 1];
-        const elapsed = Math.max(0.15, (last.t - first.t) / 1000);
-        const dx = (last.x - first.x) / elapsed;
-        const dy = (last.y - first.y) / elapsed;
-        const lead = Math.min(0.65, Math.max(0.2, elapsed * 0.35));
-        const px = Math.max(0.04, Math.min(0.96, last.x + dx * lead));
-        const py = Math.max(0.25, Math.min(0.88, last.y + dy * lead));
-        // A simple moving position marker: its coordinates come from measured
-        // shadow motion, not a time-based walking animation.
-        context.setLineDash([0.012, 0.009]); context.strokeStyle = "rgba(255, 208, 105, .88)"; context.lineWidth = 0.003;
-        context.beginPath(); context.moveTo(last.x, last.y); context.lineTo(px, py); context.stroke(); context.setLineDash([]);
-        context.fillStyle = "rgba(255, 208, 105, .2)"; context.strokeStyle = "#ffd069"; context.lineWidth = 0.004;
-        context.beginPath(); context.ellipse(px, py - 0.07, 0.025, 0.025, 0, 0, Math.PI * 2); context.fill(); context.stroke();
-        context.beginPath(); context.moveTo(px, py - 0.045); context.lineTo(px, py + 0.035); context.moveTo(px - 0.025, py - 0.015); context.lineTo(px + 0.025, py - 0.015); context.moveTo(px, py + 0.035); context.lineTo(px - 0.02, py + 0.07); context.moveTo(px, py + 0.035); context.lineTo(px + 0.02, py + 0.07); context.stroke();
-      }
-      context.restore();
-    };
-    frame = requestAnimationFrame(draw);
-    return () => {
-      active = false; cancelAnimationFrame(frame); reference.pause(); reference.removeAttribute("src"); reference.load();
-      reference.removeEventListener("loadeddata", loadReference);
-    };
-  }, [videoRef, calibrationId]);
-
-  return <><canvas ref={canvasRef} className="live-overlay" aria-hidden="true" />{calibrationId ? <span className="live-overlay-label">shadow-driven movement estimate</span> : <span className="live-overlay-label">record empty calibration to enable estimate</span>}</>;
-}
-
-function Metric({ label, value, detail }: { label: string; value: string; detail?: string }) {
-  return (
-    <article className="metric">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      {detail && <small>{detail}</small>}
-    </article>
-  );
-}
-
-function SignalChart({ result }: { result: AnalysisResult }) {
-  const points = result.timeline.slice(-80);
-  const maximum = Math.max(...points.map((point) => point.presence_probability), 0.01);
-  return (
-    <div className="signal-chart" aria-label="Hidden-motion probability over time">
-      {points.map((point) => (
-        <span
-          key={point.timestamp_s}
-          title={`${point.timestamp_s.toFixed(1)} seconds: ${(point.presence_probability * 100).toFixed(0)}%`}
-          style={{ height: `${Math.max(3, (point.presence_probability / maximum) * 100)}%` }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function ResultPanel({ result }: { result: AnalysisResult }) {
+function ResultPanel({ result, title }: { result: AnalysisResult; title: string }) {
   const reportUrl = `${API}/analyses/${result.analysis_id}/report`;
   const predictionsUrl = `${API}/analyses/${result.analysis_id}/predictions`;
-  const positions = result.position_range_m
-    ? `${fmt(result.position_range_m[0])}–${fmt(result.position_range_m[1])} m`
-    : result.position_range_norm
-      ? `${fmt(result.position_range_norm[0])}–${fmt(result.position_range_norm[1])} track`
-      : "—";
   return (
-    <section className="results panel" aria-live="polite">
-      <div className="panel-heading">
-        <div>
-          <p className="eyebrow">Evidence review</p>
-          <h2>Confidence-qualified result</h2>
-        </div>
-        <StatePill state={result.state} />
+    <section className="review-screen" aria-live="polite">
+      <div className="review-state"><StatePill state={result.state} /></div>
+      <h1>{title}</h1>
+      <div className="review-metrics">
+        <article><span>Lead time</span><strong>{result.lead_time_s == null ? "—" : `${result.lead_time_s.toFixed(2)} s`}</strong></article>
+        <article><span>Shadow signal</span><strong>{result.presence_probability == null ? "—" : `${Math.round(result.presence_probability * 100)}%`}</strong></article>
       </div>
-      <div className="metrics-grid">
-        <Metric label="Confidence" value={`${Math.round(result.confidence * 100)}%`} />
-        <Metric label="Shadow evidence" value={result.presence_probability == null ? "—" : `${Math.round(result.presence_probability * 100)}%`} />
-        <Metric label="Lead time" value={result.lead_time_s == null ? "—" : `${result.lead_time_s.toFixed(2)} s`} detail={result.los_detected ? result.entry_source === "manual_review" ? "shadow → reviewed body entry" : "shadow → line of sight" : "person not yet in frame"} />
-        <Metric label="Direction" value={result.direction.replaceAll("_", " ")} detail={result.speed_class} />
-      </div>
-      <p className="privacy-note"><strong>{result.evidence?.kind === "synthetic" ? "Synthetic demonstration" : "Experimental video analysis"}.</strong> {result.evidence?.limitation ?? "Field performance has not been established."} Lead time is pavement-shadow onset versus the first frame the walker enters this camera.</p>
-      {typeof result.metrics.validation_note === "string" && <p className="hint">{result.metrics.validation_note}</p>}
-      <div className="chart-card">
-        <div className="chart-label"><span>Pavement-shadow evidence</span><span>{result.timeline.length} samples</span></div>
-        <SignalChart result={result} />
-      </div>
-      <div className="result-columns">
-        <div>
-          <h3>Why this result</h3>
-          <ul className="reason-list">{result.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
-        </div>
-        <div>
-          <h3>Scene setup</h3>
-          <dl className="compact-dl">
-            <div><dt>Coverage</dt><dd>{fmt(result.scene_assessment.coverage_score)}</dd></div>
-            <div><dt>Calibration stability</dt><dd>{fmt(result.scene_assessment.calibration_stability)}</dd></div>
-            <div><dt>ROI quality</dt><dd>{fmt(result.scene_assessment.roi_score)}</dd></div>
-            <div><dt>Shadow region</dt><dd>{result.scene_assessment.roi_source === "manual_phone" ? "Selected on phone video" : result.scene_assessment.roi ? "Automatic" : "None"}</dd></div>
-            <div><dt>Entry time</dt><dd>{result.los_detected ? result.entry_source === "manual_review" ? "Reviewed on phone shot" : "Automatic" : "Not marked"}</dd></div>
-          </dl>
-        </div>
-      </div>
-      {(result.visualizations?.corner_trial_available || result.visualization?.available) && <section className="visualization-card">
-        <h3>What Umbra saw — moving video evidence</h3>
-        <div className={`visualization-grid ${result.visualizations?.hidden_path_available ? "two-videos" : ""}`}>
-          <div><strong>Corner trial · warning camera</strong><p>Boxes follow detected shadow and visible-body evidence. Where the wall edge is clear, a simple anonymous position marker moves along the shadow-derived estimate. It does not animate a gait or claim to detect the hidden person; ambiguous geometry shows relative shadow travel only.</p><video key={`corner-${result.analysis_id}`} controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/visualization`} type="video/mp4" /></video><a className="button secondary video-download" href={`${API}/analyses/${result.analysis_id}/visualization`} download={`umbra-corner-trial-${result.analysis_id}.mp4`}>Download corner trial</a></div>
-          {result.visualizations?.hidden_path_available && <div><strong>Hidden path · reference camera</strong><p>Shows the reviewed corner/far route line and the manually reviewed walker position when you saved labels.</p><video key={`hidden-${result.analysis_id}`} controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/hidden-path-visualization`} type="video/mp4" /></video><a className="button secondary video-download" href={`${API}/analyses/${result.analysis_id}/hidden-path-visualization`} download={`umbra-hidden-path-${result.analysis_id}.mp4`}>Download hidden path</a></div>}
-        </div>
-      </section>}
-      <h3>Method comparison</h3>
-      <div className="baseline-grid">
-        {Object.entries(result.baselines).map(([name, baseline]) => (
-          <div className="baseline" key={name}>
-            <span>{name.replaceAll("_", " ")}</span>
-            <strong>{Math.round(baseline.presence_probability * 100)}%</strong>
-            <small>{baseline.state.replaceAll("_", " ")}</small>
-          </div>
-        ))}
-      </div>
-      {typeof result.model.name === "string" && (
-        <p className="model-note">
-          Model: <strong>{result.model.name.replaceAll("_", " ")}</strong>
-          {typeof result.model.role === "string" && ` · ${result.model.role}`}
-        </p>
-      )}
-      <div className="export-row">
-        <a className="button secondary" href={`${API}/analyses/${result.analysis_id}/bundle`}>Download evidence ZIP</a>
-        <a className="button secondary" href={reportUrl} target="_blank" rel="noreferrer">Open HTML report</a>
-        <a className="button ghost" href={predictionsUrl}>Download predictions CSV</a>
-      </div>
-      <p className="privacy-note">Umbra uses the first visible body part to timestamp entry. It does not identify a person, reconstruct appearance, or infer pose.</p>
+      {(result.visualizations?.corner_trial_available || result.visualization?.available) && <div className="review-videos">
+        <div className="review-clip"><h2>Corner trial</h2><video key={`corner-${result.analysis_id}`} controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/visualization`} type="video/mp4" /></video><a className="button secondary" href={`${API}/analyses/${result.analysis_id}/visualization`} download={`corner-trial-${result.analysis_id}.mp4`}>Download video</a></div>
+        {result.visualizations?.hidden_path_available && <div className="review-clip"><h2>Hidden path</h2><video key={`hidden-${result.analysis_id}`} controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/hidden-path-visualization`} type="video/mp4" /></video><a className="button secondary" href={`${API}/analyses/${result.analysis_id}/hidden-path-visualization`} download={`hidden-path-${result.analysis_id}.mp4`}>Download video</a></div>}
+      </div>}
+      <div className="review-downloads"><a className="button ghost" href={`${API}/analyses/${result.analysis_id}/bundle`}>Download files</a><a className="button ghost" href={predictionsUrl}>Predictions CSV</a><a className="button ghost" href={reportUrl} target="_blank" rel="noreferrer">Report</a></div>
     </section>
   );
 }
@@ -483,31 +269,35 @@ function ManualReview({ trial, busy, onClose, onNotice }: {
 export default function App() {
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [detail, setDetail] = useState<SceneDetail | null>(null);
-  const [job, setJob] = useState<Job | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [reviewTitle, setReviewTitle] = useState("");
+  const [screen, setScreen] = useState<"camera" | "review">("camera");
   const [notice, setNotice] = useState<string>("");
   const [busy, setBusy] = useState(false);
-  const [mlAvailable, setMlAvailable] = useState(false);
   const [form, setForm] = useState<SceneForm>(newSceneForm);
-  const [locationStatus, setLocationStatus] = useState<"checking" | "ready" | "unavailable">("checking");
+  const [locationStatus, setLocationStatus] = useState("");
   const [trialName, setTrialName] = useState("Trial 1");
-  const [trackLength, setTrackLength] = useState("");
+  const [showNewScene, setShowNewScene] = useState(false);
   const [manualTrialId, setManualTrialId] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
-  const [captureRole, setCaptureRole] = useState<MediaRole | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
 
   const mediaByRole = useMemo(() => {
     const source = detail?.media ?? [];
     return Object.fromEntries(source.map((media) => [media.role, media])) as Partial<Record<MediaRole, MediaAsset>>;
   }, [detail]);
+  const importedVideoCount = Object.values(mediaByRole).filter(Boolean).length;
+  const videosComplete = Boolean(mediaByRole.calibration && mediaByRole.main);
+
+  useEffect(() => {
+    if (detail) setTrialName(`Trial ${detail.trials.length + 1}`);
+  }, [detail?.scene.id, detail?.trials.length]);
 
   async function refreshScenes() {
     const values = await request<Scene[]>("/scenes");
     setScenes(values);
+    if (!detail && values.length) await loadScene(values[0].id);
   }
 
   async function loadScene(sceneId: string) {
@@ -515,6 +305,7 @@ export default function App() {
     setDetail(next);
     setResult(null);
     setManualTrialId(null);
+    setScreen("camera");
   }
 
   async function deleteScene(scene: Scene) {
@@ -529,9 +320,11 @@ export default function App() {
         stopCamera();
         setDetail(null);
         setResult(null);
-        setJob(null);
+        setScreen("camera");
       }
-      await refreshScenes();
+      const remainingScenes = await request<Scene[]>("/scenes");
+      setScenes(remainingScenes);
+      if (detail?.scene.id === scene.id && remainingScenes[0]) await loadScene(remainingScenes[0].id);
       setNotice(`Deleted “${scene.name}” and its local data.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not delete scene");
@@ -565,7 +358,10 @@ export default function App() {
     setBusy(true);
     try {
       await request<{ analysis_id: string }>(`/analyses/${analysisId}`, { method: "DELETE" });
-      if (result?.analysis_id === analysisId) setResult(null);
+      if (result?.analysis_id === analysisId) {
+        setResult(null);
+        setScreen("camera");
+      }
       await loadScene(detail.scene.id);
       setNotice(`Deleted saved analysis for “${trialName}”.`);
     } catch (error) {
@@ -576,19 +372,20 @@ export default function App() {
   }
 
   useEffect(() => {
-    void Promise.all([
-      refreshScenes(),
-      request<{ ml_available: boolean }>("/health").then((health) => setMlAvailable(health.ml_available))
-    ]).catch((error: unknown) => setNotice(error instanceof Error ? error.message : "Could not load Umbra"));
-    fillBrowserMetadata(true);
+    void refreshScenes().catch((error: unknown) => setNotice(error instanceof Error ? error.message : "Could not load scenes"));
     return () => streamRef.current?.getTracks().forEach((track) => track.stop());
   }, []);
 
-  async function watchJob(jobId: string) {
+  useEffect(() => {
+    if (screen === "camera" && streaming && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [screen, streaming]);
+
+  async function watchJob(jobId: string, resultTitle = "Analysis result") {
     for (let attempt = 0; attempt < 180; attempt += 1) {
       await sleep(900);
       const next = await request<Job>(`/jobs/${jobId}`);
-      setJob(next);
       if (next.status === "succeeded") {
         const analysisId = next.result?.analysis_id;
         if (typeof analysisId === "string") {
@@ -596,11 +393,8 @@ export default function App() {
           const sceneId = next.result?.scene_id;
           if (typeof sceneId === "string") await loadScene(sceneId);
           setResult(payload.result);
-          setNotice("Local analysis complete. Review the evidence and export below.");
-        } else if (next.kind === "synthetic_training") {
-          setNotice("Synthetic temporal model checkpoint is ready. New analyses will show it as advisory evidence.");
-        } else {
-          setNotice("Local job complete.");
+          setReviewTitle(resultTitle);
+          setScreen("review");
         }
         return;
       }
@@ -609,45 +403,6 @@ export default function App() {
       }
     }
     throw new Error("The analysis took too long to finish. Check the local server log.");
-  }
-
-  async function beginDemo() {
-    setBusy(true);
-    setNotice("");
-    try {
-      const next = await request<Job>("/demo", {
-        method: "POST",
-        body: JSON.stringify({ lighting: "directional", seed: 7, frames: 120, target_present: true })
-      });
-      setJob(next);
-      await watchJob(next.id);
-      await refreshScenes();
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Could not create the synthetic demo");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function trainModel() {
-    if (!mlAvailable) {
-      setNotice("Install the ML extra first: uv sync --extra dev --extra ml");
-      return;
-    }
-    setBusy(true);
-    setNotice("");
-    try {
-      const next = await request<Job>("/models/train", {
-        method: "POST",
-        body: JSON.stringify({ examples: 24, epochs: 4 })
-      });
-      setJob(next);
-      await watchJob(next.id);
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Could not train the temporal model");
-    } finally {
-      setBusy(false);
-    }
   }
 
   async function createScene(event: FormEvent<HTMLFormElement>) {
@@ -662,14 +417,13 @@ export default function App() {
           notes: form.notes,
           latitude: form.latitude ? Number(form.latitude) : null,
           longitude: form.longitude ? Number(form.longitude) : null,
-          recorded_at: new Date(form.recorded_at || localDateTimeValue()).toISOString()
+          recorded_at: new Date(form.recorded_at).toISOString()
         })
       });
       await refreshScenes();
       await loadScene(scene.id);
       setForm(newSceneForm());
-      fillBrowserMetadata(true);
-      setNotice("Scene created. Import footage or record calibration and main-camera clips.");
+      setShowNewScene(false);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not create scene");
     } finally {
@@ -677,14 +431,13 @@ export default function App() {
     }
   }
 
-  function fillBrowserMetadata(silent = false) {
+  function fillBrowserMetadata() {
     setForm((current) => ({ ...current, recorded_at: localDateTimeValue() }));
     if (!navigator.geolocation) {
-      setLocationStatus("unavailable");
-      if (!silent) setNotice("This browser does not provide location permission. Enter approximate coordinates instead.");
+      setLocationStatus("Location unavailable. Enter the coordinates manually.");
       return;
     }
-    setLocationStatus("checking");
+    setLocationStatus("Getting location…");
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setForm((current) => ({
@@ -692,13 +445,9 @@ export default function App() {
           latitude: String(position.coords.latitude),
           longitude: String(position.coords.longitude)
         }));
-        setLocationStatus("ready");
-        if (!silent) setNotice("Browser time and location updated for sun metadata.");
+        setLocationStatus("Location filled in. Check that it matches where you filmed.");
       },
-      () => {
-        setLocationStatus("unavailable");
-        if (!silent) setNotice("Location was not granted. You can type approximate latitude and longitude.");
-      },
+      () => setLocationStatus("Location unavailable. Enter the coordinates manually."),
       { enableHighAccuracy: true, maximumAge: 60_000, timeout: 10_000 }
     );
   }
@@ -706,13 +455,11 @@ export default function App() {
   async function upload(role: MediaRole, file: File) {
     if (!detail) return;
     setBusy(true);
-    setNotice(`Uploading ${roleLabel[role].toLowerCase()} locally…`);
     try {
       const body = new FormData();
       body.append("file", file);
       await request<MediaAsset>(`/scenes/${detail.scene.id}/media/${role}`, { method: "POST", body });
       await loadScene(detail.scene.id);
-      setNotice(`${roleLabel[role]} is ready.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not import video");
     } finally {
@@ -722,68 +469,37 @@ export default function App() {
 
   async function startCamera() {
     try {
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: true });
-      } catch {
-        // A desktop browser may not expose an environment-facing camera or microphone.
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
       setStreaming(true);
-      setNotice("Camera ready. Record an empty calibration first, then a visible-side trial.");
     } catch {
-      setNotice("Camera or microphone permission was not granted. Import a local video instead.");
+      setNotice("Camera access was blocked. Allow camera access in your browser settings.");
     }
   }
 
   function stopCamera() {
-    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     setStreaming(false);
   }
 
-  function record(role: MediaRole) {
-    const stream = streamRef.current;
-    if (!stream || !detail) return;
-    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus") ? "video/webm;codecs=vp8,opus" : "video/webm";
-    const recorder = new MediaRecorder(stream, { mimeType });
-    chunksRef.current = [];
-    recorder.ondataavailable = (event) => { if (event.data.size) chunksRef.current.push(event.data); };
-    recorder.onstop = () => {
-      const file = new File([new Blob(chunksRef.current, { type: mimeType })], `${role}-${Date.now()}.webm`, { type: mimeType });
-      setCaptureRole(null);
-      void upload(role, file);
-    };
-    recorderRef.current = recorder;
-    recorder.start();
-    setCaptureRole(role);
-    setNotice(`Recording ${roleLabel[role].toLowerCase()}…`);
-  }
-
-  function stopRecording() {
-    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
-  }
-
   async function createTrial() {
     if (!detail || !mediaByRole.calibration || !mediaByRole.main) return;
     setBusy(true);
     try {
-      const trial = await request<Trial>(`/scenes/${detail.scene.id}/trials`, {
+      await request<Trial>(`/scenes/${detail.scene.id}/trials`, {
         method: "POST",
         body: JSON.stringify({
           name: trialName,
           calibration_media_id: mediaByRole.calibration.id,
           main_media_id: mediaByRole.main.id,
           ground_truth_media_id: mediaByRole.ground_truth?.id ?? null,
-          track_length_m: trackLength ? Number(trackLength) : null
+          track_length_m: null
         })
       });
       await loadScene(detail.scene.id);
-      setNotice(`Trial “${trial.name}” is ready to analyse.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not create trial");
     } finally {
@@ -796,8 +512,7 @@ export default function App() {
     setNotice("");
     try {
       const next = await request<Job>(`/trials/${trial.id}/analysis`, { method: "POST", body: JSON.stringify({ include_baselines: true }) });
-      setJob(next);
-      await watchJob(next.id);
+      await watchJob(next.id, trial.name);
       if (detail) setDetail(await request<SceneDetail>(`/scenes/${detail.scene.id}`));
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not analyse trial");
@@ -806,87 +521,87 @@ export default function App() {
     }
   }
 
+  async function reviewAnalysis(analysisId: string, title: string) {
+    setBusy(true);
+    try {
+      const value = await request<{ result: AnalysisResult }>(`/analyses/${analysisId}`);
+      setResult(value.result);
+      setReviewTitle(title);
+      setScreen("review");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not open result");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <main className="app-shell">
       <header className="app-header">
-        <div className="brand"><span className="brand-mark">◒</span><span>UMBRA</span><small>Local research workspace</small></div>
-        <div className="app-actions">
-          <span className="local-status">● Local only</span>
-          <button className="button secondary" disabled={busy || !mlAvailable} title={mlAvailable ? "Pretrain the compact temporal model locally" : "Run uv sync --extra dev --extra ml to enable training"} onClick={() => void trainModel()}>{mlAvailable ? "Pretrain model" : "ML unavailable"}</button>
-          <button className="button primary" disabled={busy} onClick={() => void beginDemo()}>{busy ? "Working…" : "Run demo"}</button>
-        </div>
+        <div className="brand"><span className="brand-mark">◒</span><span>UMBRA</span></div>
+        {screen === "review" ? <button className="button ghost review-tab" onClick={() => { setScreen("camera"); setResult(null); }}>← Back to camera <span aria-hidden="true">×</span></button> : <div className="scene-switcher">
+          <label htmlFor="scene-select">Scene</label>
+          <select id="scene-select" value={detail?.scene.id ?? ""} onChange={(event) => event.target.value && void loadScene(event.target.value).catch((error: Error) => setNotice(error.message))}>
+            {!detail && <option value="">Choose scene</option>}
+            {scenes.map((scene) => <option key={scene.id} value={scene.id}>{scene.name}</option>)}
+          </select>
+          {detail && <button className="icon-button" title="Delete scene" aria-label="Delete scene" onClick={() => void deleteScene(detail.scene)}>×</button>}
+          <button className="button secondary" onClick={() => { if (!showNewScene) fillBrowserMetadata(); setShowNewScene((value) => !value); }}>{showNewScene ? "Cancel" : "New scene"}</button>
+        </div>}
       </header>
 
-      {notice && <div className={`notice ${notice.includes("complete") || notice.includes("ready") ? "good" : ""}`}>{notice}</div>}
-      {job && job.status !== "succeeded" && <section className="job-card"><div><strong>{job.message}</strong><span>{Math.round(job.progress * 100)}%</span></div><progress value={job.progress} max="1" /></section>}
+      {notice && <div className="notice">{notice}</div>}
 
-      <div className="app-layout">
-        <aside className="sidebar">
-          <div className="sidebar-heading"><span>Scenes</span><small>{scenes.length}</small></div>
-          <div className="scene-list">
-            {scenes.length === 0 && <p className="empty">No scenes yet.</p>}
-            {scenes.map((scene) => (
-              <div className={detail?.scene.id === scene.id ? "scene-item active" : "scene-item"} key={scene.id}>
-                <button disabled={busy || captureRole !== null} className="scene" onClick={() => void loadScene(scene.id).catch((error: Error) => setNotice(error.message))}>
-                  <strong>{scene.name}</strong><span>{new Date(scene.created_at).toLocaleString()}</span>
-                </button>
-                <button className="scene-delete" type="button" disabled={busy || captureRole !== null} title={`Permanently delete ${scene.name}`} aria-label={`Delete ${scene.name}`} onClick={() => void deleteScene(scene)}>Delete</button>
-              </div>
-            ))}
+      {screen === "review" && result ? <ResultPanel result={result} title={reviewTitle} /> : <div className="studio-layout">
+        <section className="camera-workspace">
+          <div className="workspace-heading"><h1>Live camera</h1><span className={streaming ? "camera-status on" : "camera-status"}>{streaming ? "Live" : "Off"}</span></div>
+          <div className="camera-stage main-camera">
+            <video ref={videoRef} autoPlay muted playsInline className={streaming ? "camera active" : "camera"} />
+            {!streaming && <div className="camera-placeholder"><span>◉</span><strong>Camera is off</strong><button className="button primary" disabled={busy} onClick={() => void startCamera()}>Start camera</button></div>}
           </div>
-          <details className="new-scene" open={scenes.length === 0}>
-            <summary>New scene</summary>
-            <form className="scene-form" onSubmit={(event) => void createScene(event)}>
-              <label>Scene name<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="North courtyard corner" /></label>
-              <label>Notes<textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="Surface, weather, setup notes…" /></label>
-              <div className="form-row"><label>Latitude<input type="number" step="any" value={form.latitude} onChange={(event) => setForm({ ...form, latitude: event.target.value })} /></label><label>Longitude<input type="number" step="any" value={form.longitude} onChange={(event) => setForm({ ...form, longitude: event.target.value })} /></label></div>
-              <p className={`metadata-status ${locationStatus}`}>{locationStatus === "ready" ? "Browser location ready • stored locally with this scene" : locationStatus === "checking" ? "Getting browser location for sun metadata…" : "Location unavailable • enter coordinates if needed"}</p>
-              <button className="text-button" type="button" onClick={() => fillBrowserMetadata()}>Refresh browser time & location</button>
-              <label>Capture time (browser local)<input type="datetime-local" value={form.recorded_at} onChange={(event) => setForm({ ...form, recorded_at: event.target.value })} /></label>
-              <button className="button primary" disabled={busy} type="submit">Create scene</button>
-            </form>
-          </details>
-        </aside>
-
-        <section className="workbench">
-          {!detail && <section className="empty-workspace panel"><p className="eyebrow">No active scene</p><h1>Select a scene or create one.</h1><p>Use the sidebar to import calibration and trial footage, then run an analysis.</p></section>}
-          {detail && <>
-            <div className="active-scene"><div><p className="eyebrow">Active scene</p><h1>{detail.scene.name}</h1><p>{detail.scene.notes || "No setup notes"}</p></div><span>{detail.scene.latitude !== null ? "Sun metadata available" : "Visual geometry only"}</span></div>
-            <div className="capture-grid">
-              <section className="panel capture-panel">
-                <div className="panel-heading"><h2>Camera capture</h2><span className="step">1</span></div>
-                <div className="camera-stage">
-                  <video ref={videoRef} autoPlay muted playsInline className={streaming ? "camera active" : "camera"} />
-                  {streaming && <LiveShadowOverlay videoRef={videoRef} calibrationId={mediaByRole.calibration?.id} />}
-                </div>
-                <p className="hint">The live estimate tracks pavement-shadow movement against the empty calibration and projects a moving position marker. It does not infer a real pose through the wall; keep the camera fixed after calibration.</p>
-                <div className="capture-actions">
-                  {!streaming ? <button className="button secondary" disabled={busy} onClick={() => void startCamera()}>Enable camera</button> : <button className="button ghost" onClick={stopCamera}>Stop camera</button>}
-                  {streaming && !captureRole && <><button className="button secondary" disabled={busy} onClick={() => record("calibration")}>Record calibration</button><button className="button primary" disabled={busy} onClick={() => record("main")}>Record trial</button></>}
-                  {captureRole && <button className="button danger" onClick={stopRecording}>Stop {roleLabel[captureRole]}</button>}
-                </div>
-              </section>
-              <section className="panel import-panel">
-                <div className="panel-heading"><h2>Local files</h2><span className="step">2</span></div>
-                <div className="media-list">
-                  {(["calibration", "main", "ground_truth"] as MediaRole[]).map((role) => <MediaSlot key={role} role={role} media={mediaByRole[role]} disabled={busy} onUpload={upload} />)}
-                </div>
-                <p className="hint">Ground truth is optional for the warning. Use it to score hidden-path position. Marker 10 is the corner; 11 is far.</p>
-              </section>
-            </div>
-
-            <section className="panel trial-panel">
-              <div><h2>Trial</h2><p>Umbra selects a shadow region automatically. Use Manual review to choose the pavement on the phone shot if it picks the wrong place.</p></div>
-              <div className="trial-controls"><label>Trial name<input value={trialName} onChange={(event) => setTrialName(event.target.value)} /></label><label>Track length (m)<input type="number" min="0" step="0.1" value={trackLength} onChange={(event) => setTrackLength(event.target.value)} /></label><button className="button primary" disabled={busy || !mediaByRole.calibration || !mediaByRole.main} onClick={() => void createTrial()}>Register</button></div>
-            </section>
-            {detail.trials.length > 0 && <section className="trial-list panel"><div className="panel-heading"><h2>Registered trials</h2><span>{detail.trials.length}</span></div>{detail.trials.map((trial) => <div className="trial-row" key={trial.id}><div><strong>{trial.name}</strong><span>{trial.ground_truth_media_id ? "Ground truth attached" : "Inference only"}</span></div><div className="trial-actions"><button className="button danger row-delete" disabled={busy} onClick={() => void deleteTrial(trial)}>Delete</button>{trial.ground_truth_media_id && <button className="button ghost" disabled={busy} onClick={() => setManualTrialId(trial.id)}>Manual review</button>}<button className="button secondary" disabled={busy} onClick={() => void analyse(trial)}>Analyse</button></div></div>)}</section>}
-            {manualTrialId && detail.trials.find((trial) => trial.id === manualTrialId) && <ManualReview trial={detail.trials.find((trial) => trial.id === manualTrialId)!} busy={busy} onClose={() => setManualTrialId(null)} onNotice={setNotice} />}
-            {(detail.analyses ?? []).length > 0 && <section className="trial-list panel"><h2>Saved analyses</h2>{detail.analyses.map((analysis) => <div className="trial-row" key={analysis.id}><div><strong>{analysis.trial_name}</strong><span>{new Date(analysis.created_at).toLocaleString()}</span></div><div className="trial-actions"><button className="button danger row-delete" disabled={busy} onClick={() => void deleteAnalysis(analysis.id, analysis.trial_name)}>Delete</button><button className="button secondary" disabled={busy} onClick={() => void request<{ result: AnalysisResult }>(`/analyses/${analysis.id}`).then((value) => setResult(value.result)).catch((error: Error) => setNotice(error.message))}>Review result</button></div></div>)}</section>}
-          </>}
-          {result && <ResultPanel result={result} />}
+          {streaming && <button className="button ghost camera-stop" onClick={stopCamera}>Stop camera</button>}
+          {busy && <div className="working-line"><span className="spinner" />Working…</div>}
+          {manualTrialId && detail?.trials.find((trial) => trial.id === manualTrialId) && <ManualReview trial={detail.trials.find((trial) => trial.id === manualTrialId)!} busy={busy} onClose={() => setManualTrialId(null)} onNotice={setNotice} />}
         </section>
-      </div>
-      <footer><span>Experimental sensing workspace · local research only</span><span>v0.1</span></footer>
+
+        <aside className="side-workspace">
+          {showNewScene && <form className="new-scene-form panel" onSubmit={(event) => void createScene(event)}>
+            <div className="panel-heading"><h2>New scene</h2><button className="icon-button" type="button" aria-label="Close new scene form" onClick={() => setShowNewScene(false)}>×</button></div>
+            <label>Scene name<input required autoFocus value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Courtyard" /></label>
+            <p className="scene-sun-hint">For the sun position, use the place and local date/time when you filmed the corner trial.</p>
+            <div className="form-row">
+              <label>Latitude<input required type="number" min="-90" max="90" step="any" value={form.latitude} onChange={(event) => setForm({ ...form, latitude: event.target.value })} placeholder="44.176" /></label>
+              <label>Longitude<input required type="number" min="-180" max="180" step="any" value={form.longitude} onChange={(event) => setForm({ ...form, longitude: event.target.value })} placeholder="28.638" /></label>
+            </div>
+            <label>Recording date and time<input required type="datetime-local" value={form.recorded_at} onChange={(event) => setForm({ ...form, recorded_at: event.target.value })} /></label>
+            <button className="button secondary" type="button" onClick={fillBrowserMetadata}>Use current location and time</button>
+            {locationStatus && <p className="metadata-status" role="status">{locationStatus}</p>}
+            <label>Notes <span className="optional">optional</span><input value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="" /></label>
+            <button className="button primary" disabled={busy} type="submit">Create scene</button>
+          </form>}
+          {!detail ? !showNewScene && <section className="panel side-card"><h2>Start here</h2><p>Create a scene to add videos and trials.</p><button className="button primary" onClick={() => { fillBrowserMetadata(); setShowNewScene(true); }}>New scene</button></section> : <>
+            <details className="panel side-card videos-card" open={!videosComplete}>
+              <summary className="side-summary"><h2>Videos</h2><span>{importedVideoCount}/3</span></summary>
+              <div className="media-list">
+                {(["calibration", "main", "ground_truth"] as MediaRole[]).map((role) => <MediaSlot key={role} role={role} media={mediaByRole[role]} disabled={busy} onUpload={upload} />)}
+              </div>
+            </details>
+            <section className="panel side-card trial-side-card">
+              <div className="panel-heading"><h2>Trials</h2></div>
+              <div className="trial-create-row"><input aria-label="Trial name" value={trialName} onChange={(event) => setTrialName(event.target.value)} /><button className="button primary" disabled={busy || !mediaByRole.calibration || !mediaByRole.main} onClick={() => void createTrial()}>Add trial</button></div>
+              {detail.trials.length === 0 ? <p className="side-empty">Import an empty scene and corner trial video to add a trial.</p> : <div className="trial-side-list">{detail.trials.map((trial) => {
+                const analyses = (detail.analyses ?? []).filter((analysis) => analysis.trial_id === trial.id).sort((a, b) => b.created_at.localeCompare(a.created_at));
+                return <article className="trial-card" key={trial.id}>
+                  <div className="trial-card-head"><strong>{trial.name}</strong><button className="icon-button delete-icon" title="Delete trial" aria-label={`Delete ${trial.name}`} disabled={busy} onClick={() => void deleteTrial(trial)}>×</button></div>
+                  <div className="trial-card-actions"><button className="button secondary" disabled={busy} onClick={() => void analyse(trial)}>Analyze</button>{trial.ground_truth_media_id && <button className="button ghost" disabled={busy} onClick={() => setManualTrialId(trial.id)}>Labels</button>}</div>
+                  {analyses.length > 0 && <div className="saved-result-row"><span>Latest · {new Date(analyses[0].created_at).toLocaleString()}</span><div><button className="button primary" disabled={busy} onClick={() => void reviewAnalysis(analyses[0].id, trial.name)}>Review result</button><button className="icon-button delete-icon" title="Delete latest result" aria-label="Delete latest result" disabled={busy} onClick={() => void deleteAnalysis(analyses[0].id, trial.name)}>×</button></div></div>}
+                  {analyses.length > 1 && <details className="older-results"><summary>Older results ({analyses.length - 1})</summary>{analyses.slice(1).map((analysis) => <div className="saved-result-row" key={analysis.id}><span>{new Date(analysis.created_at).toLocaleString()}</span><div><button className="button secondary" disabled={busy} onClick={() => void reviewAnalysis(analysis.id, trial.name)}>Review</button><button className="icon-button delete-icon" title="Delete result" aria-label="Delete result" disabled={busy} onClick={() => void deleteAnalysis(analysis.id, trial.name)}>×</button></div></div>)}</details>}
+                </article>;
+              })}</div>}
+            </section>
+          </>}
+        </aside>
+      </div>}
     </main>
   );
 }
