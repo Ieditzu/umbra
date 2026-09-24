@@ -75,6 +75,15 @@ Processing
    and anonymous foreground residual in a broad entry zone above it
    (the full body becoming visible).
 4. Track a coarse 1-D shadow position along the pavement.
+   If the shadow travels clearly before the body enters view, show a
+   schematic relative-motion estimate in the corner-trial video. A
+   nearby static wall edge can be estimated from the empty calibration;
+   the estimate then moves an anonymous translucent figure on the
+   hidden side as the shadow travels. The figure is an illustrative
+   projection, not a measured or detected body position. If the wall
+   edge is ambiguous, use a small relative-motion inset. Hide both
+   when the body enters or motion evidence is weak. No hidden-route
+   points are required from the user.
 5. Gate on calibration quality, shadow strength, and temporal
    coherence. Refuse when the scene or signal is unusable.
 6. For controlled evaluation, use ArUco labels when available or
@@ -92,7 +101,9 @@ Outputs
 - Confidence and explicit refusal reasons.
 - A replayable analysis video: corner edge, pavement shadow region,
   anonymous entry zone, darkening pixels, signal scores, and the
-  detected shadow/body events drawn over the main footage.
+  detected shadow/body events drawn over the main footage. A small
+  shadow-derived motion overlay appears only for qualifying pre-entry
+  shadow travel; it is not a behind-wall body detection.
 
 5. Research question
 

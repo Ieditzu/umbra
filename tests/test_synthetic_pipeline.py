@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from umbra.pipeline import analyse_trial
+import numpy as np
+
+from umbra.pipeline import _automatic_hidden_overlay_path, _hidden_motion_from_shadow, analyse_trial
 from umbra.synthetic import generate_synthetic_bundle
 
 
@@ -82,3 +84,35 @@ def test_manual_review_overrides_body_entry_timestamp(tmp_path: Path) -> None:
     assert result["entry_source"] == "manual_review"
     assert result["los_onset_s"] == entry_time
     assert result["ground_truth"]["alignment"]["method"] == "timestamp_fallback"
+
+
+def test_hidden_motion_tracks_shadow_only_until_body_entry() -> None:
+    timestamps = [index / 10 for index in range(20)]
+    signal = [{"position": 0.2 + index * 0.018} for index in range(20)]
+    motion = _hidden_motion_from_shadow(timestamps, signal, [0.9] * 20, 0.2, 1.4)
+    assert motion is not None
+    assert motion["kind"] == "relative_shadow_motion"
+    assert motion["frames"][0]["frame_index"] == 2
+    assert motion["frames"][-1]["timestamp_s"] < 1.4
+    progress = [frame["progress_norm"] for frame in motion["frames"]]
+    assert progress == sorted(progress)
+    assert progress[-1] > 0.8
+
+
+def test_hidden_motion_rejects_static_shadow_and_short_lead() -> None:
+    timestamps = [index / 10 for index in range(20)]
+    static = [{"position": 0.4} for _ in timestamps]
+    assert _hidden_motion_from_shadow(timestamps, static, [1.0] * 20, 0.2, 1.5) is None
+    moving = [{"position": 0.2 + index * 0.018} for index in range(20)]
+    assert _hidden_motion_from_shadow(timestamps, moving, [1.0] * 20, 0.2, 0.5) is None
+
+
+def test_hidden_overlay_path_uses_nearby_wall_not_manual_points() -> None:
+    background = np.full((268, 480), 185, dtype=np.float32)
+    background[:, :125] = 85
+    signal = [{"lateral": 0.32 + index * 0.014} for index in range(13)]
+    motion = {"frames": [{"frame_index": index} for index in range(13)]}
+    path = _automatic_hidden_overlay_path(background, (43, 193, 327, 67), signal, motion)
+    assert path is not None
+    assert path[0][0] < path[1][0] < 0.25
+    assert _automatic_hidden_overlay_path(np.full_like(background, 185), (43, 193, 327, 67), signal, motion) is None

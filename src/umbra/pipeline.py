@@ -132,6 +132,103 @@ def _onset(timestamps: list[float], scores: list[float], threshold: float = 0.5,
     return None
 
 
+def _hidden_motion_from_shadow(
+    timestamps: list[float],
+    signal: list[dict[str, Any]],
+    presence: list[float],
+    shadow_onset: float | None,
+    los_onset: float | None,
+) -> dict[str, Any] | None:
+    """Show observed shadow travel as a relative pre-entry motion cue, not a body location."""
+
+    if shadow_onset is None or los_onset is None or los_onset - shadow_onset < 0.45:
+        return None
+    observations = [
+        (index, timestamp, float(cue["position"]))
+        for index, (timestamp, cue, score) in enumerate(zip(timestamps, signal, presence, strict=True))
+        if shadow_onset <= timestamp < los_onset and score >= 0.5
+        and math.isfinite(float(cue["position"]))
+    ]
+    if len(observations) < 5 or observations[-1][1] - observations[0][1] < 0.4:
+        return None
+    raw = np.asarray([position for _, _, position in observations], dtype=np.float64)
+    smoothed = np.asarray([
+        np.median(raw[max(0, index - 1): min(len(raw), index + 2)])
+        for index in range(len(raw))
+    ])
+    start = float(np.median(smoothed[:3]))
+    end = float(np.median(smoothed[-3:]))
+    displacement = end - start
+    if abs(displacement) < 0.07:
+        return None
+    progress = np.clip((smoothed - start) / displacement, 0.0, 1.0)
+    progress = np.maximum.accumulate(progress)
+    frames = [
+        {"frame_index": index, "timestamp_s": round(timestamp, 3), "progress_norm": round(float(value), 3)}
+        for (index, timestamp, _), value in zip(observations, progress, strict=True)
+    ]
+    return {
+        "kind": "relative_shadow_motion",
+        "basis": "shadow centroid before visible body entry",
+        "shadow_image_direction": "right" if displacement > 0 else "left",
+        "warning": "Relative shadow travel only; the person's hidden position and path are not measured.",
+        "frames": frames,
+    }
+
+
+def _automatic_hidden_overlay_path(
+    background: np.ndarray,
+    roi: tuple[int, int, int, int],
+    signal: list[dict[str, Any]],
+    motion: dict[str, Any],
+) -> list[list[float]] | None:
+    """Infer a nearby occluding side from the shadow's first position and static contrast."""
+
+    observations = motion["frames"]
+    if len(observations) < 5:
+        return None
+    first = [float(signal[item["frame_index"]]["lateral"]) for item in observations[:3]]
+    last = [float(signal[item["frame_index"]]["lateral"]) for item in observations[-3:]]
+    travel = float(np.median(last) - np.median(first))
+    if abs(travel) < 0.065:
+        return None
+    direction = 1 if travel > 0 else -1
+    height, width = background.shape
+    roi_x, roi_y, roi_width, roi_height = roi
+    shadow_x = roi_x + float(np.median(first)) * roi_width
+    blur = cv2.GaussianBlur(background.astype(np.float32), (0, 0), 3)
+    top, bottom = int(height * 0.77), int(height * 0.94)
+    if bottom - top < 12:
+        return None
+    radius = max(5, int(width * 0.015))
+    separation = max(8, int(width * 0.02))
+    near = max(radius, int(shadow_x - width * 0.18)) if direction > 0 else int(shadow_x + separation)
+    far = int(shadow_x - separation) if direction > 0 else min(width - radius - 1, int(shadow_x + width * 0.18))
+    if far <= near:
+        return None
+    candidates = []
+    for x in range(near, far + 1):
+        contrast = float(np.mean(np.abs(blur[top:bottom, x - radius] - blur[top:bottom, x + radius])))
+        weighted = contrast * math.exp(-abs(x - shadow_x) / max(12.0, width * 0.045))
+        candidates.append((weighted, contrast, x))
+    _, contrast, edge_x = max(candidates)
+    if contrast < 18 or abs(edge_x - shadow_x) > width * 0.12:
+        return None
+    inset = max(12, int(width * 0.04))
+    route_length = max(int(width * 0.14), int(abs(travel) * roi_width * 1.2))
+    corner_x = edge_x - direction * inset
+    start_x = corner_x - direction * route_length
+    if not width * 0.06 <= start_x <= width * 0.94 or not width * 0.06 <= corner_x <= width * 0.94:
+        return None
+    foot_y = min(int(height * 0.88), roi_y + int(roi_height * 0.65))
+    if foot_y < height * 0.60:
+        return None
+    return [
+        [round(start_x / width, 4), round(foot_y / height, 4)],
+        [round(corner_x / width, 4), round(foot_y / height, 4)],
+    ]
+
+
 def _status(
     coverage: float,
     present: float,
@@ -302,6 +399,7 @@ def analyse_trial(
             "shadow_onset_s": None,
             "los_onset_s": None,
             "los_detected": False,
+            "hidden_motion": None,
             "reasons": assessment.reasons,
             "confidence_factors": {},
             "model": {"name": "calibration_temporal_evidence", "version": "0.2", "trained": False},
@@ -371,6 +469,12 @@ def analyse_trial(
     lead_time = None
     if shadow_onset is not None and los_onset is not None:
         lead_time = round(los_onset - shadow_onset, 3)
+    hidden_motion = _hidden_motion_from_shadow(timestamps, signal, presence, shadow_onset, los_onset)
+    if hidden_motion is not None:
+        automatic_path = _automatic_hidden_overlay_path(calibration.background, assessment.roi, signal, hidden_motion)
+        if automatic_path is not None:
+            hidden_motion["overlay_path"] = automatic_path
+            hidden_motion["path_source"] = "automatic_wall_edge_proxy"
     los_present = los_onset is not None
     state, state_reasons = _status(
         assessment.coverage_score, present_probability, confidence, los_present, lead_time,
@@ -450,6 +554,7 @@ def analyse_trial(
         "shadow_onset_s": round(shadow_onset, 3) if shadow_onset is not None else None,
         "los_onset_s": round(los_onset, 3) if los_onset is not None else None,
         "los_detected": los_present,
+        "hidden_motion": hidden_motion,
         "entry_source": entry_source,
         "model": {
             "name": "scene_tuned_pavement_residual" if tuned else "calibration_temporal_evidence",
