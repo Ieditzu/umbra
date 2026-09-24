@@ -45,6 +45,15 @@ function localDateTimeValue(date = new Date()): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function frozenClockKey(sceneId: string): string {
+  return `umbra:frozen-clock:${sceneId}`;
+}
+
+function savedFrozenClock(sceneId: string): string | null {
+  const value = window.localStorage.getItem(frozenClockKey(sceneId));
+  return value && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value) && !Number.isNaN(new Date(value).getTime()) ? value : null;
+}
+
 function newSceneForm(): SceneForm {
   return { name: "", notes: "", latitude: "", longitude: "", recorded_at: localDateTimeValue() };
 }
@@ -280,6 +289,8 @@ export default function App() {
   const [showNewScene, setShowNewScene] = useState(false);
   const [manualTrialId, setManualTrialId] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
+  const [clock, setClock] = useState(() => new Date());
+  const [frozenClock, setFrozenClock] = useState<{ sceneId: string; value: string } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -289,6 +300,28 @@ export default function App() {
   }, [detail]);
   const importedVideoCount = Object.values(mediaByRole).filter(Boolean).length;
   const videosComplete = Boolean(mediaByRole.calibration && mediaByRole.main);
+  const frozenTime = frozenClock && frozenClock.sceneId === detail?.scene.id ? frozenClock.value : null;
+  const displayedClock = frozenTime ? new Date(frozenTime) : clock;
+
+  useEffect(() => {
+    let timer: number;
+    const updateClock = () => {
+      setClock(new Date());
+      timer = window.setTimeout(updateClock, 60_000 - Date.now() % 60_000);
+    };
+    timer = window.setTimeout(updateClock, 60_000 - Date.now() % 60_000);
+    const refreshOnReturn = () => {
+      if (document.visibilityState === "visible") {
+        window.clearTimeout(timer);
+        updateClock();
+      }
+    };
+    document.addEventListener("visibilitychange", refreshOnReturn);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
+    };
+  }, []);
 
   useEffect(() => {
     if (detail) setTrialName(`Trial ${detail.trials.length + 1}`);
@@ -302,6 +335,8 @@ export default function App() {
 
   async function loadScene(sceneId: string) {
     const next = await request<SceneDetail>(`/scenes/${sceneId}`);
+    const savedTime = savedFrozenClock(sceneId);
+    setFrozenClock(savedTime ? { sceneId, value: savedTime } : null);
     setDetail(next);
     setResult(null);
     setManualTrialId(null);
@@ -316,6 +351,7 @@ export default function App() {
     setBusy(true);
     try {
       await request<{ scene_id: string }>(`/scenes/${scene.id}`, { method: "DELETE" });
+      window.localStorage.removeItem(frozenClockKey(scene.id));
       if (detail?.scene.id === scene.id) {
         stopCamera();
         setDetail(null);
@@ -452,6 +488,23 @@ export default function App() {
     );
   }
 
+  function setSceneFrozenTime(value: string) {
+    if (!detail) return;
+    window.localStorage.setItem(frozenClockKey(detail.scene.id), value);
+    setFrozenClock({ sceneId: detail.scene.id, value });
+  }
+
+  function toggleFrozenTime() {
+    if (!detail) return;
+    if (frozenTime) {
+      window.localStorage.removeItem(frozenClockKey(detail.scene.id));
+      setFrozenClock(null);
+      setClock(new Date());
+    } else {
+      setSceneFrozenTime(localDateTimeValue());
+    }
+  }
+
   async function upload(role: MediaRole, file: File) {
     if (!detail) return;
     setBusy(true);
@@ -554,6 +607,16 @@ export default function App() {
 
       {screen === "review" && result ? <ResultPanel result={result} title={reviewTitle} /> : <div className="studio-layout">
         <section className="camera-workspace">
+          <div className="camera-clock" aria-label={frozenTime ? "Frozen scene date and time" : "Local date and time"}>
+            {frozenTime ? <>
+              <input aria-label="Frozen date" type="date" value={frozenTime.slice(0, 10)} onChange={(event) => event.target.value && setSceneFrozenTime(`${event.target.value}T${frozenTime.slice(11)}`)} />
+              <input aria-label="Frozen time" type="time" value={frozenTime.slice(11)} onChange={(event) => event.target.value && setSceneFrozenTime(`${frozenTime.slice(0, 10)}T${event.target.value}`)} />
+            </> : <>
+              <time dateTime={localDateTimeValue(displayedClock).slice(0, 10)}>{displayedClock.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" })}</time>
+              <time dateTime={displayedClock.toISOString()}>{displayedClock.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</time>
+            </>}
+            <button className={frozenTime ? "button unfreeze-button" : "button freeze-button"} type="button" disabled={!detail} onClick={toggleFrozenTime}>{frozenTime ? "Unfreeze" : "Freeze"}</button>
+          </div>
           <div className="workspace-heading"><h1>Live camera</h1><span className={streaming ? "camera-status on" : "camera-status"}>{streaming ? "Live" : "Off"}</span></div>
           <div className="camera-stage main-camera">
             <video ref={videoRef} autoPlay muted playsInline className={streaming ? "camera active" : "camera"} />
