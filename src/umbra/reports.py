@@ -271,7 +271,92 @@ def _visible_body_box(motion: np.ndarray) -> tuple[int, int, int, int] | None:
         if y > height * 0.62 or box_height < height * 0.12 or box_height < box_width * 0.8:
             continue
         candidates.append((area, (x, y, box_width, box_height)))
-    return max(candidates, key=lambda item: item[0])[1] if candidates else None
+    if not candidates:
+        return None
+    anchor = max(candidates, key=lambda item: item[0])[1]
+    ax, ay, aw, ah = anchor
+    # Background subtraction often separates the head, torso and shoes. Join
+    # nearby vertical pieces while excluding the flat cast shadow on ground.
+    related = [anchor]
+    for contour in contours:
+        area = float(cv2.contourArea(contour))
+        x, y, box_width, box_height = cv2.boundingRect(contour)
+        if area < 75 or box_height < 12 or y > height * 0.9:
+            continue
+        if x + box_width < ax - 16 or x > ax + aw + 36:
+            continue
+        if y > height * 0.75 and box_height < 18:
+            continue
+        related.append((x, y, box_width, box_height))
+    x0 = min(box[0] for box in related)
+    y0 = min(box[1] for box in related)
+    x1 = max(box[0] + box[2] for box in related)
+    y1 = max(box[1] + box[3] for box in related)
+    return x0, y0, x1 - x0, y1 - y0
+
+
+def _overhead_tracks(
+    frames: list[np.ndarray],
+    background_gray: np.ndarray,
+    review: dict[str, Any],
+) -> list[tuple[tuple[int, int, int, int] | None, tuple[int, int, int, int] | None]] | None:
+    """Track a dark overhead walker and its ground shadow as separate objects."""
+
+    samples = review.get("samples")
+    if not isinstance(samples, list) or not samples:
+        return None
+    height, width = frames[0].shape[:2]
+    seed = samples[0]
+    if not isinstance(seed, dict):
+        return None
+    route_y = int(float(seed.get("y", 0.5)) * height)
+    y0, y1 = max(0, route_y - 42), min(height, route_y + 42)
+    pavement_level = float(np.quantile(background_gray[y0:y1], 0.6))
+    dark_cutoff = float(np.clip(pavement_level * 0.23, 30.0, 48.0))
+    previous_x = float(seed.get("x", 0.0)) * width
+    tracks: list[tuple[tuple[int, int, int, int] | None, tuple[int, int, int, int] | None]] = []
+    for frame in frames:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32)
+        subject_mask = ((gray[y0:y1] < dark_cutoff) & (background_gray[y0:y1] - gray[y0:y1] > 12)).astype(np.uint8)
+        subject_mask = cv2.morphologyEx(subject_mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+        contours, _ = cv2.findContours(subject_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        candidates: list[tuple[float, tuple[int, int, int, int]]] = []
+        for contour in contours:
+            area = float(cv2.contourArea(contour))
+            x, local_y, box_width, box_height = cv2.boundingRect(contour)
+            if area < 90 or box_width < 10 or box_width > width * 0.13 or box_height < 14 or box_height > height * 0.24:
+                continue
+            centre_x = x + box_width / 2
+            distance = abs(centre_x - previous_x)
+            if distance > width * 0.13:
+                continue
+            candidates.append((area * 0.003 - distance, (x, y0 + local_y, box_width, box_height)))
+        body_box = max(candidates, key=lambda item: item[0])[1] if candidates else None
+        shadow_box = None
+        if body_box:
+            bx, by, bw, bh = body_box
+            previous_x = bx + bw / 2
+            sx0, sx1 = bx + bw - 2, min(width, bx + bw + int(width * 0.22))
+            sy0, sy1 = max(y0, by - 6), min(y1, by + bh + 6)
+            if sx1 > sx0 and sy1 > sy0:
+                local_gray = gray[sy0:sy1, sx0:sx1]
+                local_background = background_gray[sy0:sy1, sx0:sx1]
+                shadow_mask = ((local_background - local_gray > 18) & (local_gray < local_background * 0.72)).astype(np.uint8)
+                shadow_mask = cv2.morphologyEx(shadow_mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+                shadow_mask = cv2.morphologyEx(shadow_mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+                shadow_local = _dynamic_box(shadow_mask, min_area=45.0)
+                if shadow_local:
+                    sx, sy, sw, sh = shadow_local
+                    shadow_box = sx0 + sx, sy0 + sy, sw, sh
+        tracks.append((body_box, shadow_box))
+    visible = [(i, box) for i, (box, _) in enumerate(tracks) if box is not None]
+    if len(visible) < len(frames) * 0.65:
+        return None
+    first_x = visible[0][1][0]
+    last_x = visible[-1][1][0]
+    if abs(last_x - first_x) < width * 0.25:
+        return None
+    return tracks
 
 
 def _scene_tuned_visualization(
@@ -297,24 +382,30 @@ def _scene_tuned_visualization(
         for frame, timestamp, cue in zip(frames, timestamps, signal, strict=True):
             visual = frame.copy()
             motion = motion_model.apply(frame) == 255
-            mask = cue["shadow_mask"].astype(np.uint8)
+            mask = cue["shadow_mask"].astype(np.uint8).copy()
             score = float(cue["presence"])
-            shadow_seen = score >= 0.5 and bool(mask.any())
             body_marked = isinstance(entry_time, (int, float)) and timestamp >= float(entry_time)
             body_box = _visible_body_box(motion) if body_marked else None
+            if body_box:
+                bx, by, bw, bh = body_box
+                mx0, my0 = max(0, bx - x), max(0, by - y)
+                mx1, my1 = min(roi_width, bx + bw - x), min(roi_height, by + bh - y)
+                if mx1 > mx0 and my1 > my0:
+                    mask[my0:my1, mx0:mx1] = 0
+            shadow_seen = score >= 0.5 and bool(mask.any())
             if shadow_seen:
                 patch = visual[y : y + roi_height, x : x + roi_width]
                 tint = patch.copy()
-                tint[mask > 0] = (190, 72, 245)
+                tint[mask > 0] = (112, 243, 196)
                 visual[y : y + roi_height, x : x + roi_width] = cv2.addWeighted(patch, 0.6, tint, 0.4, 0)
                 local_box = cv2.boundingRect(cv2.findNonZero(mask))
                 sx, sy, sw, sh = local_box
-                _draw_live_box(visual, (x + sx, y + sy, sw, sh), "shadow cue", (190, 72, 245))
+                _draw_live_box(visual, (x + sx, y + sy, sw, sh), "shadow cue", (112, 243, 196))
             if body_box:
                 _draw_live_box(visual, body_box, "anonymous body", (230, 142, 255))
             state = "BODY VISIBLE" if body_box else "BODY ENTRY MARK" if body_marked else "SHADOW CUE" if shadow_seen else "WATCHING PAVEMENT"
             colour = (230, 142, 255) if body_marked else (112, 243, 196) if shadow_seen else (90, 221, 255)
-            header = f"{state}  S {score * 100:02.0f}%"
+            header = f"{state}  S {score * 100:02.0f}%" if shadow_seen else state
             (header_width, _), _ = cv2.getTextSize(header, cv2.FONT_HERSHEY_SIMPLEX, 0.36, 1)
             header_x = max(7, width - header_width - 16)
             cv2.rectangle(visual, (header_x - 5, 6), (width - 6, 27), (7, 17, 22), -1)
@@ -445,6 +536,7 @@ def _hidden_path_visualization(
         np.stack([cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) for frame in frames]), axis=0
     ).astype(np.float32)
     review = manual_review or {}
+    overhead_tracks = _overhead_tracks(frames, background_gray, review)
     raw_samples = review.get("samples", [])
     samples = sorted(
         [sample for sample in raw_samples if isinstance(sample, dict)], key=lambda sample: float(sample.get("timestamp_s", 0))
@@ -487,6 +579,16 @@ def _hidden_path_visualization(
             header_x = max(7, width - header_width - 16)
             cv2.rectangle(visual, (header_x - 5, 6), (width - 6, 27), (7, 17, 22), -1)
             cv2.putText(visual, header, (header_x, 21), cv2.FONT_HERSHEY_SIMPLEX, 0.36, (112, 243, 196), 1, cv2.LINE_AA)
+            if overhead_tracks is not None:
+                overhead_body, overhead_shadow = overhead_tracks[index]
+                if overhead_shadow:
+                    sx, sy, sw, sh = overhead_shadow
+                    cv2.rectangle(visual, (sx, sy), (sx + sw, sy + sh), (112, 243, 196), 2)
+                    _label(visual, "shadow cue", (sx + 3, min(height - 6, sy + sh + 15)), (112, 243, 196))
+                if overhead_body:
+                    _draw_live_box(visual, overhead_body, "anonymous body", (230, 142, 255))
+                writer.write(visual)
+                continue
             motion = subtractor.apply(frame)
             preferred_point = None
             if samples:

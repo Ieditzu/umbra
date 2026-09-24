@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from umbra.api import create_app
 from umbra.config import Settings
 from umbra.pipeline import _metrics, analyse_trial
+from umbra.reports import _overhead_tracks, _visible_body_box
 from umbra.synthetic import generate_synthetic_bundle
 from umbra.video import estimate_audio_offset, write_mp4
 from umbra.vision import build_calibration_model, extract_scene_shadow_signal, load_ground_truth
@@ -40,6 +41,37 @@ def test_scene_shadow_stays_quiet_until_pavement_darkens():
     signal = extract_scene_shadow_signal(frames, calibration, (10, 50, 90, 35))
     assert max(float(item["presence"]) for item in signal[:20]) < 0.5
     assert float(signal[22]["presence"]) > 0.5
+
+
+def test_overhead_tracker_separates_walker_from_cast_shadow():
+    frames = []
+    for index in range(20):
+        frame = np.full((180, 320, 3), 160, dtype=np.uint8)
+        x = 12 + index * 9
+        frame[74:98, x:x + 18] = 15
+        frame[80:91, x + 20:x + 70] = 65
+        frames.append(frame)
+    background = np.full((180, 320), 160, dtype=np.float32)
+    tracks = _overhead_tracks(frames, background, {"samples": [{"x": 0.06, "y": 0.48}]})
+    assert tracks is not None
+    for body, shadow in tracks:
+        assert body is not None and shadow is not None
+        assert body[2] < 30
+        assert shadow[0] >= body[0] + body[2] - 2
+    assert tracks[-1][0][0] > tracks[0][0][0] + 140
+
+
+def test_visible_body_joins_moving_head_torso_and_legs_not_flat_ground_shadow():
+    motion = np.zeros((268, 480), dtype=bool)
+    motion[37:57, 250:268] = True
+    motion[61:124, 247:276] = True
+    motion[127:170, 249:271] = True
+    motion[230:245, 120:280] = True
+    box = _visible_body_box(motion)
+    assert box is not None
+    x, y, width, height = box
+    assert x >= 240 and y <= 40
+    assert width < 50 and y + height >= 165
 
 
 @pytest.mark.parametrize("lag", [-20, 30])

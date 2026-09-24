@@ -220,18 +220,23 @@ function ManualReview({ trial, busy, onClose, onNotice }: {
   const [truthAspect, setTruthAspect] = useState(16 / 9);
   const [mainAspect, setMainAspect] = useState(16 / 9);
   const [saving, setSaving] = useState(false);
+  const [loadingReview, setLoadingReview] = useState(true);
   const truthRef = useRef<HTMLVideoElement>(null);
   const mainRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
+    let active = true;
+    setLoadingReview(true);
     setReview(emptyManualReview(trial));
     setMode("corner");
     setReviewSource("phone");
     setShadowStart(null);
     setSelectingShadow(false);
     void request<ManualGroundTruth>(`/trials/${trial.id}/manual-ground-truth`)
-      .then((saved) => setReview(saved))
-      .catch(() => undefined);
+      .then((saved) => { if (active) setReview(saved); })
+      .catch(() => undefined)
+      .finally(() => { if (active) setLoadingReview(false); });
+    return () => { active = false; };
   }, [trial.id]);
 
   function pointFromClick(event: MouseEvent<HTMLElement>, video: HTMLVideoElement | null): ManualPoint {
@@ -313,7 +318,7 @@ function ManualReview({ trial, busy, onClose, onNotice }: {
     ...(review.far_point ? [{ label: "Far", point: review.far_point, className: "far" }] : []),
     ...review.samples.map((sample, index) => ({ label: `Walker ${index + 1}`, point: sample, className: "walker" }))
   ];
-  const disabled = busy || saving;
+  const disabled = busy || saving || loadingReview;
 
   return <section className="manual-review panel">
     <div className="panel-heading"><div><p className="eyebrow">Scene review</p><h2>Manual review — {trial.name}</h2></div><button className="button ghost" disabled={disabled} onClick={onClose}>Close</button></div>
@@ -345,7 +350,7 @@ function ManualReview({ trial, busy, onClose, onNotice }: {
         <p className="review-time">Body entry: {review.main_entry_timestamp_s === null ? "not set" : `${review.main_entry_timestamp_s.toFixed(2)} s`}. The first 1.8 seconds of the phone shot should contain empty pavement.</p>
       </div>
     </div>
-    <div className="review-footer"><span>{review.main_shadow_region ? "Phone shadow area ready" : "No phone shadow area"} · {review.samples.length} drone points</span><button className="button primary" disabled={disabled} onClick={() => void save()}>{saving ? "Saving…" : "Save review"}</button></div>
+    <div className="review-footer"><span>{loadingReview ? "Loading saved review…" : review.main_shadow_region ? "Phone shadow area ready" : "No phone shadow area"} · {review.samples.length} drone points</span><button className="button primary" disabled={disabled} onClick={() => void save()}>{saving ? "Saving…" : "Save review"}</button></div>
   </section>;
 }
 

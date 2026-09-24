@@ -82,6 +82,12 @@ class Store:
                     payload_json TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS scene_shadow_regions (
+                    scene_id TEXT PRIMARY KEY REFERENCES scenes(id) ON DELETE CASCADE,
+                    calibration_media_id TEXT NOT NULL REFERENCES media(id),
+                    region_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
                 """
             )
 
@@ -153,6 +159,7 @@ class Store:
                 (scene_id,),
             )
             connection.execute("DELETE FROM trials WHERE scene_id = ?", (scene_id,))
+            connection.execute("DELETE FROM scene_shadow_regions WHERE scene_id = ?", (scene_id,))
             connection.execute("DELETE FROM media WHERE scene_id = ?", (scene_id,))
             connection.execute("DELETE FROM scenes WHERE id = ?", (scene_id,))
         return {
@@ -241,6 +248,27 @@ class Store:
                 "SELECT trial_id, ground_truth_media_id, payload_json, updated_at FROM manual_ground_truth WHERE trial_id = ?",
                 (trial_id,),
             ).fetchone()
+            if row is None:
+                inherited = connection.execute(
+                    """
+                    SELECT trials.ground_truth_media_id, scene_shadow_regions.region_json,
+                           scene_shadow_regions.updated_at
+                    FROM trials JOIN scene_shadow_regions ON scene_shadow_regions.scene_id = trials.scene_id
+                    WHERE trials.id = ? AND scene_shadow_regions.calibration_media_id = trials.calibration_media_id
+                    """,
+                    (trial_id,),
+                ).fetchone()
+                if inherited is not None and inherited["ground_truth_media_id"] is not None:
+                    return {
+                        "trial_id": trial_id,
+                        "ground_truth_media_id": str(inherited["ground_truth_media_id"]),
+                        "corner": None,
+                        "far_point": None,
+                        "samples": [],
+                        "main_entry_timestamp_s": None,
+                        "main_shadow_region": json.loads(str(inherited["region_json"])),
+                        "updated_at": str(inherited["updated_at"]),
+                    }
         if row is None:
             return None
         payload = json.loads(str(row["payload_json"]))
@@ -261,6 +289,11 @@ class Store:
         }
         now = utc_now()
         with self._connection() as connection:
+            trial = connection.execute(
+                "SELECT scene_id, calibration_media_id FROM trials WHERE id = ?", (trial_id,)
+            ).fetchone()
+            if trial is None:
+                raise ValueError("Trial was not found")
             connection.execute(
                 """
                 INSERT INTO manual_ground_truth (trial_id, ground_truth_media_id, payload_json, updated_at)
@@ -272,6 +305,23 @@ class Store:
                 """,
                 (trial_id, payload["ground_truth_media_id"], json.dumps(stored), now),
             )
+            if stored["main_shadow_region"] is not None:
+                connection.execute(
+                    """
+                    INSERT INTO scene_shadow_regions (scene_id, calibration_media_id, region_json, updated_at)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(scene_id) DO UPDATE SET
+                        calibration_media_id = excluded.calibration_media_id,
+                        region_json = excluded.region_json,
+                        updated_at = excluded.updated_at
+                    """,
+                    (trial["scene_id"], trial["calibration_media_id"], json.dumps(stored["main_shadow_region"]), now),
+                )
+            else:
+                connection.execute(
+                    "DELETE FROM scene_shadow_regions WHERE scene_id = ? AND calibration_media_id = ?",
+                    (trial["scene_id"], trial["calibration_media_id"]),
+                )
         return {"trial_id": trial_id, "ground_truth_media_id": payload["ground_truth_media_id"], **stored, "updated_at": now}
 
     def create_job(self, kind: str, message: str = "Queued") -> dict[str, Any]:
