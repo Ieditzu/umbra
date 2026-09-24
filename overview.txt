@@ -78,12 +78,15 @@ Processing
    If the shadow travels clearly before the body enters view, show a
    schematic relative-motion estimate in the corner-trial video. A
    nearby static wall edge can be estimated from the empty calibration;
-   the estimate then moves an anonymous translucent figure on the
-   hidden side as the shadow travels. The figure is an illustrative
-   projection, not a measured or detected body position. If the wall
-   edge is ambiguous, use a small relative-motion inset. Hide both
-   when the body enters or motion evidence is weak. No hidden-route
-   points are required from the user.
+   In the recorded Corner trial, show a green dot moving inside the
+   automatically inferred building-side route to represent estimated
+   hidden position. Drive its position from measured shadow movement; do
+   not animate a gait. The live camera may show the existing simple dummy
+   overlay, but it too must be driven by observed shadow position, not a
+   pace clock. Shadow alone does not support reliable limb pose or body
+   shape, so use the green dot unless independent visible-body evidence
+   supports a dummy. Keep the camera fixed after calibration. No
+   hidden-route points are required from the user.
 5. Gate on calibration quality, shadow strength, and temporal
    coherence. Refuse when the scene or signal is unusable.
 6. For controlled evaluation, use ArUco labels when available or

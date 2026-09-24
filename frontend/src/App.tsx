@@ -1,4 +1,4 @@
-import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, MouseEvent, RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { API, request } from "./api";
 import type {
   AnalysisResult,
@@ -55,6 +55,132 @@ function fmt(value: number | null | undefined, digits = 2): string {
 
 function StatePill({ state }: { state: State }) {
   return <span className={`state-pill ${state}`}>{stateLabel[state]}</span>;
+}
+
+function LiveShadowOverlay({
+  videoRef,
+  calibrationId
+}: {
+  videoRef: RefObject<HTMLVideoElement | null>;
+  calibrationId?: string;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const video = videoRef.current;
+    const overlay = canvasRef.current;
+    if (!video || !overlay || !calibrationId) return;
+
+    // Compare the live feed with the saved empty-scene view. Only sustained
+    // darkening in the lower image is treated as shadow evidence.
+    const reference = document.createElement("video");
+    reference.muted = true;
+    reference.playsInline = true;
+    reference.src = `${API}/media/${calibrationId}/stream`;
+    const referenceCanvas = document.createElement("canvas");
+    const referenceContext = referenceCanvas.getContext("2d", { willReadFrequently: true });
+    const processCanvas = document.createElement("canvas");
+    processCanvas.width = 192;
+    processCanvas.height = 108;
+    const processContext = processCanvas.getContext("2d", { willReadFrequently: true });
+    const context = overlay.getContext("2d");
+    if (!referenceContext || !processContext || !context) return;
+
+    let referencePixels: Uint8ClampedArray | null = null;
+    let frame = 0;
+    let lastProcess = 0;
+    let active = true;
+    let track: Array<{ x: number; y: number; t: number }> = [];
+    const loadReference = () => {
+      if (!active || !reference.videoWidth) return;
+      referenceCanvas.width = processCanvas.width;
+      referenceCanvas.height = processCanvas.height;
+      referenceContext.drawImage(reference, 0, 0, referenceCanvas.width, referenceCanvas.height);
+      referencePixels = referenceContext.getImageData(0, 0, referenceCanvas.width, referenceCanvas.height).data;
+      reference.pause();
+    };
+    reference.addEventListener("loadeddata", loadReference, { once: true });
+    reference.load();
+
+    const draw = (now: number) => {
+      if (!active) return;
+      frame = requestAnimationFrame(draw);
+      if (!referencePixels || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || now - lastProcess < 100) return;
+      lastProcess = now;
+      const width = processCanvas.width;
+      const height = processCanvas.height;
+      processContext.drawImage(video, 0, 0, width, height);
+      const live = processContext.getImageData(0, 0, width, height).data;
+      let weight = 0;
+      let sx = 0;
+      let sy = 0;
+      let minX = width, minY = height, maxX = 0, maxY = 0;
+      // Ignore the upper scene; pavement shadows usually occupy the lower half.
+      for (let y = 52; y < height - 2; y += 2) {
+        for (let x = 2; x < width - 2; x += 2) {
+          const i = (y * width + x) * 4;
+          const base = (referencePixels[i] * 0.299 + referencePixels[i + 1] * 0.587 + referencePixels[i + 2] * 0.114);
+          const current = (live[i] * 0.299 + live[i + 1] * 0.587 + live[i + 2] * 0.114);
+          const darkening = base - current;
+          if (base > 38 && darkening > 26) {
+            const w = Math.min(100, darkening - 18);
+            weight += w; sx += x * w; sy += y * w;
+            minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+          }
+        }
+      }
+      const stamp = performance.now();
+      const enoughEvidence = weight > 1800 && maxX - minX > 5 && maxY - minY > 3;
+      if (enoughEvidence) {
+        track.push({ x: sx / weight / width, y: sy / weight / height, t: stamp });
+        track = track.filter((point) => stamp - point.t < 2200).slice(-20);
+      } else if (track.length && stamp - track[track.length - 1].t > 450) {
+        track = [];
+      }
+
+      const rect = overlay.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const canvasWidth = Math.max(1, Math.round(rect.width * dpr));
+      const canvasHeight = Math.max(1, Math.round(rect.height * dpr));
+      if (overlay.width !== canvasWidth || overlay.height !== canvasHeight) {
+        overlay.width = canvasWidth; overlay.height = canvasHeight;
+      }
+      context.clearRect(0, 0, canvasWidth, canvasHeight);
+      context.save(); context.scale(canvasWidth, canvasHeight);
+      if (track.length >= 2) {
+        context.strokeStyle = "rgba(116, 235, 194, .9)"; context.lineWidth = 0.004;
+        context.beginPath(); track.forEach((point, index) => index ? context.lineTo(point.x, point.y) : context.moveTo(point.x, point.y)); context.stroke();
+      }
+      if (enoughEvidence) {
+        context.strokeStyle = "#75f0c2"; context.lineWidth = 0.004;
+        context.strokeRect(minX / width, minY / height, (maxX - minX) / width, (maxY - minY) / height);
+      }
+      if (track.length >= 4) {
+        const first = track[0], last = track[track.length - 1];
+        const elapsed = Math.max(0.15, (last.t - first.t) / 1000);
+        const dx = (last.x - first.x) / elapsed;
+        const dy = (last.y - first.y) / elapsed;
+        const lead = Math.min(0.65, Math.max(0.2, elapsed * 0.35));
+        const px = Math.max(0.04, Math.min(0.96, last.x + dx * lead));
+        const py = Math.max(0.25, Math.min(0.88, last.y + dy * lead));
+        // A simple moving position marker: its coordinates come from measured
+        // shadow motion, not a time-based walking animation.
+        context.setLineDash([0.012, 0.009]); context.strokeStyle = "rgba(255, 208, 105, .88)"; context.lineWidth = 0.003;
+        context.beginPath(); context.moveTo(last.x, last.y); context.lineTo(px, py); context.stroke(); context.setLineDash([]);
+        context.fillStyle = "rgba(255, 208, 105, .2)"; context.strokeStyle = "#ffd069"; context.lineWidth = 0.004;
+        context.beginPath(); context.ellipse(px, py - 0.07, 0.025, 0.025, 0, 0, Math.PI * 2); context.fill(); context.stroke();
+        context.beginPath(); context.moveTo(px, py - 0.045); context.lineTo(px, py + 0.035); context.moveTo(px - 0.025, py - 0.015); context.lineTo(px + 0.025, py - 0.015); context.moveTo(px, py + 0.035); context.lineTo(px - 0.02, py + 0.07); context.moveTo(px, py + 0.035); context.lineTo(px + 0.02, py + 0.07); context.stroke();
+      }
+      context.restore();
+    };
+    frame = requestAnimationFrame(draw);
+    return () => {
+      active = false; cancelAnimationFrame(frame); reference.pause(); reference.removeAttribute("src"); reference.load();
+      reference.removeEventListener("loadeddata", loadReference);
+    };
+  }, [videoRef, calibrationId]);
+
+  return <><canvas ref={canvasRef} className="live-overlay" aria-hidden="true" />{calibrationId ? <span className="live-overlay-label">shadow-driven movement estimate</span> : <span className="live-overlay-label">record empty calibration to enable estimate</span>}</>;
 }
 
 function Metric({ label, value, detail }: { label: string; value: string; detail?: string }) {
@@ -131,7 +257,7 @@ function ResultPanel({ result }: { result: AnalysisResult }) {
       {(result.visualizations?.corner_trial_available || result.visualization?.available) && <section className="visualization-card">
         <h3>What Umbra saw — moving video evidence</h3>
         <div className={`visualization-grid ${result.visualizations?.hidden_path_available ? "two-videos" : ""}`}>
-          <div><strong>Corner trial · warning camera</strong><p>Boxes follow the detected shadow and visible body. If Umbra finds a nearby wall edge, a translucent estimated person moves behind it as the shadow travels. This is illustrative, not a detected or measured body position; ambiguous geometry shows only a relative-motion inset.</p><video key={`corner-${result.analysis_id}`} controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/visualization`} type="video/mp4" /></video><a className="button secondary video-download" href={`${API}/analyses/${result.analysis_id}/visualization`} download={`umbra-corner-trial-${result.analysis_id}.mp4`}>Download corner trial</a></div>
+          <div><strong>Corner trial · warning camera</strong><p>Boxes follow detected shadow and visible-body evidence. Where the wall edge is clear, a simple anonymous position marker moves along the shadow-derived estimate. It does not animate a gait or claim to detect the hidden person; ambiguous geometry shows relative shadow travel only.</p><video key={`corner-${result.analysis_id}`} controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/visualization`} type="video/mp4" /></video><a className="button secondary video-download" href={`${API}/analyses/${result.analysis_id}/visualization`} download={`umbra-corner-trial-${result.analysis_id}.mp4`}>Download corner trial</a></div>
           {result.visualizations?.hidden_path_available && <div><strong>Hidden path · reference camera</strong><p>Shows the reviewed corner/far route line and the manually reviewed walker position when you saved labels.</p><video key={`hidden-${result.analysis_id}`} controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/hidden-path-visualization`} type="video/mp4" /></video><a className="button secondary video-download" href={`${API}/analyses/${result.analysis_id}/hidden-path-visualization`} download={`umbra-hidden-path-${result.analysis_id}.mp4`}>Download hidden path</a></div>}
         </div>
       </section>}
@@ -729,8 +855,11 @@ export default function App() {
             <div className="capture-grid">
               <section className="panel capture-panel">
                 <div className="panel-heading"><h2>Camera capture</h2><span className="step">1</span></div>
-                <video ref={videoRef} autoPlay muted playsInline className={streaming ? "camera active" : "camera"} />
-                <p className="hint">Frame the corner, the shadow path, and the walker’s full-body entry. Record an empty calibration first; then one trial: walker hidden, shadow on pavement, then body enters view.</p>
+                <div className="camera-stage">
+                  <video ref={videoRef} autoPlay muted playsInline className={streaming ? "camera active" : "camera"} />
+                  {streaming && <LiveShadowOverlay videoRef={videoRef} calibrationId={mediaByRole.calibration?.id} />}
+                </div>
+                <p className="hint">The live estimate tracks pavement-shadow movement against the empty calibration and projects a moving position marker. It does not infer a real pose through the wall; keep the camera fixed after calibration.</p>
                 <div className="capture-actions">
                   {!streaming ? <button className="button secondary" disabled={busy} onClick={() => void startCamera()}>Enable camera</button> : <button className="button ghost" onClick={stopCamera}>Stop camera</button>}
                   {streaming && !captureRole && <><button className="button secondary" disabled={busy} onClick={() => record("calibration")}>Record calibration</button><button className="button primary" disabled={busy} onClick={() => record("main")}>Record trial</button></>}

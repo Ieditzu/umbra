@@ -102,55 +102,33 @@ def _draw_hidden_motion(frame: np.ndarray, progress: float) -> None:
     cv2.circle(frame, (marker_x, line_y), 4, (112, 243, 196), -1, cv2.LINE_AA)
 
 
-def _draw_hidden_person(frame: np.ndarray, progress: float, path: list[list[float]]) -> None:
-    """Place a conspicuous schematic figure on an inferred hidden route."""
-
+def _draw_hidden_position(frame: np.ndarray, progress: float, path: list[list[float]]) -> None:
+    """Draw a green estimated-position dot along the automatically inferred hidden route."""
     height, width = frame.shape[:2]
     start, corner = path
     fraction = float(np.clip(progress, 0.0, 1.0))
-    foot_x = int(round((start[0] + fraction * (corner[0] - start[0])) * width))
-    foot_y = int(round((start[1] + fraction * (corner[1] - start[1])) * height))
-    figure_height = min(int(height * 0.62), max(55, foot_y - 15))
-    radius = max(5, int(figure_height * 0.075))
-    head_y = foot_y - int(figure_height * 0.91)
-    shoulder_y = foot_y - int(figure_height * 0.77)
-    hip_y = foot_y - int(figure_height * 0.43)
-    spread = max(7, int(figure_height * 0.11))
-    layer = frame.copy()
-    colour = (0, 235, 255)
-    cv2.circle(layer, (foot_x, head_y), radius, colour, -1, cv2.LINE_AA)
-    torso = np.array([
-        (foot_x - spread, shoulder_y), (foot_x + spread, shoulder_y),
-        (foot_x + spread // 2, hip_y), (foot_x - spread // 2, hip_y),
-    ], dtype=np.int32)
-    cv2.fillPoly(layer, [torso], colour, cv2.LINE_AA)
-    limb_width = max(4, int(figure_height * 0.055))
-    for side in (-1, 1):
-        cv2.line(layer, (foot_x + side * spread, shoulder_y + 5),
-                 (foot_x + side * (spread + 5), hip_y - 5), colour, limb_width, cv2.LINE_AA)
-        cv2.line(layer, (foot_x + side * (spread // 3), hip_y),
-                 (foot_x + side * (spread // 2 + 5), foot_y), colour, limb_width + 2, cv2.LINE_AA)
-    cv2.addWeighted(layer, 0.58, frame, 0.42, 0, dst=frame)
-    outline = (7, 18, 23)
-    cv2.circle(frame, (foot_x, head_y), radius, outline, 5, cv2.LINE_AA)
-    cv2.circle(frame, (foot_x, head_y), radius, colour, 2, cv2.LINE_AA)
-    cv2.polylines(frame, [torso], True, outline, 5, cv2.LINE_AA)
-    cv2.polylines(frame, [torso], True, colour, 2, cv2.LINE_AA)
-    for side in (-1, 1):
-        arm = ((foot_x + side * spread, shoulder_y + 5), (foot_x + side * (spread + 5), hip_y - 5))
-        leg = ((foot_x + side * (spread // 3), hip_y), (foot_x + side * (spread // 2 + 5), foot_y))
-        for first, second in (arm, leg):
-            cv2.line(frame, first, second, outline, 5, cv2.LINE_AA)
-            cv2.line(frame, first, second, colour, 2, cv2.LINE_AA)
-    cv2.circle(frame, (foot_x, foot_y), max(8, radius), colour, 2, cv2.LINE_AA)
-    _label(frame, "SHADOW ESTIMATE: HIDDEN PERSON", (10, 20), colour)
+    first = (int(round(start[0] * width)), int(round(start[1] * height)))
+    last = (int(round(corner[0] * width)), int(round(corner[1] * height)))
+    point = (int(round(first[0] + fraction * (last[0] - first[0]))),
+             int(round(first[1] + fraction * (last[1] - first[1]))))
+    green = (70, 235, 80)
+    cv2.line(frame, first, last, (48, 135, 60), max(1, width // 500), cv2.LINE_AA)
+    radius = max(5, width // 90)
+    cv2.circle(frame, point, radius + 3, (12, 28, 18), -1, cv2.LINE_AA)
+    cv2.circle(frame, point, radius, green, -1, cv2.LINE_AA)
+    cv2.circle(frame, point, radius + 1, (225, 255, 225), max(1, width // 800), cv2.LINE_AA)
+    _label(frame, "HIDDEN POSITION ESTIMATE", (10, 20), green)
 
 
-def _draw_shadow_derived_overlay(frame: np.ndarray, progress: float, result: dict[str, Any]) -> None:
+def _draw_shadow_derived_overlay(
+    frame: np.ndarray,
+    progress: float,
+    result: dict[str, Any],
+) -> None:
     motion = result.get("hidden_motion")
     path = motion.get("overlay_path") if isinstance(motion, dict) else None
     if isinstance(path, list) and len(path) == 2:
-        _draw_hidden_person(frame, progress, path)
+        _draw_hidden_position(frame, progress, path)
     else:
         _draw_hidden_motion(frame, progress)
 
@@ -488,7 +466,8 @@ def _scene_tuned_visualization(
             if body_box:
                 _draw_live_box(visual, body_box, "anonymous body", (230, 142, 255))
             if index in motion_frames and not body_marked and not body_box:
-                _draw_shadow_derived_overlay(visual, motion_frames[index], result)
+                progress = motion_frames[index]
+                _draw_shadow_derived_overlay(visual, progress, result)
             state = "BODY VISIBLE" if body_box else "BODY ENTRY MARK" if body_marked else "SHADOW CUE" if shadow_seen else "WATCHING PAVEMENT"
             colour = (230, 142, 255) if body_marked else (112, 243, 196) if shadow_seen else (90, 221, 255)
             header = f"{state}  S {score * 100:02.0f}%" if shadow_seen else state
@@ -592,7 +571,8 @@ def _analysis_visualization(
             if index in motion_frames and not body_seen and (
                 not isinstance(entry_time, (int, float)) or timestamp < float(entry_time)
             ):
-                _draw_shadow_derived_overlay(visual, motion_frames[index], result)
+                progress = motion_frames[index]
+                _draw_shadow_derived_overlay(visual, progress, result)
             if body_seen:
                 _label(visual, "partial body observed", (12, target_height - 31), (255, 182, 243))
             elif shadow_seen:

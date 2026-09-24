@@ -163,15 +163,21 @@ def _hidden_motion_from_shadow(
         return None
     progress = np.clip((smoothed - start) / displacement, 0.0, 1.0)
     progress = np.maximum.accumulate(progress)
+    observed_duration = max(observations[-1][1] - observations[0][1], 1e-3)
     frames = [
-        {"frame_index": index, "timestamp_s": round(timestamp, 3), "progress_norm": round(float(value), 3)}
+        {
+            "frame_index": index,
+            "timestamp_s": round(timestamp, 3),
+            "progress_norm": round(float(value), 3),
+        }
         for (index, timestamp, _), value in zip(observations, progress, strict=True)
     ]
     return {
         "kind": "relative_shadow_motion",
         "basis": "shadow centroid before visible body entry",
         "shadow_image_direction": "right" if displacement > 0 else "left",
-        "warning": "Relative shadow travel only; the person's hidden position and path are not measured.",
+        "estimated_preentry_duration_s": round(observed_duration, 3),
+        "warning": "Green dot is an estimated hidden position derived from relative shadow travel, not measured ground truth.",
         "frames": frames,
     }
 
@@ -220,12 +226,13 @@ def _automatic_hidden_overlay_path(
     start_x = corner_x - direction * route_length
     if not width * 0.06 <= start_x <= width * 0.94 or not width * 0.06 <= corner_x <= width * 0.94:
         return None
-    foot_y = min(int(height * 0.88), roi_y + int(roi_height * 0.65))
-    if foot_y < height * 0.60:
-        return None
+    # The dot represents the hidden person's estimated image-space position,
+    # so place the route on the occluding building facade rather than on the
+    # pavement where the shadow itself is observed.
+    hidden_y = int(height * 0.31)
     return [
-        [round(start_x / width, 4), round(foot_y / height, 4)],
-        [round(corner_x / width, 4), round(foot_y / height, 4)],
+        [round(start_x / width, 4), round(hidden_y / height, 4)],
+        [round(corner_x / width, 4), round(hidden_y / height, 4)],
     ]
 
 

@@ -76,8 +76,11 @@ textarea { min-height: 68px; resize: vertical; }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .panel-heading > h2 { margin: 0; }
 .step { display: grid; width: 23px; height: 23px; place-items: center; border-radius: 50%; background: #243e3e; color: #9decce; font-size: .72rem; font-weight: 800; }
-.camera { display: block; width: 100%; min-height: 190px; margin: 14px 0 10px; border-radius: 6px; background: repeating-linear-gradient(135deg, #0a151a 0 8px, #0d1a20 8px 16px); object-fit: cover; }
+.camera-stage { position: relative; width: 100%; margin: 14px 0 10px; overflow: hidden; border-radius: 6px; background: #0a151a; aspect-ratio: 16 / 9; }
+.camera { display: block; width: 100%; height: 100%; min-height: 190px; margin: 0; background: repeating-linear-gradient(135deg, #0a151a 0 8px, #0d1a20 8px 16px); object-fit: fill; }
 .camera.active { outline: 1px solid #76e7bd; }
+.live-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.live-overlay-label { position: absolute; top: 8px; right: 8px; padding: 4px 7px; border: 1px solid #ffd06988; border-radius: 4px; background: #101819d9; color: #ffd986; font-size: .65rem; letter-spacing: .02em; pointer-events: none; }
 .hint, .privacy-note { color: #8ea2a4; font-size: .77rem; line-height: 1.5; }
 .media-list { display: grid; gap: 8px; margin-top: 14px; }
 .media-slot { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px dashed #426165; border-radius: 6px; transition: background .15s; }
