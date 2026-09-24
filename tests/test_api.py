@@ -80,11 +80,18 @@ def test_video_import_and_trial_registration(tmp_path: Path) -> None:
             "far_point": {"x": 0.9, "y": 0.8},
             "samples": [{"timestamp_s": 1.0, "x": 0.4, "y": 0.8}],
             "main_entry_timestamp_s": 1.25,
+            "main_shadow_region": {"x": 0.1, "y": 0.65, "width": 0.7, "height": 0.3},
         }
         saved = client.put(f"/api/v1/trials/{trial['id']}/manual-ground-truth", json=labels)
         assert saved.status_code == 200, saved.text
         assert saved.json()["samples"] == labels["samples"]
         assert client.get(f"/api/v1/trials/{trial['id']}/manual-ground-truth").json()["main_entry_timestamp_s"] == 1.25
+        assert client.get(f"/api/v1/trials/{trial['id']}/manual-ground-truth").json()["main_shadow_region"] == labels["main_shadow_region"]
+        invalid = client.put(
+            f"/api/v1/trials/{trial['id']}/manual-ground-truth",
+            json={**labels, "main_shadow_region": {"x": 0.8, "y": 0.65, "width": 0.7, "height": 0.3}},
+        )
+        assert invalid.status_code == 422
         streamed = client.get(f"/api/v1/media/{media['ground_truth']}/stream")
         assert streamed.status_code == 200
         assert "content-disposition" not in streamed.headers

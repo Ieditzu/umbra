@@ -17,9 +17,11 @@ from .vision import (
     SceneAssessment,
     build_calibration_model,
     detect_corner_and_roi,
+    extract_scene_shadow_signal,
     extract_temporal_signal,
     load_ground_truth,
     los_band,
+    manual_shadow_assessment,
     manual_track_labels,
 )
 
@@ -35,7 +37,7 @@ def _serialise_assessment(assessment: SceneAssessment, calibration: CalibrationM
         "edge": list(assessment.edge) if assessment.edge else None,
         "roi": list(assessment.roi) if assessment.roi else None,
         "entry_zone": list(los_band(assessment.roi, calibration.background.shape[0], assessment.edge))
-        if assessment.roi
+        if assessment.roi and assessment.source == "automatic"
         else None,
         "edge_score": round(assessment.edge_score, 4),
         "roi_score": round(assessment.roi_score, 4),
@@ -43,6 +45,7 @@ def _serialise_assessment(assessment: SceneAssessment, calibration: CalibrationM
         "calibration_stability": round(calibration.stability, 4),
         "calibration_noise": round(calibration.noise, 4),
         "reasons": assessment.reasons,
+        "roi_source": assessment.source,
     }
 
 
@@ -188,7 +191,7 @@ def _metrics(
     labels: list[dict[str, float | bool]],
     track_length_m: float | None,
     offset_s: float = 0.0,
-) -> dict[str, float | int | None]:
+) -> dict[str, float | int | str | None]:
     # Audio offset is main time minus ground-truth time. Match timestamps,
     # never row indices: cameras can have different rates and start times.
     labels = sorted(labels, key=lambda item: float(item["timestamp_s"]))
@@ -205,6 +208,14 @@ def _metrics(
             pairs.append((point, labels[nearest]))
     if not pairs:
         return {"ground_truth_available": 0, "f1": None, "position_error_norm": None}
+    if len({float(label["timestamp_s"]) for _, label in pairs}) < 3:
+        return {
+            "ground_truth_available": 1,
+            "evaluated_samples": len(pairs),
+            "f1": None,
+            "position_error_norm": None,
+            "validation_note": "At least three distinct truth frames are needed for a performance score.",
+        }
     timeline, labels = map(list, zip(*pairs, strict=True))
     expected = np.array([bool(item["present"]) for item in labels], dtype=bool)
     observed = np.array([item["presence_probability"] >= 0.5 for item in timeline], dtype=bool)
@@ -222,7 +233,7 @@ def _metrics(
         if bool(labels[index]["present"])
     ]
     position_error = float(np.mean(positions)) if positions else None
-    result: dict[str, float | int | None] = {
+    result: dict[str, float | int | str | None] = {
         "ground_truth_available": 1,
         "evaluated_samples": count,
         "true_positive": true_positive,
@@ -267,7 +278,12 @@ def analyse_trial(
     update(0.10, "Decoding calibration")
     calibration_frames, _, calibration_info = read_frames(calibration_path, target_fps=10, max_frames=180)
     calibration = build_calibration_model(calibration_frames)
-    assessment = detect_corner_and_roi(calibration.background, calibration.stability)
+    reviewed_region = manual_ground_truth.get("main_shadow_region") if manual_ground_truth else None
+    assessment = (
+        manual_shadow_assessment(calibration.background, calibration.stability, reviewed_region)
+        if isinstance(reviewed_region, dict)
+        else detect_corner_and_roi(calibration.background, calibration.stability)
+    )
     update(0.27, "Decoding trial footage")
     main_frames, timestamps, main_info = read_frames(main_path, target_fps=10, max_frames=600)
     main_frames = _resize_like(main_frames, calibration.background.shape)
@@ -298,14 +314,24 @@ def analyse_trial(
             "video": {"calibration": calibration_info, "main": main_info},
         }
     update(0.42, "Normalising exposure and extracting temporal residuals")
-    signal = extract_temporal_signal(main_frames, calibration, assessment.roi, assessment.edge)
+    tuned = assessment.source == "manual_phone"
+    signal = (
+        extract_scene_shadow_signal(main_frames, calibration, assessment.roi)
+        if tuned else extract_temporal_signal(main_frames, calibration, assessment.roi, assessment.edge)
+    )
     energies = [float(item["energy"]) for item in signal]
     los_energies = [float(item["los_energy"]) for item in signal]
     coherences = [float(item["coherence"]) for item in signal]
     energy_scale = calibration.noise * 1.35 + 1.2
     los_scale = calibration.noise * 2.2 + 1.6
-    presence = [_sigmoid((energy - 1.35 * calibration.noise) / energy_scale) for energy in energies]
-    los_scores = [_sigmoid((energy - 3.2 * calibration.noise) / los_scale) for energy in los_energies]
+    presence = (
+        [float(item["presence"]) for item in signal]
+        if tuned else [_sigmoid((energy - 1.35 * calibration.noise) / energy_scale) for energy in energies]
+    )
+    los_scores = (
+        [0.0] * len(signal)
+        if tuned else [_sigmoid((energy - 3.2 * calibration.noise) / los_scale) for energy in los_energies]
+    )
     raw_probabilities = [
         _position_distribution(float(item["position"]), present) for item, present in zip(signal, presence, strict=True)
     ]
@@ -350,8 +376,10 @@ def analyse_trial(
         assessment.coverage_score, present_probability, confidence, los_present, lead_time,
         shadow_onset is not None,
     )
+    if entry_source == "manual_review" and state == "early_warning" and lead_time is not None:
+        state_reasons = [f"Pavement shadow preceded reviewed body entry by {lead_time:.2f} s"]
     direction, speed_class, velocity = _speed_and_direction(positions, timestamps)
-    if state in {"no_coverage", "no_reliable_signal"}:
+    if tuned or state in {"no_coverage", "no_reliable_signal"}:
         direction, speed_class, velocity = "unknown", "unknown", None
     timeline = [
         {
@@ -366,7 +394,9 @@ def analyse_trial(
             timestamps, presence, los_scores, positions, filtered, energies, strict=True
         )
     ]
-    baselines = _baseline_summary(energies, calibration.noise, assessment.coverage_score, coherence, present_probability)
+    baselines = {} if tuned else _baseline_summary(
+        energies, calibration.noise, assessment.coverage_score, coherence, present_probability
+    )
     labels: list[dict[str, float | bool]] = []
     alignment: dict[str, Any] = {"method": "not_requested", "confidence": 0.0}
     if manual_ground_truth:
@@ -421,7 +451,12 @@ def analyse_trial(
         "los_onset_s": round(los_onset, 3) if los_onset is not None else None,
         "los_detected": los_present,
         "entry_source": entry_source,
-        "model": {"name": "calibration_temporal_evidence", "version": "0.2", "trained": False},
+        "model": {
+            "name": "scene_tuned_pavement_residual" if tuned else "calibration_temporal_evidence",
+            "version": "0.3" if tuned else "0.2",
+            "trained": False,
+            **({"role": "Calibrated on this trial's empty opening; test on another trial to validate"} if tuned else {}),
+        },
         "confidence_factors": {
             "coverage": round(assessment.coverage_score, 4),
             "signal_strength": round(signal_strength, 4),

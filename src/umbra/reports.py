@@ -14,7 +14,7 @@ import cv2
 import numpy as np
 
 from .video import read_frames
-from .vision import build_calibration_model, los_band
+from .vision import CalibrationModel, build_calibration_model, extract_scene_shadow_signal, los_band
 
 
 def _line_chart(values: list[float], *, width: int = 760, height: int = 150, colour: str = "#87f5c6") -> str:
@@ -89,7 +89,7 @@ def _annotate_scene(
         cv2.rectangle(overlay, (x, y), (x + width, y + height), (112, 243, 196), 2)
         _label(overlay, "pavement shadow ROI", (x + 4, min(overlay.shape[0] - 6, y + 18)), (196, 243, 112))
     entry_zone = assessment.get("entry_zone")
-    if not entry_zone and roi:
+    if not entry_zone and roi and assessment.get("roi_source") != "manual_phone":
         entry_zone = list(los_band(tuple(roi), overlay.shape[0], tuple(edge) if edge else None))
     if entry_zone:
         x, y, width, height = entry_zone
@@ -189,12 +189,13 @@ def _draw_live_box(frame: np.ndarray, box: tuple[int, int, int, int], label: str
     _label(frame, label, (x + 3, max(17, y - 5)), colour)
 
 
-def _foot_entry_box(motion: np.ndarray, *, top_height: int, left_edge: int) -> tuple[int, int, int, int] | None:
-    """Find a small moving lower-leg or shoe entering through the top of frame.
+def _body_evidence_box(motion: np.ndarray, *, top_height: int, left_edge: int) -> tuple[int, int, int, int] | None:
+    """Find a compact, moving part of an anonymous body entering the frame.
 
-    The current field clip deliberately contains no full body.  Restricting this
-    cue to a compact moving object touching the top pavement edge prevents a
-    generic foreground detector from boxing static pavement texture.
+    The current field clip deliberately contains only a lower-body fragment.
+    That is still body evidence, but it is not enough to claim a full-body
+    detection.  Restricting the cue to a moving entry object prevents static
+    pavement texture from becoming a false person box.
     """
 
     cropped = motion[:top_height, left_edge:]
@@ -205,8 +206,8 @@ def _foot_entry_box(motion: np.ndarray, *, top_height: int, left_edge: int) -> t
     for contour in contours:
         area = float(cv2.contourArea(contour))
         x, y, width, height = cv2.boundingRect(contour)
-        # A foot/lower leg arrives through the upper pavement edge.  Large
-        # regions are exposure/camera movement, not a defensible foot cue.
+        # The visible part of the walker arrives through the upper pavement
+        # edge. Large regions are exposure/camera movement, not body evidence.
         if y > 4 or area < 45 or area > cropped.size * 0.09:
             continue
         if width < 7 or width > cropped.shape[1] * 0.30 or height < 16 or height > top_height * 0.62:
@@ -225,18 +226,103 @@ def _shadow_box_from_motion(
     top_height: int,
     left_edge: int,
 ) -> tuple[int, int, int, int] | None:
-    """Select a moving, darker-than-baseline pavement patch as a shadow cue."""
+    """Box the combined moving dark pavement patches that form one shadow."""
 
     cue = motion[:top_height, left_edge:] & darkened[:top_height, left_edge:]
-    box = _dynamic_box(cue, min_area=max(40.0, cue.size * 0.0015))
-    if box is None:
+    cue = cv2.morphologyEx(cue.astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    cue = cv2.morphologyEx(cue, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
+    contours, _ = cv2.findContours(cue, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    fragments: list[tuple[int, int, int, int]] = []
+    for contour in contours:
+        area = float(cv2.contourArea(contour))
+        x, y, width, height = cv2.boundingRect(contour)
+        if area < max(26.0, cue.size * 0.0008) or area > cue.size * 0.20:
+            continue
+        # The body fragment enters through y=0. Its cast shadow is a flatter
+        # patch of pavement below it, often split into several components.
+        if y <= 3 or height > width * 1.4:
+            continue
+        fragments.append((x, y, width, height))
+    if not fragments:
         return None
-    x, y, width, height = box
-    # Do not call an object that enters at the frame edge a shadow.  Its shadow
-    # is normally a flatter patch on the pavement below it.
-    if y <= 3 or height > width * 1.4:
+    x0 = min(fragment[0] for fragment in fragments)
+    y0 = min(fragment[1] for fragment in fragments)
+    x1 = max(fragment[0] + fragment[2] for fragment in fragments)
+    y1 = max(fragment[1] + fragment[3] for fragment in fragments)
+    if (x1 - x0) * (y1 - y0) > cue.size * 0.34:
         return None
-    return left_edge + x, y, width, height
+    return left_edge + x0, y0, x1 - x0, y1 - y0
+
+
+def _visible_body_box(motion: np.ndarray) -> tuple[int, int, int, int] | None:
+    """Find a moving upright region after a reviewed body-entry timestamp."""
+
+    height, width = motion.shape
+    cropped = motion[:, : int(width * 0.78)]
+    cleaned = cv2.morphologyEx(cropped.astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    contours, _ = cv2.findContours(cleaned, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    candidates: list[tuple[float, tuple[int, int, int, int]]] = []
+    for contour in contours:
+        area = float(cv2.contourArea(contour))
+        x, y, box_width, box_height = cv2.boundingRect(contour)
+        if area < max(100.0, motion.size * 0.0008) or area > motion.size * 0.30:
+            continue
+        if y > height * 0.62 or box_height < height * 0.12 or box_height < box_width * 0.8:
+            continue
+        candidates.append((area, (x, y, box_width, box_height)))
+    return max(candidates, key=lambda item: item[0])[1] if candidates else None
+
+
+def _scene_tuned_visualization(
+    calibration: CalibrationModel,
+    frames: list[np.ndarray],
+    timestamps: list[float],
+    result: dict[str, Any],
+    destination: Path,
+) -> str | None:
+    """Replay the same reviewed pavement signal that produced the result."""
+
+    height, width = frames[0].shape[:2]
+    x, y, roi_width, roi_height = (int(value) for value in result["scene_assessment"]["roi"])
+    signal = extract_scene_shadow_signal(frames, calibration, (x, y, roi_width, roi_height))
+    temporary_path = destination / "_analysis-visualization-source.mp4"
+    output_path = destination / "analysis-visualization.mp4"
+    writer = cv2.VideoWriter(str(temporary_path), cv2.VideoWriter_fourcc(*"mp4v"), 10.0, (width, height))
+    if not writer.isOpened():
+        return None
+    motion_model = cv2.createBackgroundSubtractorMOG2(history=36, varThreshold=20, detectShadows=False)
+    entry_time = result.get("los_onset_s")
+    try:
+        for frame, timestamp, cue in zip(frames, timestamps, signal, strict=True):
+            visual = frame.copy()
+            motion = motion_model.apply(frame) == 255
+            mask = cue["shadow_mask"].astype(np.uint8)
+            score = float(cue["presence"])
+            shadow_seen = score >= 0.5 and bool(mask.any())
+            body_marked = isinstance(entry_time, (int, float)) and timestamp >= float(entry_time)
+            body_box = _visible_body_box(motion) if body_marked else None
+            if shadow_seen:
+                patch = visual[y : y + roi_height, x : x + roi_width]
+                tint = patch.copy()
+                tint[mask > 0] = (190, 72, 245)
+                visual[y : y + roi_height, x : x + roi_width] = cv2.addWeighted(patch, 0.6, tint, 0.4, 0)
+                local_box = cv2.boundingRect(cv2.findNonZero(mask))
+                sx, sy, sw, sh = local_box
+                _draw_live_box(visual, (x + sx, y + sy, sw, sh), "shadow cue", (190, 72, 245))
+            if body_box:
+                _draw_live_box(visual, body_box, "anonymous body", (230, 142, 255))
+            state = "BODY VISIBLE" if body_box else "BODY ENTRY MARK" if body_marked else "SHADOW CUE" if shadow_seen else "WATCHING PAVEMENT"
+            colour = (230, 142, 255) if body_marked else (112, 243, 196) if shadow_seen else (90, 221, 255)
+            header = f"{state}  S {score * 100:02.0f}%"
+            (header_width, _), _ = cv2.getTextSize(header, cv2.FONT_HERSHEY_SIMPLEX, 0.36, 1)
+            header_x = max(7, width - header_width - 16)
+            cv2.rectangle(visual, (header_x - 5, 6), (width - 6, 27), (7, 17, 22), -1)
+            cv2.putText(visual, header, (header_x, 21), cv2.FONT_HERSHEY_SIMPLEX, 0.36, colour, 1, cv2.LINE_AA)
+            writer.write(visual)
+    finally:
+        writer.release()
+    return output_path.name if _encode_h264(temporary_path, output_path) else None
 
 
 def _analysis_visualization(
@@ -264,6 +350,8 @@ def _analysis_visualization(
     ]
     if not main_frames:
         return None
+    if assessment.get("roi_source") == "manual_phone":
+        return _scene_tuned_visualization(calibration, main_frames, timestamps, result, destination)
     temporary_path = destination / "_analysis-visualization-source.mp4"
     output_path = destination / "analysis-visualization.mp4"
     writer = cv2.VideoWriter(
@@ -279,8 +367,8 @@ def _analysis_visualization(
     motion_model = cv2.createBackgroundSubtractorMOG2(history=36, varThreshold=20, detectShadows=False)
     top_height = max(1, int(target_height * 0.55))
     left_edge = int(target_width * 0.15)
-    foot_candidate: tuple[int, int, int, int] | None = None
-    foot_candidate_frames = 0
+    body_candidate: tuple[int, int, int, int] | None = None
+    body_candidate_frames = 0
     try:
         for index, (frame, timestamp) in enumerate(zip(main_frames, timestamps, strict=True)):
             point = timeline[min(index, len(timeline) - 1)] if timeline else {}
@@ -291,27 +379,27 @@ def _analysis_visualization(
             shadow_box = _shadow_box_from_motion(
                 motion, darkened, top_height=top_height, left_edge=left_edge
             ) if index >= baseline_count else None
-            proposed_foot = _foot_entry_box(motion, top_height=top_height, left_edge=left_edge) if index >= baseline_count else None
-            if proposed_foot is None:
-                foot_candidate = None
-                foot_candidate_frames = 0
-            elif foot_candidate is not None:
-                prior_x, prior_y, prior_width, prior_height = foot_candidate
-                proposed_x, proposed_y, proposed_width, proposed_height = proposed_foot
+            proposed_body = _body_evidence_box(motion, top_height=top_height, left_edge=left_edge) if index >= baseline_count else None
+            if proposed_body is None:
+                body_candidate = None
+                body_candidate_frames = 0
+            elif body_candidate is not None:
+                prior_x, prior_y, prior_width, prior_height = body_candidate
+                proposed_x, proposed_y, proposed_width, proposed_height = proposed_body
                 near_prior = np.hypot(
                     proposed_x + proposed_width / 2 - (prior_x + prior_width / 2),
                     proposed_y + proposed_height / 2 - (prior_y + prior_height / 2),
                 ) < max(42.0, target_width * 0.11)
-                foot_candidate_frames = foot_candidate_frames + 1 if near_prior else 1
-                foot_candidate = proposed_foot
+                body_candidate_frames = body_candidate_frames + 1 if near_prior else 1
+                body_candidate = proposed_body
             else:
-                foot_candidate = proposed_foot
-                foot_candidate_frames = 1
-            foot_box = foot_candidate if foot_candidate_frames >= 2 else None
+                body_candidate = proposed_body
+                body_candidate_frames = 1
+            body_box = body_candidate if body_candidate_frames >= 2 else None
             shadow_seen = shadow_box is not None
-            foot_seen = foot_box is not None
-            state = "FOOT ENTRY" if foot_seen else "SHADOW CUE" if shadow_seen else "WATCHING PAVEMENT"
-            colour = (230, 142, 255) if foot_seen else (112, 243, 196) if shadow_seen else (90, 221, 255)
+            body_seen = body_box is not None
+            state = "BODY EVIDENCE" if body_seen else "SHADOW CUE" if shadow_seen else "WATCHING PAVEMENT"
+            colour = (230, 142, 255) if body_seen else (112, 243, 196) if shadow_seen else (90, 221, 255)
             shadow_score = float(point.get("presence_probability", 0.0)) * 100
             header = f"{state}  S {shadow_score:02.0f}%"
             (header_width, _), _ = cv2.getTextSize(header, cv2.FONT_HERSHEY_SIMPLEX, 0.36, 1)
@@ -320,10 +408,10 @@ def _analysis_visualization(
             cv2.putText(visual, header, (header_x, 21), cv2.FONT_HERSHEY_SIMPLEX, 0.36, colour, 1, cv2.LINE_AA)
             if shadow_box:
                 _draw_live_box(visual, shadow_box, "shadow cue", (190, 72, 245))
-            if foot_box:
-                _draw_live_box(visual, foot_box, "foot entry", (230, 142, 255))
-            if foot_seen:
-                _label(visual, "lower leg / foot observed", (12, target_height - 31), (255, 182, 243))
+            if body_box:
+                _draw_live_box(visual, body_box, "anonymous body", (230, 142, 255))
+            if body_seen:
+                _label(visual, "partial body observed", (12, target_height - 31), (255, 182, 243))
             elif shadow_seen:
                 _label(visual, "shadow precedes body", (12, target_height - 31), (196, 243, 112))
             writer.write(visual)
@@ -538,8 +626,8 @@ svg {{ width:100%; background:#0e1a22; border-radius:8px; }} img {{ max-width:10
 <section class="card"><strong>Lead time (s)</strong><br>{_value(result.get('lead_time_s'))}</section>
 <section class="card"><strong>Line of sight</strong><br>{_value(result.get('los_onset_s'))}</section></div>
 <h2>Why Umbra made this decision</h2><ul>{reasons}</ul>
-<h2>Automatic scene assessment and event frames</h2>{overlay}
-<p class="muted">The downloadable evidence ZIP includes browser-playable corner-trial and hidden-path videos when rendering was available. They draw the selected geometry and review labels; they do not identify the walker.</p>
+<h2>Scene assessment and event frames</h2>{overlay}
+<p class="muted">The downloadable evidence ZIP includes browser-playable corner-trial and hidden-path videos when rendering was available. They draw the selected shadow evidence and review labels; they do not identify the walker.</p>
 <div class="grid"><section class="card"><strong>Coverage</strong><br>{_value(scene['coverage_score'])}</section>
 <section class="card"><strong>Calibration stability</strong><br>{_value(scene['calibration_stability'])}</section>
 <section class="card"><strong>ROI quality</strong><br>{_value(scene['roi_score'])}</section></div>

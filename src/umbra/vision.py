@@ -30,6 +30,7 @@ class SceneAssessment:
     roi_score: float
     coverage_score: float
     reasons: list[str]
+    source: str = "automatic"
 
 
 def grayscale(frame: np.ndarray) -> np.ndarray:
@@ -190,6 +191,84 @@ def detect_corner_and_roi(background: np.ndarray, stability: float) -> SceneAsse
     else:
         coverage = min(coverage, 0.43)
     return SceneAssessment(edge, roi, edge_score, roi_score, coverage, reasons)
+
+
+def manual_shadow_assessment(
+    background: np.ndarray,
+    stability: float,
+    region: dict[str, float],
+) -> SceneAssessment:
+    """Use a reviewed phone-camera pavement patch without claiming an auto edge."""
+
+    height, width = background.shape[:2]
+    x = int(round(region["x"] * width))
+    y = int(round(region["y"] * height))
+    x1 = int(round((region["x"] + region["width"]) * width))
+    y1 = int(round((region["y"] + region["height"]) * height))
+    roi = (x, y, max(1, min(width, x1) - x), max(1, min(height, y1) - y))
+    quality = _roi_score(background.astype(np.uint8), roi)
+    coverage = float(np.clip(0.58 * quality + 0.42 * stability, 0.0, 1.0))
+    reasons = ["Phone-camera shadow pavement selected by reviewer"]
+    if quality < 0.38 or stability < 0.52:
+        coverage = min(coverage, 0.43)
+        reasons.append("Selected pavement or empty calibration is unsuitable")
+    return SceneAssessment(None, roi, 0.0, quality, coverage, reasons, "manual_phone")
+
+
+def extract_scene_shadow_signal(
+    frames: list[np.ndarray],
+    calibration: CalibrationModel,
+    roi: tuple[int, int, int, int],
+) -> list[dict[str, float | np.ndarray]]:
+    """Adapt a reviewed pavement patch to the empty opening of this trial.
+
+    The first 1.8 seconds must be free of the approaching shadow.  A local
+    per-pixel baseline removes the static camera/exposure mismatch that made
+    this scene register a shadow at the first frame.
+    """
+
+    x, y, width, height = roi
+    gray = np.stack([grayscale(frame)[y : y + height, x : x + width] for frame in frames])
+    opening = gray[: min(18, len(gray))]
+    reference = np.median(opening, axis=0)
+    noise = np.std(opening, axis=0)
+    threshold = np.maximum(np.maximum(10.0, calibration.noise * 3.0), noise * 3.0)
+    minimum_area = max(45.0, width * height * 0.005)
+    previous: np.ndarray | None = None
+    signal: list[dict[str, float | np.ndarray]] = []
+    for patch in gray:
+        dark = (reference - patch > threshold).astype(np.uint8)
+        dark = cv2.morphologyEx(dark, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+        dark = cv2.morphologyEx(dark, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+        contours, _ = cv2.findContours(dark, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        mask = np.zeros_like(dark)
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if minimum_area <= area <= dark.size * 0.6:
+                cv2.drawContours(mask, [contour], -1, 1, -1)
+        fraction = float(np.mean(mask))
+        presence = float(np.clip((fraction - 0.002) / 0.012, 0.0, 1.0))
+        if mask.any():
+            xx = np.indices(mask.shape)[1]
+            position = float(np.sum(xx * mask) / (np.sum(mask) * max(1, width - 1)))
+            if previous is None or not previous.any():
+                coherence = 0.6
+            else:
+                near_previous = cv2.dilate(previous, np.ones((9, 9), np.uint8))
+                coherence = float(np.clip(np.sum(mask & near_previous) / np.sum(mask), 0.0, 1.0))
+        else:
+            position, coherence = 0.5, 0.5
+        signal.append({
+            "energy": fraction * 100.0,
+            "los_energy": 0.0,
+            "position": position,
+            "lateral": position,
+            "coherence": coherence,
+            "presence": presence,
+            "shadow_mask": mask,
+        })
+        previous = mask
+    return signal
 
 
 def normalised_residual(frame: np.ndarray, calibration: CalibrationModel) -> np.ndarray:

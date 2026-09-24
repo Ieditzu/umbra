@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 MediaRole = Literal["calibration", "main", "ground_truth"]
 JobStatus = Literal["queued", "running", "succeeded", "failed"]
@@ -68,6 +68,21 @@ class ManualTrackSample(ManualPoint):
     timestamp_s: float = Field(ge=0, le=86_400)
 
 
+class ManualRegion(BaseModel):
+    """A rectangle on the phone recording, normalized to its video frame."""
+
+    x: float = Field(ge=0, lt=1)
+    y: float = Field(ge=0, lt=1)
+    width: float = Field(gt=0.02, le=1)
+    height: float = Field(gt=0.02, le=1)
+
+    @model_validator(mode="after")
+    def stays_inside_frame(self) -> ManualRegion:
+        if self.x + self.width > 1.000001 or self.y + self.height > 1.000001:
+            raise ValueError("Shadow region must fit inside the phone video")
+        return self
+
+
 class ManualGroundTruth(BaseModel):
     """Reviewed labels for one markerless ground-truth recording."""
 
@@ -76,6 +91,7 @@ class ManualGroundTruth(BaseModel):
     far_point: ManualPoint | None = None
     samples: list[ManualTrackSample] = Field(default_factory=list, max_length=1_000)
     main_entry_timestamp_s: float | None = Field(default=None, ge=0, le=86_400)
+    main_shadow_region: ManualRegion | None = None
     updated_at: datetime | None = None
 
 

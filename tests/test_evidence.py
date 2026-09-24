@@ -11,7 +11,7 @@ from umbra.config import Settings
 from umbra.pipeline import _metrics, analyse_trial
 from umbra.synthetic import generate_synthetic_bundle
 from umbra.video import estimate_audio_offset, write_mp4
-from umbra.vision import load_ground_truth
+from umbra.vision import build_calibration_model, extract_scene_shadow_signal, load_ground_truth
 
 
 def test_metrics_align_timestamps_and_exclude_invalid_labels():
@@ -26,10 +26,20 @@ def test_metrics_align_timestamps_and_exclude_invalid_labels():
     ]
     result = _metrics(timeline, labels, 4.0, offset_s=1.0)
     assert result["evaluated_samples"] == 1
-    assert result["f1"] == 1
-    assert result["position_error_m"] == 0
-    assert result["false_alert_rate"] is None
+    assert result["f1"] is None
+    assert "three distinct truth frames" in result["validation_note"]
     assert _metrics(timeline, labels, None, offset_s=20)["ground_truth_available"] == 0
+
+
+def test_scene_shadow_stays_quiet_until_pavement_darkens():
+    empty = np.full((90, 120, 3), 180, dtype=np.uint8)
+    frames = [empty.copy() for _ in range(28)]
+    for frame in frames[21:]:
+        frame[60:78, 20:65] = 95
+    calibration = build_calibration_model([empty.copy() for _ in range(20)])
+    signal = extract_scene_shadow_signal(frames, calibration, (10, 50, 90, 35))
+    assert max(float(item["presence"]) for item in signal[:20]) < 0.5
+    assert float(signal[22]["presence"]) > 0.5
 
 
 @pytest.mark.parametrize("lag", [-20, 30])

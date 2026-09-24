@@ -42,6 +42,11 @@ export interface ManualTrackSample extends ManualPoint {
   timestamp_s: number;
 }
 
+export interface ManualRegion extends ManualPoint {
+  width: number;
+  height: number;
+}
+
 export interface ManualGroundTruth {
   trial_id: string;
   ground_truth_media_id: string;
@@ -49,6 +54,7 @@ export interface ManualGroundTruth {
   far_point: ManualPoint | null;
   samples: ManualTrackSample[];
   main_entry_timestamp_s: number | null;
+  main_shadow_region: ManualRegion | null;
   updated_at?: string | null;
 }
 
@@ -92,9 +98,10 @@ export interface AnalysisResult {
   shadow_onset_s?: number | null;
   los_onset_s?: number | null;
   los_detected?: boolean;
+  entry_source?: string;
   reasons: string[];
   timeline: TimelinePoint[];
-  metrics: Record<string, number | null>;
+  metrics: Record<string, number | string | null>;
   baselines: Record<string, { presence_probability: number; state: string }>;
   scene_assessment: {
     edge: number[] | null;
@@ -103,6 +110,7 @@ export interface AnalysisResult {
     coverage_score: number;
     calibration_stability: number;
     roi_score: number;
+    roi_source?: string;
     reasons: string[];
   };
   confidence_factors: Record<string, number>;

@@ -5,6 +5,7 @@ import type {
   Job,
   ManualGroundTruth,
   ManualPoint,
+  ManualRegion,
   ManualTrackSample,
   MediaAsset,
   MediaRole,
@@ -102,10 +103,11 @@ function ResultPanel({ result }: { result: AnalysisResult }) {
       <div className="metrics-grid">
         <Metric label="Confidence" value={`${Math.round(result.confidence * 100)}%`} />
         <Metric label="Shadow evidence" value={result.presence_probability == null ? "—" : `${Math.round(result.presence_probability * 100)}%`} />
-        <Metric label="Lead time" value={result.lead_time_s == null ? "—" : `${result.lead_time_s.toFixed(2)} s`} detail={result.los_detected ? "shadow → line of sight" : "person not yet in frame"} />
+        <Metric label="Lead time" value={result.lead_time_s == null ? "—" : `${result.lead_time_s.toFixed(2)} s`} detail={result.los_detected ? result.entry_source === "manual_review" ? "shadow → reviewed body entry" : "shadow → line of sight" : "person not yet in frame"} />
         <Metric label="Direction" value={result.direction.replaceAll("_", " ")} detail={result.speed_class} />
       </div>
       <p className="privacy-note"><strong>{result.evidence?.kind === "synthetic" ? "Synthetic demonstration" : "Experimental video analysis"}.</strong> {result.evidence?.limitation ?? "Field performance has not been established."} Lead time is pavement-shadow onset versus the first frame the walker enters this camera.</p>
+      {typeof result.metrics.validation_note === "string" && <p className="hint">{result.metrics.validation_note}</p>}
       <div className="chart-card">
         <div className="chart-label"><span>Pavement-shadow evidence</span><span>{result.timeline.length} samples</span></div>
         <SignalChart result={result} />
@@ -116,20 +118,20 @@ function ResultPanel({ result }: { result: AnalysisResult }) {
           <ul className="reason-list">{result.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
         </div>
         <div>
-          <h3>Automatic scene setup</h3>
+          <h3>Scene setup</h3>
           <dl className="compact-dl">
             <div><dt>Coverage</dt><dd>{fmt(result.scene_assessment.coverage_score)}</dd></div>
             <div><dt>Calibration stability</dt><dd>{fmt(result.scene_assessment.calibration_stability)}</dd></div>
             <div><dt>ROI quality</dt><dd>{fmt(result.scene_assessment.roi_score)}</dd></div>
-            <div><dt>Selected ROI</dt><dd>{result.scene_assessment.roi ? "Automatic" : "None"}</dd></div>
-            <div><dt>Entry zone</dt><dd>{result.scene_assessment.entry_zone ? "Automatic" : "None"}</dd></div>
+            <div><dt>Shadow region</dt><dd>{result.scene_assessment.roi_source === "manual_phone" ? "Selected on phone video" : result.scene_assessment.roi ? "Automatic" : "None"}</dd></div>
+            <div><dt>Entry time</dt><dd>{result.los_detected ? result.entry_source === "manual_review" ? "Reviewed on phone shot" : "Automatic" : "Not marked"}</dd></div>
           </dl>
         </div>
       </div>
       {(result.visualizations?.corner_trial_available || result.visualization?.available) && <section className="visualization-card">
         <h3>What Umbra saw — moving video evidence</h3>
         <div className={`visualization-grid ${result.visualizations?.hidden_path_available ? "two-videos" : ""}`}>
-          <div><strong>Corner trial · warning camera</strong><p>Magenta pixels are shadow darkening. Yellow is the corner, green the shadow ROI, and purple the anonymous body-entry zone.</p><video controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/visualization`} type="video/mp4" /></video><a className="button secondary video-download" href={`${API}/analyses/${result.analysis_id}/visualization`} download={`umbra-corner-trial-${result.analysis_id}.mp4`}>Download corner trial</a></div>
+          <div><strong>Corner trial · warning camera</strong><p>Boxes follow the detected shadow and visible body. The selected phone pavement area tunes the shadow signal when present.</p><video controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/visualization`} type="video/mp4" /></video><a className="button secondary video-download" href={`${API}/analyses/${result.analysis_id}/visualization`} download={`umbra-corner-trial-${result.analysis_id}.mp4`}>Download corner trial</a></div>
           {result.visualizations?.hidden_path_available && <div><strong>Hidden path · reference camera</strong><p>Shows the reviewed corner/far route line and the manually reviewed walker position when you saved labels.</p><video controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/hidden-path-visualization`} type="video/mp4" /></video><a className="button secondary video-download" href={`${API}/analyses/${result.analysis_id}/hidden-path-visualization`} download={`umbra-hidden-path-${result.analysis_id}.mp4`}>Download hidden path</a></div>}
         </div>
       </section>}
@@ -154,7 +156,7 @@ function ResultPanel({ result }: { result: AnalysisResult }) {
         <a className="button secondary" href={reportUrl} target="_blank" rel="noreferrer">Open HTML report</a>
         <a className="button ghost" href={predictionsUrl}>Download predictions CSV</a>
       </div>
-      <p className="privacy-note">Umbra uses the full-body entry only to timestamp anonymous foreground motion. It does not identify a person, reconstruct appearance, or infer pose.</p>
+      <p className="privacy-note">Umbra uses the first visible body part to timestamp entry. It does not identify a person, reconstruct appearance, or infer pose.</p>
     </section>
   );
 }
@@ -197,7 +199,8 @@ function emptyManualReview(trial: Trial): ManualGroundTruth {
     corner: null,
     far_point: null,
     samples: [],
-    main_entry_timestamp_s: null
+    main_entry_timestamp_s: null,
+    main_shadow_region: null
   };
 }
 
@@ -209,8 +212,13 @@ function ManualReview({ trial, busy, onClose, onNotice }: {
 }) {
   const [review, setReview] = useState<ManualGroundTruth>(() => emptyManualReview(trial));
   const [mode, setMode] = useState<ReviewMode>("corner");
+  const [reviewSource, setReviewSource] = useState<"drone" | "phone">("phone");
+  const [shadowStart, setShadowStart] = useState<ManualPoint | null>(null);
+  const [selectingShadow, setSelectingShadow] = useState(false);
   const [truthTime, setTruthTime] = useState(0);
   const [mainTime, setMainTime] = useState(0);
+  const [truthAspect, setTruthAspect] = useState(16 / 9);
+  const [mainAspect, setMainAspect] = useState(16 / 9);
   const [saving, setSaving] = useState(false);
   const truthRef = useRef<HTMLVideoElement>(null);
   const mainRef = useRef<HTMLVideoElement>(null);
@@ -218,13 +226,16 @@ function ManualReview({ trial, busy, onClose, onNotice }: {
   useEffect(() => {
     setReview(emptyManualReview(trial));
     setMode("corner");
+    setReviewSource("phone");
+    setShadowStart(null);
+    setSelectingShadow(false);
     void request<ManualGroundTruth>(`/trials/${trial.id}/manual-ground-truth`)
       .then((saved) => setReview(saved))
       .catch(() => undefined);
   }, [trial.id]);
 
-  function pointFromClick(event: MouseEvent<HTMLElement>): ManualPoint {
-    const bounds = event.currentTarget.getBoundingClientRect();
+  function pointFromClick(event: MouseEvent<HTMLElement>, video: HTMLVideoElement | null): ManualPoint {
+    const bounds = (video ?? event.currentTarget).getBoundingClientRect();
     return {
       x: Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width)),
       y: Math.min(1, Math.max(0, (event.clientY - bounds.top) / bounds.height))
@@ -232,7 +243,7 @@ function ManualReview({ trial, busy, onClose, onNotice }: {
   }
 
   function markTruth(event: MouseEvent<HTMLElement>) {
-    const point = pointFromClick(event);
+    const point = pointFromClick(event, truthRef.current);
     if (mode === "corner") {
       setReview((current) => ({ ...current, corner: point }));
       setMode("far");
@@ -254,9 +265,32 @@ function ManualReview({ trial, busy, onClose, onNotice }: {
     setReview((current) => ({ ...current, main_entry_timestamp_s: timestamp }));
   }
 
+  function markShadowRegion(event: MouseEvent<HTMLElement>) {
+    const point = pointFromClick(event, mainRef.current);
+    if (!shadowStart) {
+      setShadowStart(point);
+      return;
+    }
+    const region: ManualRegion = {
+      x: Math.min(shadowStart.x, point.x),
+      y: Math.min(shadowStart.y, point.y),
+      width: Math.abs(point.x - shadowStart.x),
+      height: Math.abs(point.y - shadowStart.y)
+    };
+    if (region.width <= 0.02 || region.height <= 0.02) {
+      onNotice("Select a larger pavement area with two opposite corners.");
+      setShadowStart(null);
+      return;
+    }
+    setReview((current) => ({ ...current, main_shadow_region: region }));
+    setShadowStart(null);
+    setSelectingShadow(false);
+  }
+
   async function save() {
-    if (!review.corner || !review.far_point || review.samples.length === 0) {
-      onNotice("Set corner, far endpoint, and at least one walker point before saving manual labels.");
+    const truthReady = review.corner && review.far_point && review.samples.length > 0;
+    if (!truthReady && !review.main_shadow_region && review.main_entry_timestamp_s === null) {
+      onNotice("Select the shadow pavement on the phone shot or add drone route labels before saving.");
       return;
     }
     setSaving(true);
@@ -266,7 +300,7 @@ function ManualReview({ trial, busy, onClose, onNotice }: {
         body: JSON.stringify(review)
       });
       setReview(saved);
-      onNotice(`Saved ${saved.samples.length} manual ground-truth point${saved.samples.length === 1 ? "" : "s"}. Re-run analysis to use them.`);
+      onNotice("Review saved. Re-run analysis to use the phone shadow area and any drone labels.");
     } catch (error) {
       onNotice(error instanceof Error ? error.message : "Could not save manual labels");
     } finally {
@@ -282,28 +316,36 @@ function ManualReview({ trial, busy, onClose, onNotice }: {
   const disabled = busy || saving;
 
   return <section className="manual-review panel">
-    <div className="panel-heading"><div><p className="eyebrow">Markerless ground truth</p><h2>Manual review — {trial.name}</h2></div><button className="button ghost" disabled={disabled} onClick={onClose}>Close</button></div>
-    <p className="hint">Pause the truth video. Click <strong>corner</strong> once, then a <strong>far route point</strong> once. On several frames, click the walker’s feet. In the main video, pause when their full body first enters and save that time.</p>
+    <div className="panel-heading"><div><p className="eyebrow">Scene review</p><h2>Manual review — {trial.name}</h2></div><button className="button ghost" disabled={disabled} onClick={onClose}>Close</button></div>
+    <div className="review-source-tabs"><button className={`button ${reviewSource === "phone" ? "primary" : "secondary"}`} onClick={() => setReviewSource("phone")}>Phone shot · shadow</button><button className={`button ${reviewSource === "drone" ? "primary" : "secondary"}`} onClick={() => setReviewSource("drone")}>Drone shot · route truth</button></div>
     <div className="review-grid">
-      <div>
+      <div className={`review-pane ${reviewSource === "drone" ? "" : "inactive"}`}>
+        <p className="hint">Pause the drone video. Click the route corner and far endpoint, then mark the walker’s feet in several frames.</p>
         <div className="review-toolbar">
           {(["corner", "far", "walker"] as ReviewMode[]).map((item) => <button key={item} className={`button ${mode === item ? "primary" : "secondary"}`} disabled={disabled} onClick={() => setMode(item)}>Mark {item === "far" ? "far point" : item}</button>)}
           <button className="text-button" disabled={disabled || review.samples.length === 0} onClick={() => setReview((current) => ({ ...current, samples: current.samples.slice(0, -1) }))}>Undo last walker</button>
         </div>
-        <div className="review-video">
-          <video ref={truthRef} controls src={`${API}/media/${trial.ground_truth_media_id}/stream`} onTimeUpdate={(event) => setTruthTime(event.currentTarget.currentTime)} />
+        <div className="review-video" style={{ maxWidth: `${Math.round(360 * truthAspect)}px` }}>
+          <video ref={truthRef} controls src={`${API}/media/${trial.ground_truth_media_id}/stream`} onLoadedMetadata={(event) => setTruthAspect(event.currentTarget.videoWidth / event.currentTarget.videoHeight)} onTimeUpdate={(event) => setTruthTime(event.currentTarget.currentTime)} />
           <button className="review-click-surface" type="button" onClick={markTruth} aria-label={`Click truth video to mark ${mode}`} />
           {points.map(({ label, point, className }) => <span key={`${label}-${point.x}-${point.y}`} className={`manual-point ${className}`} style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }}>{label}</span>)}
         </div>
         <p className="review-time">Truth frame: {truthTime.toFixed(2)} s · mode: {mode}</p>
       </div>
-      <div>
+      <div className={`review-pane ${reviewSource === "phone" ? "" : "inactive"}`}>
+        <p className="hint">Select the sunlit pavement where the approaching shadow first appears. Use two clicks for opposite corners of the area. Pause when any part of the walker first enters this camera and mark the time.</p>
+        <div className="review-toolbar"><button className={`button ${selectingShadow ? "primary" : "secondary"}`} disabled={disabled} onClick={() => { setSelectingShadow(true); setShadowStart(null); }}>Select shadow pavement</button><button className="text-button" disabled={disabled || !review.main_shadow_region} onClick={() => setReview((current) => ({ ...current, main_shadow_region: null }))}>Clear area</button></div>
+        <div className="review-video" style={{ maxWidth: `${Math.round(360 * mainAspect)}px` }}><video ref={mainRef} controls src={`${API}/media/${trial.main_media_id}/stream`} onLoadedMetadata={(event) => setMainAspect(event.currentTarget.videoWidth / event.currentTarget.videoHeight)} onTimeUpdate={(event) => setMainTime(event.currentTarget.currentTime)} />
+          {selectingShadow && <button className="review-click-surface" type="button" onClick={markShadowRegion} aria-label="Click two corners of the shadow pavement area" />}
+          {review.main_shadow_region && <span className="manual-region" style={{ left: `${review.main_shadow_region.x * 100}%`, top: `${review.main_shadow_region.y * 100}%`, width: `${review.main_shadow_region.width * 100}%`, height: `${review.main_shadow_region.height * 100}%` }} />}
+          {shadowStart && <span className="manual-point corner" style={{ left: `${shadowStart.x * 100}%`, top: `${shadowStart.y * 100}%` }}>Start</span>}
+        </div>
+        <p className="review-time">Phone frame: {mainTime.toFixed(2)} s · shadow area: {review.main_shadow_region ? "selected" : selectingShadow ? shadowStart ? "click opposite corner" : "click first corner" : "not selected"}</p>
         <div className="review-toolbar"><button className="button primary" disabled={disabled} onClick={markEntry}>Use current time as body entry</button><button className="text-button" disabled={disabled || review.main_entry_timestamp_s === null} onClick={() => setReview((current) => ({ ...current, main_entry_timestamp_s: null }))}>Clear entry time</button></div>
-        <div className="review-video"><video ref={mainRef} controls src={`${API}/media/${trial.main_media_id}/stream`} onTimeUpdate={(event) => setMainTime(event.currentTarget.currentTime)} /></div>
-        <p className="review-time">Main frame: {mainTime.toFixed(2)} s · body entry: {review.main_entry_timestamp_s === null ? "not set" : `${review.main_entry_timestamp_s.toFixed(2)} s`}</p>
+        <p className="review-time">Body entry: {review.main_entry_timestamp_s === null ? "not set" : `${review.main_entry_timestamp_s.toFixed(2)} s`}. The first 1.8 seconds of the phone shot should contain empty pavement.</p>
       </div>
     </div>
-    <div className="review-footer"><span>{review.corner && review.far_point ? "Route endpoints ready" : "Set two route endpoints"} · {review.samples.length} walker points</span><button className="button primary" disabled={disabled} onClick={() => void save()}>{saving ? "Saving…" : "Save manual labels"}</button></div>
+    <div className="review-footer"><span>{review.main_shadow_region ? "Phone shadow area ready" : "No phone shadow area"} · {review.samples.length} drone points</span><button className="button primary" disabled={disabled} onClick={() => void save()}>{saving ? "Saving…" : "Save review"}</button></div>
   </section>;
 }
 
@@ -700,10 +742,10 @@ export default function App() {
             </div>
 
             <section className="panel trial-panel">
-              <div><h2>Trial</h2><p>Umbra auto-selects the edge and visible-side region. A poor scene returns no coverage instead of accepting a manual ROI.</p></div>
+              <div><h2>Trial</h2><p>Umbra selects a shadow region automatically. Use Manual review to choose the pavement on the phone shot if it picks the wrong place.</p></div>
               <div className="trial-controls"><label>Trial name<input value={trialName} onChange={(event) => setTrialName(event.target.value)} /></label><label>Track length (m)<input type="number" min="0" step="0.1" value={trackLength} onChange={(event) => setTrackLength(event.target.value)} /></label><button className="button primary" disabled={busy || !mediaByRole.calibration || !mediaByRole.main} onClick={() => void createTrial()}>Register</button></div>
             </section>
-            {detail.trials.length > 0 && <section className="trial-list panel"><div className="panel-heading"><h2>Registered trials</h2><span>{detail.trials.length}</span></div>{detail.trials.map((trial) => <div className="trial-row" key={trial.id}><div><strong>{trial.name}</strong><span>{trial.ground_truth_media_id ? "Ground truth attached" : "Inference only"}</span></div><div className="trial-actions"><button className="button danger row-delete" disabled={busy} onClick={() => void deleteTrial(trial)}>Delete</button>{trial.ground_truth_media_id && <button className="button ghost" disabled={busy} onClick={() => setManualTrialId(trial.id)}>Manual labels</button>}<button className="button secondary" disabled={busy} onClick={() => void analyse(trial)}>Analyse</button></div></div>)}</section>}
+            {detail.trials.length > 0 && <section className="trial-list panel"><div className="panel-heading"><h2>Registered trials</h2><span>{detail.trials.length}</span></div>{detail.trials.map((trial) => <div className="trial-row" key={trial.id}><div><strong>{trial.name}</strong><span>{trial.ground_truth_media_id ? "Ground truth attached" : "Inference only"}</span></div><div className="trial-actions"><button className="button danger row-delete" disabled={busy} onClick={() => void deleteTrial(trial)}>Delete</button>{trial.ground_truth_media_id && <button className="button ghost" disabled={busy} onClick={() => setManualTrialId(trial.id)}>Manual review</button>}<button className="button secondary" disabled={busy} onClick={() => void analyse(trial)}>Analyse</button></div></div>)}</section>}
             {manualTrialId && detail.trials.find((trial) => trial.id === manualTrialId) && <ManualReview trial={detail.trials.find((trial) => trial.id === manualTrialId)!} busy={busy} onClose={() => setManualTrialId(null)} onNotice={setNotice} />}
             {(detail.analyses ?? []).length > 0 && <section className="trial-list panel"><h2>Saved analyses</h2>{detail.analyses.map((analysis) => <div className="trial-row" key={analysis.id}><div><strong>{analysis.trial_name}</strong><span>{new Date(analysis.created_at).toLocaleString()}</span></div><div className="trial-actions"><button className="button danger row-delete" disabled={busy} onClick={() => void deleteAnalysis(analysis.id, analysis.trial_name)}>Delete</button><button className="button secondary" disabled={busy} onClick={() => void request<{ result: AnalysisResult }>(`/analyses/${analysis.id}`).then((value) => setResult(value.result)).catch((error: Error) => setNotice(error.message))}>Review result</button></div></div>)}</section>}
           </>}

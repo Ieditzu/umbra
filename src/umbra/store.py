@@ -257,6 +257,7 @@ class Store:
             "far_point": payload.get("far_point"),
             "samples": payload.get("samples", []),
             "main_entry_timestamp_s": payload.get("main_entry_timestamp_s"),
+            "main_shadow_region": payload.get("main_shadow_region"),
         }
         now = utc_now()
         with self._connection() as connection:

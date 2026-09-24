@@ -8,7 +8,7 @@ It is not a camera that sees through walls. It is not Bouman-style penumbra reco
 
 - A FastAPI local experiment service with SQLite metadata and external video storage.
 - A React dashboard for browser-camera recording, local video import, job progress, result review, and exports.
-- Automatic corner/pavement ROI with refusal rather than manual drawing.
+- Automatic corner/pavement ROI, with an optional reviewed phone-video shadow area when the automatic region is wrong.
 - Empty-scene calibration, pavement-shadow residual tracking, a line-of-sight band for when the walker enters, a 1D shadow tracker, lead-time measurement, and confidence gating.
 - Four heuristic signal summaries: frame difference, fixed signal threshold, coverage/coherence rule, and Umbra's adaptive method. These are not four trained-model evaluations.
 - Optional ArUco 10/11 ground-truth camera for hidden-path labels, plus synthetic shadow-then-entry demos.
@@ -48,7 +48,8 @@ The dashboard then enables **Pretrain temporal model**; the same route is availa
 2. Tape the main camera on a **wide route view**: the visible pavement, corner edge, shadow path, and enough of the opening to show the walker’s full body after entry. Record an empty calibration, then one continuous trial: walker starts hidden, shadow should appear first, then they step into view. Avoid a close facial shot; Umbra only uses anonymous foreground entry to timestamp the comparison.
 3. Optional: a second camera on the hidden path with ArUco **10** (corner) and **11** (far). Clap for sync. This scores position; it is not the warning.
 4. Import or record the clips, register a trial, run analysis.
-5. Read lead time, shadow onset, line-of-sight onset, and the refusal reasons. Empty trials and no-coverage results count.
+5. If the automatic shadow area misses the pavement, open **Manual review → Phone shot**, pause on the empty pavement and click two corners around the place where the shadow will arrive. Mark the first visible body frame. Save, then rerun analysis. The first 1.8 seconds of the phone clip must still be empty; Umbra adapts its background to those frames. The **Drone shot** tab is for independent route labels.
+6. Read lead time, shadow onset, line-of-sight onset, and the refusal reasons. Empty trials and no-coverage results count.
 
 See [the field protocol](docs/field-protocol.md). The sun must throw the walker's shadow **onto the pavement the main camera sees**.
 
@@ -64,7 +65,7 @@ Reproduce the documented software checks with:
 uv run python scripts/validate_synthetic.py --data-dir ../umbra-data/submission-fixtures --output docs/competition/software-results.json
 ```
 
-The estimator is heuristic. Confidence scores are not calibrated probabilities. Position is an image-derived proxy. Solar data is metadata only. Lead time is measured on the same main camera (pavement-shadow onset vs first in-frame body). The optional neural checkpoint is advisory. No held-out field performance has been established.
+The estimator is heuristic. Selecting a phone shadow area tunes the signal to that recording; it does not train a general neural model or establish performance on a new trial. Confidence scores are not calibrated probabilities. Position is an image-derived proxy. Solar data is metadata only. Lead time is measured on the same main camera (pavement-shadow onset vs first in-frame body). The optional neural checkpoint is advisory. No held-out field performance has been established.
 
 ## Data and privacy
 

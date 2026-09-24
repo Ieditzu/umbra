@@ -66,7 +66,10 @@ Inputs
 
 Processing
 
-1. Detect the corner edge and a pavement region of interest.
+1. Detect the corner edge and a pavement region of interest. If that
+   selection misses the shadow path, a reviewer can mark the pavement
+   on the phone clip. The first 1.8 seconds of that clip then form a
+   scene-specific empty baseline for the selected patch.
 2. Build a background from the empty calibration.
 3. On the trial clip, measure darkening in the pavement ROI (shadow)
    and anonymous foreground residual in a broad entry zone above it
@@ -113,8 +116,9 @@ refuses more empty trials than a fixed intensity threshold.
   shadow.
 - Not identity, pose, or through-wall imaging.
 - Not a trained detector that you feed random clips. Analysis is
-  per-trial residual comparison. The optional PyTorch net remains
-  synthetic/advisory.
+  per-trial residual comparison. A reviewed phone pavement region
+  tunes one trial's signal; it is not evidence of generalization.
+  The optional PyTorch net remains synthetic/advisory.
 
 7. Controlled experiment
 
