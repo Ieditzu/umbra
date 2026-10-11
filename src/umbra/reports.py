@@ -24,7 +24,7 @@ from .vision import (
 )
 
 
-def _line_chart(values: list[float], *, width: int = 760, height: int = 150, colour: str = "#87f5c6") -> str:
+def _line_chart(values: list[float], *, width: int = 760, height: int = 150, colour: str = "#68ead2") -> str:
     if not values:
         return "<p>No timeline was produced.</p>"
     maximum, minimum = max(values), min(values)
@@ -35,7 +35,7 @@ def _line_chart(values: list[float], *, width: int = 760, height: int = 150, col
     )
     return (
         f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="timeline chart">'
-        f'<path d="M0 {height - 10}H{width}" stroke="#314554"/><polyline fill="none" '
+        f'<path d="M0 {height - 10}H{width}" stroke="#343936"/><polyline fill="none" '
         f'stroke="{colour}" stroke-width="3" points="{points}"/></svg>'
     )
 
@@ -888,12 +888,12 @@ def write_artifacts(
     report = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Umbra evidence report {analysis_id}</title>
 <style>
-body {{ background:#0b1218; color:#e8f0f4; font:15px system-ui,sans-serif; margin:0; }}
-main {{ max-width:960px; margin:auto; padding:38px 24px 70px; }}
-h1 {{ margin-bottom:4px; }} .muted {{ color:#98aab7; }} .grid {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }}
-.card {{ background:#14212b; border:1px solid #29404e; border-radius:12px; padding:15px; }}
-.state {{ color:#87f5c6; font-weight:700; text-transform:uppercase; }} table {{ width:100%; border-collapse:collapse; }} td,th {{ padding:8px; text-align:left; border-bottom:1px solid #29404e; }}
-svg {{ width:100%; background:#0e1a22; border-radius:8px; }} img {{ max-width:100%; border-radius:8px; }}
+body {{ background:#080909; color:#eff2ee; font:14px/1.7 system-ui,sans-serif; margin:0; }}
+main {{ max-width:1040px; margin:auto; padding:55px 28px 80px; }}
+h1 {{ font-size:clamp(32px,5vw,54px); font-weight:400; letter-spacing:-.055em; line-height:1.1; margin:20px 0; }} h2 {{ font-size:23px; font-weight:400; letter-spacing:-.035em; margin-top:42px; }} .muted {{ color:#969f99; font-size:11px; }} .grid {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin:26px 0; }}
+.card {{ background:#111313; border:1px solid #303532; border-radius:6px; padding:21px; font-variant-numeric:tabular-nums; }} .card strong {{ font-size:12px; font-weight:400; color:#a7b3aa; }}
+.state {{ color:#68ead2; font-size:13px; }} table {{ width:100%; border-collapse:collapse; font-size:13px; }} td,th {{ padding:12px 8px; text-align:left; border-bottom:1px solid #303532; }}
+svg {{ width:100%; background:#101212; border-radius:5px; }} img {{ max-width:100%; border-radius:5px; }} p,li {{ max-width:80ch; }} pre {{ font-size:11px; padding:20px; background:#111313; border:1px solid #303532; border-radius:5px; }}
 @media print {{ body {{ background:#fff; color:#111; }} .card {{ border-color:#bbb; background:#fff; }} svg {{ background:#f6f6f6; }} }}
 </style></head><body><main>
 <p class="muted">LOCAL-ONLY • CONSENT-BASED RESEARCH ARTIFACT</p>
@@ -912,7 +912,7 @@ svg {{ width:100%; background:#0e1a22; border-radius:8px; }} img {{ max-width:10
 <section class="card"><strong>ROI quality</strong><br>{_value(scene['roi_score'])}</section></div>
 <h2>Pavement-shadow probability over time</h2>{_line_chart(probability)}
 <h2>Estimated shadow-track probability</h2>{_track_heatmap(timeline)}
-<h2>Estimated normalized shadow position</h2>{_line_chart(positions, colour='#6dd6ff')}
+<h2>Estimated normalized shadow position</h2>{_line_chart(positions, colour='#c9d2cc')}
 <p>Position is an unvalidated image-derived track proxy. Lead time is shadow onset minus the first line-of-sight frame on the same camera. These are not Bouman penumbra reconstructions.</p>
 <h2>Method comparison</h2><table><tr><th>Method</th><th>Presence probability</th><th>State</th></tr>{baseline_rows}</table>
 <h2>Ground-truth evaluation</h2><table>{metrics_rows}</table>

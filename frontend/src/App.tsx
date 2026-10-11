@@ -1,5 +1,6 @@
 import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { API, request } from "./api";
+import { Camera, ScanLine, ArrowUpRight, Layers, Aperture, Plus, Check } from "lucide-react";
 import type {
   AnalysisResult,
   Job,
@@ -107,7 +108,7 @@ function MediaSlot({
           event.currentTarget.value = "";
         }}
       />
-      <span className="slot-icon">{media ? "✓" : "+"}</span>
+      <span className="slot-icon">{media ? <Check size={15} /> : <Plus size={15} />}</span>
       <span><strong>{roleLabel[role]}</strong><small>{media ? media.original_name : "Import a local video"}</small></span>
     </label>
   );
@@ -652,7 +653,7 @@ export default function App() {
   return (
     <main className="app-shell">
       <header className="app-header">
-        <div className="brand"><span className="brand-mark">◒</span><span>UMBRA</span></div>
+        <div className="research-brand-group"><a className="brand" href="/research.html" aria-label="Umbra research home"><span className="brand-mark">◒</span><span>umbra<span className="brand-period">.</span></span></a><span className="research-brand-divider"/><span className="research-brand-label">Research studio</span></div>
         {screen === "review" ? <button className="button ghost review-tab" onClick={() => { setScreen("camera"); setResult(null); }}>← Back to camera <span aria-hidden="true">×</span></button> : <div className="scene-switcher">
           <label htmlFor="scene-select">Scene</label>
           <select id="scene-select" value={detail?.scene.id ?? ""} onChange={(event) => event.target.value && void loadScene(event.target.value).catch((error: Error) => setNotice(error.message))}>
@@ -664,10 +665,11 @@ export default function App() {
         </div>}
       </header>
 
-      {notice && <div className="notice">{notice}</div>}
+      {notice && <div className="notice" role="status">{notice}</div>}
 
       {screen === "review" && result ? <ResultPanel result={result} title={reviewTitle} /> : <div className="studio-layout">
         <section className="camera-workspace">
+          <div className="research-heading"><div><span className="research-kicker">Observation workspace</span><h1>A closer look<br/>at what comes next.</h1></div><span className="local-workspace-note"><Layers size={15} />Local research</span></div>
           <div className="camera-clock" aria-label={frozenTime ? "Frozen scene date and time" : "Local date and time"}>
             {frozenTime ? <>
               <input aria-label="Frozen date" type="date" value={frozenTime.slice(0, 10)} onChange={(event) => event.target.value && setSceneFrozenTime(`${event.target.value}T${frozenTime.slice(11)}`)} />
@@ -678,11 +680,11 @@ export default function App() {
             </>}
             <button className={frozenTime ? "button unfreeze-button" : "button freeze-button"} type="button" disabled={!detail} onClick={toggleFrozenTime}>{frozenTime ? "Unfreeze" : "Freeze"}</button>
           </div>
-          <div className="workspace-heading"><h1>Live camera</h1><span className={streaming ? "camera-status on" : "camera-status"}>{streaming ? "Live" : "Off"}</span></div>
+          <div className="workspace-heading"><h2><Camera size={16} strokeWidth={1.5} />Live camera</h2><span className={streaming ? "camera-status on" : "camera-status"}>{streaming ? "Live" : "Off"}</span></div>
           {sunPosition?.status === "estimated" && <p className={sunPosition.above_horizon ? "solar-reading" : "solar-reading below-horizon"}>{sunPosition.above_horizon ? `Sun ${sunPosition.elevation_deg}° high · bearing ${sunPosition.azimuth_deg}°` : "Sun below horizon · use a streetlamp-lit shadow area for recorded trials"}</p>}
           <div className="camera-stage main-camera">
             <video ref={videoRef} autoPlay muted playsInline className={streaming ? "camera active" : "camera"} />
-            {!streaming && <div className="camera-placeholder"><span>◉</span><strong>Camera is off</strong><button className="button primary" disabled={busy} onClick={() => void startCamera()}>Start camera</button></div>}
+            {!streaming && <div className="camera-placeholder"><div className="camera-aperture"><Aperture size={47} strokeWidth={.8} /></div><strong>Your perspective starts here.</strong><p>Position the camera so the corner and its pavement are in view.</p><button className="button primary" disabled={busy} onClick={() => void startCamera()}>Start camera <ArrowUpRight size={15} /></button><span className="camera-local-note">Camera access stays in this browser.</span></div>}
           </div>
           {streaming && <button className="button ghost camera-stop" onClick={stopCamera}>Stop camera</button>}
           {busy && <div className="working-line"><span className="spinner" />Working…</div>}
@@ -690,6 +692,7 @@ export default function App() {
         </section>
 
         <aside className="side-workspace">
+          <div className="research-sidebar-heading"><ScanLine size={16}/><div><span>Scene workspace</span><strong>{detail?.scene.name ?? "Set up your scene"}</strong></div></div>
           {showNewScene && <form className="new-scene-form panel" onSubmit={(event) => void createScene(event)}>
             <div className="panel-heading"><h2>New scene</h2><button className="icon-button" type="button" aria-label="Close new scene form" onClick={() => setShowNewScene(false)}>×</button></div>
             <label>Scene name<input required autoFocus value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Courtyard" /></label>

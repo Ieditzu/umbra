@@ -11,7 +11,7 @@ from typing import Annotated, Any
 import uvicorn
 from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
@@ -394,6 +394,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     frontend = _root_directory() / "frontend" / "dist"
     if frontend.exists():
+        @app.get("/", include_in_schema=False)
+        def research_home() -> RedirectResponse:
+            return RedirectResponse("/research.html")
+
         app.mount("/", StaticFiles(directory=frontend, html=True), name="dashboard")
     return app
 

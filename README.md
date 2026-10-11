@@ -1,5 +1,15 @@
 # Umbra
 
+Umbra also includes a **public developer platform**: a Go API, customer dashboard, API keys, prepaid analysis credits, and optional Stripe Checkout. See [public platform setup and operations](docs/public-platform.md). The public service uses the Python engine as a private worker; the original local research workflow below remains available separately at `/research.html`.
+
+```bash
+cp .env.public.example .env.public
+# Set random database and worker credentials, then:
+docker compose --env-file .env.public up --build -d
+```
+
+Open `http://localhost:8000`. Stripe purchases stay disabled until all payment configuration is supplied. Verified accounts receive 10 starter credits.
+
 Umbra is a local research kit for testing whether a **visible cast shadow** at a blind corner can warn that someone is approaching **before they walk into the camera**.
 
 It is not a camera that sees through walls. It is not Bouman-style penumbra reconstruction. It compares an empty calibration to a trial clip, tracks darkening on the pavement, then timestamps when a walker enters the frame. Lead time is that gap. It reports no coverage or no reliable signal when the evidence is weak.
@@ -32,7 +42,7 @@ uv run umbra-api
 npm --prefix frontend run dev
 ```
 
-Open the URL printed by Vite (normally `http://127.0.0.1:5173`) and choose **Run synthetic demo**. The demo creates deterministic calibration, main-camera, ground-truth, labels, analysis, and export artifacts under `UMBRA_DATA_DIR`.
+Open `/research.html` at the URL printed by Vite (normally `http://127.0.0.1:5173/research.html`) and choose **Run synthetic demo**. The demo creates deterministic calibration, main-camera, ground-truth, labels, analysis, and export artifacts under `UMBRA_DATA_DIR`.
 
 To include the compact temporal PyTorch model and synthetic pretraining route:
 
@@ -69,7 +79,7 @@ The estimator is heuristic. Selecting a phone shadow area tunes the signal to th
 
 ## Data and privacy
 
-`UMBRA_DATA_DIR` defaults to a sibling `umbra-data` folder, outside this repository. It holds recordings, local SQLite metadata, synthetic data, checkpoints, and reports. No cloud API, account, identity model, or biometric classifier is used.
+For the local research service, `UMBRA_DATA_DIR` defaults to a sibling `umbra-data` folder, outside this repository. It holds recordings, local SQLite metadata, synthetic data, checkpoints, and reports. That local service uses no cloud API or accounts. The public platform uses verified accounts, private server storage and optional Stripe payments; see its [retention and operations guide](docs/public-platform.md). Neither interface performs biometric classification.
 
 Use consented team participants or opaque targets only. Exported reports use trajectories and a corner/ROI diagnostic rather than direct-view ground-truth frames. Umbra is experimental research software, not a safety-critical, security, or surveillance system.
 

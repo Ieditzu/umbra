@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import subprocess
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -44,7 +45,8 @@ def read_frames(
 
     info_dict = inspect_video(path)
     info = VideoInfo(**info_dict)
-    step = max(1, round(info.fps / target_fps))
+    # Never sample faster than the target: 60s clips must fit within 600 samples.
+    step = max(1, math.ceil(info.fps / target_fps))
     capture = cv2.VideoCapture(str(path))
     frames: list[np.ndarray] = []
     timestamps: list[float] = []
