@@ -272,8 +272,6 @@ input {
   align-items: center;
   gap: 16px;
   margin-bottom: 20px;
-  border-top: 1px solid var(--border);
-  padding-top: 19px;
   color: #a0a0a0;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
