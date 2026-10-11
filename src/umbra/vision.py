@@ -20,6 +20,7 @@ class CalibrationModel:
     lit_mask: np.ndarray
     noise: float
     stability: float
+    noise_map: np.ndarray | None = None
 
 
 @dataclass(slots=True)
@@ -104,6 +105,7 @@ def build_calibration_model(frames: list[np.ndarray]) -> CalibrationModel:
         lit_mask=lit_mask,
         noise=noise,
         stability=stability,
+        noise_map=deviation,
     )
 
 

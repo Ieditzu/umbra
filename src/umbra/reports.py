@@ -323,7 +323,7 @@ def _shadow_box_from_motion(
 
 
 def _visible_body_box(motion: np.ndarray) -> tuple[int, int, int, int] | None:
-    """Find a moving upright region after a reviewed body-entry timestamp."""
+    """Group upright foreground fragments while excluding detached ground patches."""
 
     height, width = motion.shape
     cropped = motion
@@ -336,7 +336,7 @@ def _visible_body_box(motion: np.ndarray) -> tuple[int, int, int, int] | None:
         x, y, box_width, box_height = cv2.boundingRect(contour)
         if area < max(100.0, motion.size * 0.0008) or area > motion.size * 0.30:
             continue
-        if y > height * 0.62 or box_height < height * 0.12 or box_height < box_width * 0.8:
+        if y > height * 0.50 or box_height < height * 0.12 or box_height < box_width * 0.8:
             continue
         candidates.append((area, (x, y, box_width, box_height)))
     if not candidates:
@@ -355,7 +355,8 @@ def _visible_body_box(motion: np.ndarray) -> tuple[int, int, int, int] | None:
         if overlap < min(box_width, aw) * 0.25:
             continue
         vertical_gap = max(ay - (y + box_height), y - (ay + ah), 0)
-        if vertical_gap > max(12, ah * 0.22):
+        allowed_gap = 8 if y > height * 0.62 else max(12, min(32, ah * 0.30))
+        if vertical_gap > allowed_gap:
             continue
         if box_width > aw * 2.0 or (y > height * 0.70 and box_height < box_width * 0.7):
             continue
@@ -385,6 +386,55 @@ def _pavement_shadow_box(mask: np.ndarray) -> tuple[int, int, int, int] | None:
             selected |= labels == component
     yy, xx = np.where(selected)
     return int(xx.min()), int(yy.min()), int(xx.max() - xx.min() + 1), int(yy.max() - yy.min() + 1)
+
+
+def _new_shadow_pixels(
+    residual: np.ndarray, opening: np.ndarray, threshold: np.ndarray, lit: np.ndarray,
+) -> np.ndarray:
+    """Separate new darkening from opening mismatch and paired edge jitter."""
+    mask = ((residual < -threshold) & (residual - opening < -threshold) & lit).astype(np.uint8)
+    bright_edges = cv2.dilate((residual > threshold).astype(np.uint8), np.ones((7, 7), np.uint8))
+    mask[bright_edges > 0] = 0
+    return mask
+
+
+def _follow_pavement_shadow(
+    mask: np.ndarray,
+    roi: tuple[int, int, int, int],
+    previous: tuple[int, int, int, int] | None,
+    body: tuple[int, int, int, int] | None,
+) -> tuple[int, int, int, int] | None:
+    """Follow observed pavement evidence beyond the initial warning patch.
+
+    Only the search area moves. Missing evidence never creates a held box.
+    This diagnostic tracker does not change the calibrated warning region.
+    """
+    height, width = mask.shape
+    rx, ry, rw, rh = roi
+    anchor = previous or roi
+    ax, ay, aw, ah = anchor
+    x0, x1 = max(0, ax - 24), min(width, ax + aw + 24)
+    y0, y1 = max(ry - 12, ay - 16, 0), min(height, ay + ah + 16)
+    if body:
+        bx, by, bw, bh = body
+        feet = by + bh
+        x0, x1 = max(0, min(x0, bx - rw)), min(width, max(x1, bx + bw + rw))
+        y0 = max(0, ry - 12, min(y0, feet - rh // 3))
+        y1 = min(height, max(y1, feet + rh // 2))
+    if x1 <= x0 or y1 <= y0:
+        return None
+    candidate = _pavement_shadow_box(mask[y0:y1, x0:x1])
+    if candidate is None:
+        return None
+    x, y, w, h = candidate
+    if body:
+        feet = body[1] + body[3]
+        tolerance = max(12, body[3] * 0.15)
+        # A disconnected patch far below/above the visible person's feet is
+        # not enough evidence to attribute a building-shadow change to them.
+        if y0 + y > feet + tolerance or y0 + y + h < feet - tolerance:
+            return None
+    return x0 + x, y0 + y, w, h
 
 
 def _overhead_tracks(
@@ -551,9 +601,16 @@ def _analysis_visualization(
         return None
     timeline = result.get("timeline", [])
     baseline_count = min(len(main_frames), 18)
+    # The diagnostic overlay already waits for this opening period. Suppress
+    # fixed calibration/trial mismatch without changing detector alert times.
+    opening_residual = np.median(np.stack([
+        normalised_residual(frame, calibration, registered=True)
+        for frame in main_frames[:baseline_count]
+    ]), axis=0)
     motion_model = cv2.createBackgroundSubtractorMOG2(history=36, varThreshold=20, detectShadows=False)
     body_candidate: tuple[int, int, int, int] | None = None
     body_candidate_frames = 0
+    previous_shadow: tuple[int, int, int, int] | None = None
     motion_frames = _hidden_motion_frames(result)
     entry_time = result.get("los_onset_s")
     try:
@@ -562,20 +619,29 @@ def _analysis_visualization(
             visual = frame.copy()
             residual = normalised_residual(frame, calibration, registered=True)
             motion = motion_model.apply(frame) == 255
-            threshold = max(10.0, calibration.noise * 3.0)
+            threshold = np.maximum(
+                max(10.0, calibration.noise * 3.0),
+                calibration.noise_map * 3.0 if calibration.noise_map is not None else 0.0,
+            )
             # Automatic scenes can show the entire walker. The legacy phone
             # helper assumes a foot entering at y=0 and mislabels heads as shadows.
-            body_motion = motion & (np.abs(residual) > threshold)
+            # Use the frame-level threshold for bodies. A person crossing a
+            # noisy tree background must not inherit that tree's high threshold.
+            body_motion = motion & (np.abs(residual) > max(10.0, calibration.noise * 3.0))
             proposed_body = _visible_body_box(body_motion) if index >= baseline_count else None
             sx, sy, sw, sh = (int(value) for value in assessment["roi"])
             # Match the detector's exposure-corrected darkening evidence. A
             # slow shadow can be absorbed by MOG2 while still being present.
-            shadow_mask = ((residual < -threshold) & calibration.lit_mask).astype(np.uint8)
+            # Registration error at an existing building-shadow edge produces
+            # adjacent bright/dark lobes. A newly cast shadow primarily darkens.
+            shadow_mask = _new_shadow_pixels(residual, opening_residual, threshold, calibration.lit_mask)
             if proposed_body:
                 bx, by, bw, bh = proposed_body
                 shadow_mask[by:by + bh, bx:bx + bw] = 0
-            local_shadow = _pavement_shadow_box(shadow_mask[sy:sy + sh, sx:sx + sw]) if index >= baseline_count else None
-            shadow_box = (sx + local_shadow[0], sy + local_shadow[1], local_shadow[2], local_shadow[3]) if local_shadow else None
+            shadow_box = _follow_pavement_shadow(
+                shadow_mask, (sx, sy, sw, sh), previous_shadow, proposed_body,
+            ) if index >= baseline_count else None
+            previous_shadow = shadow_box
             if proposed_body is None:
                 body_candidate = None
                 body_candidate_frames = 0
@@ -614,7 +680,8 @@ def _analysis_visualization(
             if body_seen:
                 _label(visual, "partial body observed", (12, target_height - 31), (255, 182, 243))
             elif shadow_seen:
-                _label(visual, "shadow precedes body", (12, target_height - 31), (196, 243, 112))
+                label = "pavement shadow observed" if isinstance(entry_time, (int, float)) and timestamp >= entry_time else "shadow precedes body"
+                _label(visual, label, (12, target_height - 31), (196, 243, 112))
             writer.write(visual)
     finally:
         writer.release()
