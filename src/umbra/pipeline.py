@@ -20,7 +20,6 @@ from .vision import (
     extract_scene_shadow_signal,
     extract_temporal_signal,
     load_ground_truth,
-    los_band,
     manual_shadow_assessment,
     manual_track_labels,
 )
@@ -36,7 +35,7 @@ def _serialise_assessment(assessment: SceneAssessment, calibration: CalibrationM
     return {
         "edge": list(assessment.edge) if assessment.edge else None,
         "roi": list(assessment.roi) if assessment.roi else None,
-        "entry_zone": list(los_band(assessment.roi, calibration.background.shape[0], assessment.edge))
+        "entry_zone": [0, 0, calibration.background.shape[1], max(32, int(calibration.background.shape[0] * 0.50))]
         if assessment.roi and assessment.source == "automatic"
         else None,
         "edge_score": round(assessment.edge_score, 4),
@@ -461,8 +460,6 @@ def analyse_trial(
     if isinstance(manual_entry, (int, float)) and 0 <= manual_entry <= (timestamps[-1] if timestamps else 0):
         los_onset = float(manual_entry)
         entry_source = "manual_review"
-    if shadow_onset is not None and los_onset is not None and los_onset < shadow_onset:
-        los_onset = None
     lead_time = None
     if shadow_onset is not None and los_onset is not None:
         lead_time = round(los_onset - shadow_onset, 3)

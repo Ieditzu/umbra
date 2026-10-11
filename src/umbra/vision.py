@@ -37,10 +37,57 @@ def grayscale(frame: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32)
 
 
+def align_to_reference(frame: np.ndarray, reference: np.ndarray) -> np.ndarray:
+    """Compensate small camera shifts using consensus of background features.
+
+    Reject poorly supported transforms and large reframing. Moving foreground
+    features are outliers, not an instruction to follow the person or shadow.
+    """
+    target = np.clip(reference, 0, 255).astype(np.uint8)
+    current = grayscale(frame).astype(np.uint8)
+    points = cv2.goodFeaturesToTrack(target, maxCorners=300, qualityLevel=0.02, minDistance=8)
+    if points is None or len(points) < 12:
+        return frame
+    tracked, status, _ = cv2.calcOpticalFlowPyrLK(target, current, points, None)
+    if tracked is None or status is None:
+        return frame
+    valid = status.ravel() == 1
+    if valid.sum() < 12:
+        return frame
+    source, destination = tracked[valid], points[valid]
+    transform, inliers = cv2.estimateAffinePartial2D(
+        source, destination, method=cv2.RANSAC, ransacReprojThreshold=1.5,
+    )
+    if transform is None or inliers is None or inliers.sum() < 12 or inliers.mean() < 0.65:
+        return frame
+    height, width = current.shape
+    scale = float(np.hypot(transform[0, 0], transform[1, 0]))
+    angle = abs(float(np.arctan2(transform[1, 0], transform[0, 0])))
+    if not 0.97 <= scale <= 1.03 or angle > 0.05 or np.linalg.norm(transform[:, 2]) > min(height, width) * 0.08:
+        return frame
+    if np.linalg.norm(transform - np.array([[1, 0, 0], [0, 1, 0]])) < 0.15:
+        return frame
+    aligned = cv2.warpAffine(frame, transform, (width, height), borderMode=cv2.BORDER_REFLECT_101)
+    # Sparse/noisy features can suggest subpixel motion on a stationary scene.
+    # Accept only a transform that actually improves robust background agreement.
+    margin = max(2, int(min(height, width) * 0.08))
+    original_difference = current[margin:-margin, margin:-margin].astype(np.float32) - target[margin:-margin, margin:-margin]
+    aligned_difference = grayscale(aligned)[margin:-margin, margin:-margin] - target[margin:-margin, margin:-margin]
+    original_error = float(np.median(np.abs(original_difference - np.median(original_difference))))
+    aligned_error = float(np.median(np.abs(aligned_difference - np.median(aligned_difference))))
+    if original_error < 1.5 or aligned_error >= original_error * 0.85:
+        return frame
+    # Do not turn the newly exposed image border into false shadow evidence.
+    footprint = cv2.warpAffine(np.ones_like(current), transform, (width, height), flags=cv2.INTER_NEAREST)
+    aligned[footprint == 0] = np.repeat(target[:, :, None], 3, axis=2)[footprint == 0]
+    return aligned
+
+
 def build_calibration_model(frames: list[np.ndarray]) -> CalibrationModel:
     if len(frames) < 8:
         raise ValueError("Use at least eight stable calibration frames.")
-    gray_frames = np.stack([grayscale(frame) for frame in frames])
+    reference = grayscale(frames[0])
+    gray_frames = np.stack([grayscale(align_to_reference(frame, reference)) for frame in frames])
     background = np.median(gray_frames, axis=0)
     deviation = np.std(gray_frames, axis=0)
     cutoff = float(np.quantile(deviation, 0.72))
@@ -228,7 +275,10 @@ def extract_scene_shadow_signal(
     """
 
     x, y, width, height = roi
-    gray = np.stack([grayscale(frame)[y : y + height, x : x + width] for frame in frames])
+    gray = np.stack([
+        grayscale(align_to_reference(frame, calibration.background))[y : y + height, x : x + width]
+        for frame in frames
+    ])
     opening = gray[: min(18, len(gray))]
     reference = np.median(opening, axis=0)
     noise = np.std(opening, axis=0)
@@ -272,7 +322,7 @@ def extract_scene_shadow_signal(
 
 
 def normalised_residual(frame: np.ndarray, calibration: CalibrationModel) -> np.ndarray:
-    current = grayscale(frame)
+    current = grayscale(align_to_reference(frame, calibration.background))
     reference = calibration.background
     mask = calibration.stable_mask
     reference_level = float(np.median(reference[mask]))
@@ -291,6 +341,9 @@ def extract_temporal_signal(
 ) -> list[dict[str, float | np.ndarray]]:
     x, y, width, height = roi
     lx, ly, lw, lh = los_band(roi, frames[0].shape[0], edge)
+    # The selected vertical edge can be a pole rather than the occluding wall.
+    # Do not let that guess hide a person already visible elsewhere in frame.
+    lx, lw = 0, frames[0].shape[1]
     signal: list[dict[str, float | np.ndarray]] = []
     prior_patch: np.ndarray | None = None
     for frame in frames:
@@ -303,6 +356,17 @@ def extract_temporal_signal(
             darkness = np.where(lit, darkness, 0.0)
         energy = float(darkness[lit].mean()) if lit.any() else 0.0
         los_energy = float(np.mean(np.maximum(-person, 0.0))) if person.size else 0.0
+        # A narrow walker is diluted by averaging over the whole entry band.
+        # Require a substantial upright component before using local contrast.
+        if person.size:
+            foreground = (person < -max(12.0, calibration.noise * 3.2)).astype(np.uint8)
+            foreground = cv2.morphologyEx(foreground, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+            count, labels, stats, _ = cv2.connectedComponentsWithStats(foreground)
+            for label in range(1, count):
+                _bx, _by, bw, bh, area = stats[label]
+                if bh >= max(18, frames[0].shape[0] * 0.12) and bh > bw * 1.3 and area >= max(70, person.size * 0.002):
+                    local_energy = float(np.mean(np.maximum(-person[labels == label], 0.0)))
+                    los_energy = max(los_energy, local_energy)
         weights = darkness**1.35
         total = float(weights.sum())
         if total > 1e-4:

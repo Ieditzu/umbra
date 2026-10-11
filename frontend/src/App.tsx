@@ -659,7 +659,7 @@ export default function App() {
             {!detail && <option value="">Choose scene</option>}
             {scenes.map((scene) => <option key={scene.id} value={scene.id}>{scene.name}</option>)}
           </select>
-          {detail && <button className="icon-button" title="Delete scene" aria-label="Delete scene" onClick={() => void deleteScene(detail.scene)}>×</button>}
+          {detail && <button className="icon-button scene-delete-button" title="Delete scene" aria-label="Delete scene" disabled={busy} onClick={() => void deleteScene(detail.scene)}>×</button>}
           <button className="button secondary" onClick={() => { if (!showNewScene) fillBrowserMetadata(); setShowNewScene((value) => !value); }}>{showNewScene ? "Cancel" : "New scene"}</button>
         </div>}
       </header>

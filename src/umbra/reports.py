@@ -14,7 +14,13 @@ import cv2
 import numpy as np
 
 from .video import read_frames
-from .vision import CalibrationModel, build_calibration_model, extract_scene_shadow_signal, los_band
+from .vision import (
+    CalibrationModel,
+    align_to_reference,
+    build_calibration_model,
+    extract_scene_shadow_signal,
+    los_band,
+)
 
 
 def _line_chart(values: list[float], *, width: int = 760, height: int = 150, colour: str = "#87f5c6") -> str:
@@ -319,7 +325,7 @@ def _visible_body_box(motion: np.ndarray) -> tuple[int, int, int, int] | None:
     """Find a moving upright region after a reviewed body-entry timestamp."""
 
     height, width = motion.shape
-    cropped = motion[:, : int(width * 0.78)]
+    cropped = motion
     cleaned = cv2.morphologyEx(cropped.astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
     cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
     contours, _ = cv2.findContours(cleaned, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -506,6 +512,9 @@ def _analysis_visualization(
     ]
     if not main_frames:
         return None
+    # Render the same registered coordinate system used by shadow analysis.
+    # Otherwise handheld jitter creates pavement boxes in the annotated video.
+    main_frames = [align_to_reference(frame, calibration.background) for frame in main_frames]
     if assessment.get("roi_source") == "manual_phone":
         return _scene_tuned_visualization(calibration, main_frames, timestamps, result, destination)
     temporary_path = destination / "_analysis-visualization-source.mp4"
@@ -521,8 +530,6 @@ def _analysis_visualization(
         np.stack([cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) for frame in main_frames[:baseline_count]]), axis=0
     ).astype(np.float32)
     motion_model = cv2.createBackgroundSubtractorMOG2(history=36, varThreshold=20, detectShadows=False)
-    top_height = max(1, int(target_height * 0.55))
-    left_edge = int(target_width * 0.15)
     body_candidate: tuple[int, int, int, int] | None = None
     body_candidate_frames = 0
     motion_frames = _hidden_motion_frames(result)
@@ -534,10 +541,16 @@ def _analysis_visualization(
             current_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32)
             motion = motion_model.apply(frame) == 255
             darkened = current_gray < baseline_gray - 10.0
-            shadow_box = _shadow_box_from_motion(
-                motion, darkened, top_height=top_height, left_edge=left_edge
-            ) if index >= baseline_count else None
-            proposed_body = _body_evidence_box(motion, top_height=top_height, left_edge=left_edge) if index >= baseline_count else None
+            # Automatic scenes can show the entire walker. The legacy phone
+            # helper assumes a foot entering at y=0 and mislabels heads as shadows.
+            proposed_body = _visible_body_box(motion) if index >= baseline_count else None
+            sx, sy, sw, sh = (int(value) for value in assessment["roi"])
+            shadow_mask = (motion & darkened).astype(np.uint8)
+            if proposed_body:
+                bx, by, bw, bh = proposed_body
+                shadow_mask[by:by + bh, bx:bx + bw] = 0
+            local_shadow = _dynamic_box(shadow_mask[sy:sy + sh, sx:sx + sw], min_area=26.0) if index >= baseline_count else None
+            shadow_box = (sx + local_shadow[0], sy + local_shadow[1], local_shadow[2], local_shadow[3]) if local_shadow else None
             if proposed_body is None:
                 body_candidate = None
                 body_candidate_frames = 0
