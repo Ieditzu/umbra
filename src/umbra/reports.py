@@ -20,6 +20,7 @@ from .vision import (
     build_calibration_model,
     extract_scene_shadow_signal,
     los_band,
+    normalised_residual,
 )
 
 
@@ -350,9 +351,13 @@ def _visible_body_box(motion: np.ndarray) -> tuple[int, int, int, int] | None:
         x, y, box_width, box_height = cv2.boundingRect(contour)
         if area < 75 or box_height < 12 or y > height * 0.9:
             continue
-        if x + box_width < ax - 16 or x > ax + aw + 36:
+        overlap = min(x + box_width, ax + aw) - max(x, ax)
+        if overlap < min(box_width, aw) * 0.25:
             continue
-        if y > height * 0.75 and box_height < 18:
+        vertical_gap = max(ay - (y + box_height), y - (ay + ah), 0)
+        if vertical_gap > max(12, ah * 0.22):
+            continue
+        if box_width > aw * 2.0 or (y > height * 0.70 and box_height < box_width * 0.7):
             continue
         related.append((x, y, box_width, box_height))
     x0 = min(box[0] for box in related)
@@ -360,6 +365,26 @@ def _visible_body_box(motion: np.ndarray) -> tuple[int, int, int, int] | None:
     x1 = max(box[0] + box[2] for box in related)
     y1 = max(box[1] + box[3] for box in related)
     return x0, y0, x1 - x0, y1 - y0
+
+
+def _pavement_shadow_box(mask: np.ndarray) -> tuple[int, int, int, int] | None:
+    """Retain neighbouring shadow fragments rather than only the largest one."""
+    cleaned = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(cleaned)
+    minimum_area = max(20, mask.size * 0.0015)
+    candidates = [i for i in range(1, count) if minimum_area <= stats[i, cv2.CC_STAT_AREA] <= mask.size * 0.6]
+    if not candidates:
+        return None
+    anchor = max(candidates, key=lambda i: stats[i, cv2.CC_STAT_AREA])
+    selected = labels == anchor
+    # Attach only nearby fragments, not distant unrelated pavement changes.
+    nearby = cv2.dilate(selected.astype(np.uint8), np.ones((15, 15), np.uint8))
+    for component in candidates:
+        if component != anchor and np.any(nearby & (labels == component)):
+            selected |= labels == component
+    yy, xx = np.where(selected)
+    return int(xx.min()), int(yy.min()), int(xx.max() - xx.min() + 1), int(yy.max() - yy.min() + 1)
 
 
 def _overhead_tracks(
@@ -526,9 +551,6 @@ def _analysis_visualization(
         return None
     timeline = result.get("timeline", [])
     baseline_count = min(len(main_frames), 18)
-    baseline_gray = np.median(
-        np.stack([cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) for frame in main_frames[:baseline_count]]), axis=0
-    ).astype(np.float32)
     motion_model = cv2.createBackgroundSubtractorMOG2(history=36, varThreshold=20, detectShadows=False)
     body_candidate: tuple[int, int, int, int] | None = None
     body_candidate_frames = 0
@@ -538,18 +560,21 @@ def _analysis_visualization(
         for index, (frame, timestamp) in enumerate(zip(main_frames, timestamps, strict=True)):
             point = timeline[min(index, len(timeline) - 1)] if timeline else {}
             visual = frame.copy()
-            current_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32)
+            residual = normalised_residual(frame, calibration, registered=True)
             motion = motion_model.apply(frame) == 255
-            darkened = current_gray < baseline_gray - 10.0
+            threshold = max(10.0, calibration.noise * 3.0)
             # Automatic scenes can show the entire walker. The legacy phone
             # helper assumes a foot entering at y=0 and mislabels heads as shadows.
-            proposed_body = _visible_body_box(motion) if index >= baseline_count else None
+            body_motion = motion & (np.abs(residual) > threshold)
+            proposed_body = _visible_body_box(body_motion) if index >= baseline_count else None
             sx, sy, sw, sh = (int(value) for value in assessment["roi"])
-            shadow_mask = (motion & darkened).astype(np.uint8)
+            # Match the detector's exposure-corrected darkening evidence. A
+            # slow shadow can be absorbed by MOG2 while still being present.
+            shadow_mask = ((residual < -threshold) & calibration.lit_mask).astype(np.uint8)
             if proposed_body:
                 bx, by, bw, bh = proposed_body
                 shadow_mask[by:by + bh, bx:bx + bw] = 0
-            local_shadow = _dynamic_box(shadow_mask[sy:sy + sh, sx:sx + sw], min_area=26.0) if index >= baseline_count else None
+            local_shadow = _pavement_shadow_box(shadow_mask[sy:sy + sh, sx:sx + sw]) if index >= baseline_count else None
             shadow_box = (sx + local_shadow[0], sy + local_shadow[1], local_shadow[2], local_shadow[3]) if local_shadow else None
             if proposed_body is None:
                 body_candidate = None

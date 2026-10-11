@@ -321,8 +321,8 @@ def extract_scene_shadow_signal(
     return signal
 
 
-def normalised_residual(frame: np.ndarray, calibration: CalibrationModel) -> np.ndarray:
-    current = grayscale(align_to_reference(frame, calibration.background))
+def normalised_residual(frame: np.ndarray, calibration: CalibrationModel, *, registered: bool = False) -> np.ndarray:
+    current = grayscale(frame if registered else align_to_reference(frame, calibration.background))
     reference = calibration.background
     mask = calibration.stable_mask
     reference_level = float(np.median(reference[mask]))
@@ -355,6 +355,17 @@ def extract_temporal_signal(
         if lit.shape == darkness.shape:
             darkness = np.where(lit, darkness, 0.0)
         energy = float(darkness[lit].mean()) if lit.any() else 0.0
+        # Small coherent shadows should not disappear in a large pavement mean.
+        # Noise speckles and scene-wide exposure changes do not qualify.
+        shadow_pixels = (darkness > max(10.0, calibration.noise * 3.0)).astype(np.uint8)
+        shadow_pixels = cv2.morphologyEx(shadow_pixels, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+        count, shadow_labels, shadow_stats, _ = cv2.connectedComponentsWithStats(shadow_pixels)
+        for label in range(1, count):
+            area = shadow_stats[label, cv2.CC_STAT_AREA]
+            fraction = float(area / max(1, patch.size))
+            if area >= max(35, patch.size * 0.004) and fraction <= 0.35:
+                contrast = float(np.mean(darkness[shadow_labels == label]))
+                energy = max(energy, contrast * np.sqrt(fraction) * 0.65)
         los_energy = float(np.mean(np.maximum(-person, 0.0))) if person.size else 0.0
         # A narrow walker is diluted by averaging over the whole entry band.
         # Require a substantial upright component before using local contrast.
