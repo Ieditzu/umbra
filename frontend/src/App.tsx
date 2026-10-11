@@ -1,6 +1,6 @@
 import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { API, request } from "./api";
-import { Camera, ScanLine, ArrowUpRight, Layers, Aperture, Plus, Check } from "lucide-react";
+import { Camera, ScanLine, ArrowUpRight, Aperture, Plus, Check } from "lucide-react";
 import type {
   AnalysisResult,
   Job,
@@ -669,7 +669,6 @@ export default function App() {
 
       {screen === "review" && result ? <ResultPanel result={result} title={reviewTitle} /> : <div className="studio-layout">
         <section className="camera-workspace">
-          <div className="research-heading"><div><span className="research-kicker">Observation workspace</span><h1>A closer look<br/>at what comes next.</h1></div><span className="local-workspace-note"><Layers size={15} />Local research</span></div>
           <div className="camera-clock" aria-label={frozenTime ? "Frozen scene date and time" : "Local date and time"}>
             {frozenTime ? <>
               <input aria-label="Frozen date" type="date" value={frozenTime.slice(0, 10)} onChange={(event) => event.target.value && setSceneFrozenTime(`${event.target.value}T${frozenTime.slice(11)}`)} />
