@@ -71,7 +71,7 @@ export default function Landing() {
           </div>
         </div>
         <div className="landing-hero-scene">
-          <CornerShowcase />
+          <CornerShowcase autoPlay />
         </div>
       </section>
       <section className="manifesto container">

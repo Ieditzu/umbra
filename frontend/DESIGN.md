@@ -11,7 +11,9 @@ The public site, customer dashboard, research studio and exported evidence repor
 
 `src/components/CornerShowcase.tsx` owns accessible playback, scrub and viewpoint controls. `CornerWorld.tsx` is lazy-loaded and renders real Three.js geometry through React Three Fiber. A fixed camera, occluding concrete building and walking subject produce cast shadows. Perspective, camera and overhead views use the same scene.
 
-This is an illustrative scene, not a real analysis or performance claim. It starts paused, pauses when offscreen or the tab becomes hidden, and uses on-demand rendering when idle. Motion is user initiated; reduced-motion preferences disable automatic camera interpolation. The text sequence remains useful if WebGL is unavailable.
+This is an illustrative scene, not a real analysis or performance claim. On the landing page it autoplays once from the beginning after the 3D model is ready and visible. Reduced-motion preferences keep it paused; the compact authentication showcase also starts paused. Playback pauses when offscreen or the tab becomes hidden and uses on-demand rendering when idle. Pause, replay and scrub remain available. The text sequence remains useful if WebGL is unavailable.
+
+The person is a locally bundled CC0 Quaternius skinned human mesh with a skeletal walking clip. `WalkingHuman.tsx` normalizes its height, smooths its surface normals, and samples the walk from the shared sequence playhead, so scrubbing and pausing preserve the correct pose and shadow. Asset provenance and the license are in `public/models/`.
 
 ## React Bits
 

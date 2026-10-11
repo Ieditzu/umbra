@@ -1,4 +1,4 @@
-.PHONY: setup api web build test lint demo public
+.PHONY: setup api web build test lint demo public research
 
 setup:
 	uv sync --extra dev
@@ -7,6 +7,10 @@ setup:
 
 api:
 	uv run umbra-api
+
+research:
+	npm --prefix frontend run build
+	uv run uvicorn umbra.api:create_app --factory --host 127.0.0.1 --port 8002
 
 web:
 	npm --prefix frontend run dev

@@ -19,7 +19,7 @@ Open `http://localhost:8000`. Create an account. Without SMTP, development verif
 
 Compose starts PostgreSQL, applies migrations, starts the private worker and serves the built frontend from Go. Only Go is exposed on the host. Database and footage use separate named volumes; deleting these volumes deletes stored data.
 
-The original research app remains at `/research.html`, using `uv run umbra-api` separately. Its research endpoints are not exposed by Go. Run the Vite dev server against the local Python API to use camera capture, synthetic demos and labelling.
+The original research app runs with `make research` at `http://localhost:8002/research.html`, using the existing research data directory configured in `.env` (normally `../umbra-data`). The local website and customer dashboard provide a **Research studio** link. This separate service retains camera preview, scene and trial management, manual labels and saved results without customer accounts or credits. Its research endpoints are not exposed by Go; the link appears only when browsing on localhost. The original `uv run umbra-api` command still starts the standalone research service on port 8000.
 
 ## Native development
 

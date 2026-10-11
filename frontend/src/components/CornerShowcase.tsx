@@ -5,6 +5,7 @@ import {
   Suspense,
   lazy,
   useEffect,
+  useCallback,
   useRef,
   useState,
   type ReactNode,
@@ -86,8 +87,10 @@ class SceneBoundary extends Component<
 
 export default function CornerShowcase({
   compact = false,
+  autoPlay = false,
 }: {
   compact?: boolean;
+  autoPlay?: boolean;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const cornerLabel = useRef<HTMLSpanElement>(null);
@@ -95,9 +98,12 @@ export default function CornerShowcase({
   const cameraLabel = useRef<HTMLSpanElement>(null);
   const active = useInView(root, { margin: "100px" });
   const reduced = useReducedMotion();
-  const progress = useMotionValue(0.35);
-  const [readout, setReadout] = useState(0.35);
+  const progress = useMotionValue(autoPlay ? 0 : 0.35);
+  const [readout, setReadout] = useState(autoPlay ? 0 : 0.35);
   const [playing, setPlaying] = useState(false);
+  const [sceneReady, setSceneReady] = useState(false);
+  const autoplayHandled = useRef(false);
+  const handleSceneReady = useCallback(() => setSceneReady(true), []);
   const [view, setView] = useState<SceneView>("perspective");
   const [reset, setReset] = useState(0);
   const [pageVisible, setPageVisible] = useState(true);
@@ -121,6 +127,19 @@ export default function CornerShowcase({
     if (!active || !pageVisible || reduced) setPlaying(false);
   }, [active, pageVisible, reduced]);
   useEffect(() => {
+    if (
+      !autoPlay ||
+      autoplayHandled.current ||
+      !sceneReady ||
+      !active ||
+      !pageVisible ||
+      reduced === null
+    )
+      return;
+    autoplayHandled.current = true;
+    if (!reduced) setPlaying(true);
+  }, [autoPlay, sceneReady, active, pageVisible, reduced]);
+  useEffect(() => {
     if (!playing) return;
     const playback = animate(progress, 1, {
       duration: Math.max(0, 1 - progress.get()) * SCENE_DURATION,
@@ -130,6 +149,7 @@ export default function CornerShowcase({
     return () => playback.stop();
   }, [playing, progress]);
   const seek = (value: number) => {
+    autoplayHandled.current = true;
     setPlaying(false);
     progress.set(value);
     setReadout(value);
@@ -186,6 +206,7 @@ export default function CornerShowcase({
                 camera: cameraLabel,
               }}
               progress={progress}
+              onReady={handleSceneReady}
               view={view}
               reset={reset}
               reduced={!!reduced}
@@ -221,6 +242,7 @@ export default function CornerShowcase({
           className="scene-play"
           aria-label={playing ? "Pause sequence" : "Play sequence"}
           onClick={() => {
+            autoplayHandled.current = true;
             if (progress.get() >= 0.99) progress.set(0);
             setPlaying((value) => !value);
           }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Edges, Line, OrbitControls, RoundedBox } from "@react-three/drei";
 import { useMotionValueEvent, type MotionValue } from "motion/react";
@@ -11,9 +11,12 @@ import {
   type SceneView,
 } from "./CornerShowcase";
 
+import WalkingHuman from "./WalkingHuman";
+
 const TURQUOISE = "#68ead2";
 type Props = {
   labels: SceneLabels;
+  onReady: () => void;
   progress: MotionValue<number>;
   view: SceneView;
   reset: number;
@@ -263,66 +266,7 @@ function CameraModel({ hidden }: { hidden: boolean }) {
     </group>
   );
 }
-const Subject = memo(function Subject({
-  progress,
-}: {
-  progress: MotionValue<number>;
-}) {
-  const root = useRef<THREE.Group>(null);
-  const leftArm = useRef<THREE.Group>(null);
-  const rightArm = useRef<THREE.Group>(null);
-  const leftLeg = useRef<THREE.Group>(null);
-  const rightLeg = useRef<THREE.Group>(null);
-  useFrame(() => {
-    const t = progress.get();
-    const gait = Math.sin(t * Math.PI * 18) * 0.34;
-    if (root.current)
-      root.current.position.set(
-        -3.7 + t * 6.2,
-        0.02 + Math.abs(Math.sin(t * Math.PI * 18)) * 0.018,
-        -2.65,
-      );
-    if (leftArm.current) leftArm.current.rotation.x = gait;
-    if (rightArm.current) rightArm.current.rotation.x = -gait;
-    if (leftLeg.current) leftLeg.current.rotation.x = -gait;
-    if (rightLeg.current) rightLeg.current.rotation.x = gait;
-  });
-  const limb = (length: number, radius: number) => (
-    <mesh castShadow position={[0, -length / 2, 0]}>
-      <capsuleGeometry args={[radius, length - radius * 2, 5, 10]} />
-      <meshStandardMaterial color="#cad3c9" roughness={0.58} metalness={0.12} />
-    </mesh>
-  );
-  return (
-    <group
-      ref={root}
-      position={[-1.53, 0.02, -2.65]}
-      rotation={[0, Math.PI / 2, 0]}
-    >
-      <mesh position={[0, 1.54, 0]} castShadow>
-        <sphereGeometry args={[0.145, 24, 20]} />
-        <meshStandardMaterial color="#e0e5db" roughness={0.55} />
-      </mesh>
-      <mesh position={[0, 1.12, 0]} castShadow>
-        <capsuleGeometry args={[0.175, 0.37, 6, 16]} />
-        <meshStandardMaterial color="#b8c5bb" roughness={0.65} />
-      </mesh>
-      <group ref={leftArm} position={[-0.22, 1.28, 0]}>
-        {limb(0.59, 0.065)}
-      </group>
-      <group ref={rightArm} position={[0.22, 1.28, 0]}>
-        {limb(0.59, 0.065)}
-      </group>
-      <group ref={leftLeg} position={[-0.1, 0.81, 0]}>
-        {limb(0.78, 0.083)}
-      </group>
-      <group ref={rightLeg} position={[0.1, 0.81, 0]}>
-        {limb(0.78, 0.083)}
-      </group>
-    </group>
-  );
-});
-function World({ labels, progress, view, reset, reduced }: Props) {
+function World({ labels, onReady, progress, view, reset, reduced }: Props) {
   const lightTarget = useMemo(() => {
     const target = new THREE.Object3D();
     target.position.set(0, 0, -2.6);
@@ -433,7 +377,7 @@ function World({ labels, progress, view, reset, reduced }: Props) {
       <directionalLight position={[4, 3, 5]} intensity={0.65} color="#c6d0cb" />
       <primitive object={lightTarget} />
       <Architecture />
-      <Subject progress={progress} />
+      <WalkingHuman progress={progress} onReady={onReady} />
       <CameraModel hidden={view === "camera"} />
       <OrbitControls
         ref={(value) => {

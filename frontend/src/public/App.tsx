@@ -54,6 +54,9 @@ import {
 } from "./Dashboard";
 import Landing from "./Marketing";
 import CornerShowcase from "../components/CornerShowcase";
+import { localResearchURL } from "./research";
+
+const researchURL = localResearchURL(window.location);
 
 const client = new QueryClient({
   defaultOptions: {
@@ -184,6 +187,7 @@ function PublicLayout() {
           >
             <NavLink to="/docs">Developers</NavLink>
             <NavLink to="/pricing">Pricing</NavLink>
+            {researchURL && <a href={researchURL}>Research studio</a>}
             <Link to="/login" className="nav-login">
               Sign in
             </Link>
@@ -558,6 +562,13 @@ function DashboardLayout() {
           ))}
         </nav>
         <div className="sidebar-bottom">
+          {researchURL && (
+            <a href={researchURL}>
+              <ScanLine size={17} />
+              Research studio
+              <ArrowUpRight size={14} />
+            </a>
+          )}
           <Link to="/docs">
             <BookOpen size={17} />
             Documentation <ArrowUpRight size={14} />
