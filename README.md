@@ -12,7 +12,9 @@ Open `http://localhost:8000`. Stripe purchases stay disabled until all payment c
 
 For the original camera, scenes, trial labelling and saved research results, run **`make research`** and open **[Research studio](http://localhost:8002/research.html)**. It uses the existing research data directory from `.env` (normally `../umbra-data`). The local public site also links to it as **Research studio**. This runs alongside the public platform and requires no customer account or credits.
 
-Umbra is a local research kit for testing whether a **visible cast shadow** at a blind corner can warn that someone is approaching **before they walk into the camera**.
+Umbra investigates whether **visible cast shadows** can provide reliable evidence of an occluded approach at a fixed camera. The proposed research will measure achieved warning time, false alarms, and performance across sunlight, streetlamps, and different recording locations.
+
+The [research plan](docs/research-plan.md) defines the hypotheses, proposed recording experiments, independent labels, detector comparisons, and evaluation measures. These experiments are planned; research results have not yet been established.
 
 It is not a camera that sees through walls. It is not Bouman-style penumbra reconstruction. It compares an empty calibration to a trial clip, tracks darkening on the pavement, then timestamps when a walker enters the frame. Lead time is that gap. It reports no coverage or no reliable signal when the evidence is weak.
 

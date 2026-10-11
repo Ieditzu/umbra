@@ -1,5 +1,5 @@
 UMBRA
-Early warning at a blind corner from a visible cast shadow
+Shadow-based inference of occluded approach for fixed cameras
 
 STATUS NOTE: This file is the research design. README.md and
 docs/competition/ describe the current software. The estimator is
@@ -11,10 +11,12 @@ geometry.
 1. The idea in one sentence
 
 Umbra watches the pavement beside a building corner. When someone
-approaches from the hidden side, their sun shadow often reaches that
-pavement before their body does. Umbra tries to raise an early warning
-from that shadow, then measures how many seconds later the person
-walks into view.
+approaches from the hidden side, their shadow can reach that pavement
+before their body does. Umbra investigates whether changes in this
+indirect visual evidence support a reliable warning of an occluded
+approach, under sunlight and artificial illumination. It measures the
+warning gained, the false alarms introduced, and when an estimate
+should be withheld.
 
 It is not a camera that sees through walls. It is not the faint
 penumbra method from Bouman et al. 2017. It uses a normal, visible
@@ -25,10 +27,16 @@ cast shadow as a precursor to line-of-sight.
 At a blind corner a camera (or a driver, or a pedestrian) only reacts
 after the other person appears. The practical question is:
 
-Can a fixed RGB camera, calibrated on an empty corner, detect an
-approaching person from the shadow on the visible pavement before
-that person enters the frame, and report how much lead time that
-gives?
+Under which lighting, scene geometry, and camera conditions can a
+fixed RGB camera infer an occluded approach from a visible cast
+shadow, with useful lead time at a controlled false-alert rate?
+
+The research contribution to investigate is a measured operating
+range: when indirect shadow evidence is informative, how uncertainty
+changes as conditions vary, and how well a method transfers to an
+unseen corner. The intended CCTV application is early approach
+warning. Shadow evidence alone does not establish criminal intent
+or demonstrate robbery prevention.
 
 3. Core principle
 
@@ -119,17 +127,29 @@ Outputs
 
 5. Research question
 
-Can empty-scene calibration plus pavement-shadow tracking warn of an
-approaching person at an unfamiliar outdoor corner with positive lead
-time versus the moment they become directly visible, and with a low
-false-alert rate on empty trials?
+How much warning can visible shadow evidence provide about an
+occluded approach at a fixed camera, and can that warning be retained
+across unseen corners, lighting conditions, and camera noise without
+an unacceptable increase in false alerts?
 
-Hypothesis
+Hypotheses to evaluate
 
-When the sun casts the walker's shadow onto the visible pavement
-before they clear the edge, an adaptive residual on that pavement
-alerts earlier than waiting for the body to enter the frame, and
-refuses more empty trials than a fixed intensity threshold.
+H1: When the geometry exposes a shadow before the walker, pavement
+tracking provides positive warning time relative to direct visibility.
+H2: Temporal coherence and refusal gates reduce false alerts from
+lighting changes compared with a fixed darkening threshold, at a
+matched detection rate.
+H3: Calibration quality and lighting conditions explain changes in
+performance on unseen scenes and later recording sessions.
+H4: A stable streetlamp can provide warning evidence at night, but
+multiple lights, flicker, and moving headlights alter the reliability
+of that evidence.
+H5: Performance changes across recording locations and sessions;
+the size and causes of this variation can be measured.
+
+These are research hypotheses, not established results. The full
+protocol, proposed comparisons, and reporting requirements are in
+docs/research-plan.md.
 
 6. What this is not
 
@@ -204,5 +224,6 @@ cloud.
 Bouman et al., "Turning Corners Into Cameras," ICCV 2017 — penumbra
 NLOS; Umbra does not run that inverse problem.
 
-The project measures a simpler, testable quantity: seconds of warning
-from a cast shadow at a blind corner.
+The project investigates the relationship between occlusion, visible
+shadow evidence, warning time, and false alarms. Its value depends on
+controlled comparisons and independently reviewed results.
