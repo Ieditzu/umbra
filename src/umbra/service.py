@@ -165,6 +165,14 @@ class UmbraService:
         shadow_region = self.store.get_shadow_region(trial_id)
         if shadow_region and not (manual_ground_truth or {}).get("main_shadow_region"):
             manual_ground_truth = {**(manual_ground_truth or {}), "main_shadow_region": shadow_region}
+        saved_position = None
+        try:
+            mapping_record, reference, noise = self.load_camera_position(scene["id"])
+            if mapping_record["calibration_media_id"] == calibration["id"]:
+                mapping = {**mapping_record["model"], "calibration_id": mapping_record["id"]}
+                saved_position = mapping, reference, noise
+        except ValueError:
+            pass
         result = analyse_trial(
             calibration_path=Path(calibration["path"]),
             main_path=Path(main["path"]),
@@ -173,7 +181,10 @@ class UmbraService:
             track_length_m=trial.get("track_length_m"),
             manual_ground_truth=manual_ground_truth,
             progress=progress,
+            position_calibration=saved_position,
         )
+        if saved_position is not None:
+            result["hidden_source_estimate"]["evaluated_on_calibration_source"] = saved_position[0].get("source_media_id") == main["id"]
         checkpoint = self.settings.model_dir / "synthetic_temporal_v1.pt"
         model_hint = predict_checkpoint(checkpoint, Path(calibration["path"]), Path(main["path"]))
         if model_hint:

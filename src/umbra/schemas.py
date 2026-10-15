@@ -110,6 +110,13 @@ class Job(BaseModel):
 class AnalysisRequest(BaseModel):
     include_baselines: bool = True
 
+class PositionCalibrationRequest(BaseModel):
+    trial_id: str
+
+
+class LiveSessionRequest(BaseModel):
+    camera_url: str | None = Field(default=None, max_length=2048)
+
 
 class SyntheticRequest(BaseModel):
     seed: int = Field(default=7, ge=0, le=2_147_483_647)

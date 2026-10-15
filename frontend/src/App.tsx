@@ -2,6 +2,8 @@ import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "rea
 import { API, request } from "./api";
 import { ACTIVE_ANALYSIS_KEY, elapsedAnalysisTime, monitorAnalysis, readActiveAnalysis } from "./analysis-job";
 import type { ActiveAnalysis, AnalysisProgress } from "./analysis-job";
+import { CameraSetup } from "./CameraSetup";
+import { useLiveDetection } from "./useLiveDetection";
 import { Camera, ScanLine, ArrowUpRight, Aperture, Plus, Check } from "lucide-react";
 import type {
   AnalysisResult,
@@ -98,7 +100,8 @@ function ResultPanel({ result, title }: { result: AnalysisResult; title: string 
         <div className="review-clip"><h2>Corner trial</h2><video key={`corner-${result.analysis_id}`} controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/visualization`} type="video/mp4" /></video><a className="button secondary" href={`${API}/analyses/${result.analysis_id}/visualization`} download={`corner-trial-${result.analysis_id}.mp4`}>Download video</a></div>
         {result.visualizations?.hidden_path_available && <div className="review-clip"><h2>Hidden path</h2><video key={`hidden-${result.analysis_id}`} controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/hidden-path-visualization`} type="video/mp4" /></video><a className="button secondary" href={`${API}/analyses/${result.analysis_id}/hidden-path-visualization`} download={`hidden-path-${result.analysis_id}.mp4`}>Download video</a></div>}
       </div>}
-      {result.hidden_source_estimate?.status === "estimated" && <p className="source-estimate-note">Green dot: coarse shadow-source estimate, not confirmed person detection.</p>}
+      {result.hidden_source_estimate?.status === "estimated" && <p className="source-estimate-note">Green dot: estimated position from the saved camera mapping, not confirmed person detection.</p>}
+      {result.hidden_source_estimate?.status === "calibration_required" && <p className="source-estimate-note">Save Camera setup and run analysis again to enable position estimates.</p>}
       <div className="review-downloads"><a className="button ghost" href={`${API}/analyses/${result.analysis_id}/bundle`}>Download files</a><a className="button ghost" href={predictionsUrl}>Predictions CSV</a><a className="button ghost" href={reportUrl} target="_blank" rel="noreferrer">Report</a></div>
     </section>
   );
@@ -352,7 +355,6 @@ export default function App() {
   });
   const [analysisProgress, setAnalysisProgress] = useState<AnalysisProgress | null>(null);
   const [scenesReady, setScenesReady] = useState(false);
-  const busy = working || activeAnalysis !== null;
   const [form, setForm] = useState<SceneForm>(newSceneForm);
   const [locationStatus, setLocationStatus] = useState("");
   const [trialName, setTrialName] = useState("Trial 1");
@@ -364,6 +366,12 @@ export default function App() {
   const [sunPosition, setSunPosition] = useState<SunPosition | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const [cameraSource, setCameraSource] = useState<"browser" | "network">("browser");
+  const [cameraUrl, setCameraUrl] = useState("");
+  const live = useLiveDetection(videoRef, detail?.scene.id, setNotice);
+  const liveLocked = Boolean(live.session) || live.starting;
+  const busy = working || activeAnalysis !== null || liveLocked;
+  const cameraCalibration = detail?.position_calibration;
 
   const mediaByRole = useMemo(() => {
     const source = detail?.media ?? [];
@@ -517,6 +525,10 @@ export default function App() {
     }
   }, [screen, streaming]);
 
+  useEffect(() => {
+    if (screen !== "camera") live.stop();
+  }, [screen]);
+
   function clearActiveAnalysis() {
     try { window.localStorage.removeItem(ACTIVE_ANALYSIS_KEY); } catch { /* Storage may be disabled. */ }
     setActiveAnalysis(null);
@@ -641,7 +653,7 @@ export default function App() {
 
   async function startCamera() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 }, aspectRatio: { ideal: 16 / 9 } }, audio: false });
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
       setStreaming(true);
@@ -651,6 +663,7 @@ export default function App() {
   }
 
   function stopCamera() {
+    live.stop();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
@@ -715,12 +728,12 @@ export default function App() {
         <div className="research-brand-group"><a className="brand" href="/research.html" aria-label="Umbra research home"><span className="brand-mark">◒</span><span>umbra<span className="brand-period">.</span></span></a><span className="research-brand-divider"/><span className="research-brand-label">Research studio</span></div>
         {screen === "review" ? <button className="button ghost review-tab" onClick={() => { setScreen("camera"); setResult(null); }}>← Back to camera <span aria-hidden="true">×</span></button> : <div className="scene-switcher">
           <label htmlFor="scene-select">Scene</label>
-          <select id="scene-select" disabled={busy} value={detail?.scene.id ?? ""} onChange={(event) => event.target.value && void loadScene(event.target.value).catch((error: Error) => setNotice(error.message))}>
+          <select id="scene-select" disabled={busy || liveLocked} value={detail?.scene.id ?? ""} onChange={(event) => event.target.value && void loadScene(event.target.value).catch((error: Error) => setNotice(error.message))}>
             {!detail && <option value="">Choose scene</option>}
             {scenes.map((scene) => <option key={scene.id} value={scene.id}>{scene.name}</option>)}
           </select>
-          {detail && <button className="icon-button scene-delete-button" title="Delete scene" aria-label="Delete scene" disabled={busy} onClick={() => void deleteScene(detail.scene)}>×</button>}
-          <button className="button secondary" disabled={busy} onClick={() => { if (!showNewScene) fillBrowserMetadata(); setShowNewScene((value) => !value); }}>{showNewScene ? "Cancel" : "New scene"}</button>
+          {detail && <button className="icon-button scene-delete-button" title="Delete scene" aria-label="Delete scene" disabled={busy || liveLocked} onClick={() => void deleteScene(detail.scene)}>×</button>}
+          <button className="button secondary" disabled={busy || liveLocked} onClick={() => { if (!showNewScene) fillBrowserMetadata(); setShowNewScene((value) => !value); }}>{showNewScene ? "Cancel" : "New scene"}</button>
         </div>}
       </header>
 
@@ -738,15 +751,31 @@ export default function App() {
             </>}
             <button className={frozenTime ? "button unfreeze-button" : "button freeze-button"} type="button" disabled={!detail} onClick={toggleFrozenTime}>{frozenTime ? "Unfreeze" : "Freeze"}</button>
           </div>
-          <div className="workspace-heading"><h2><Camera size={16} strokeWidth={1.5} />Live camera</h2><span className={streaming ? "camera-status on" : "camera-status"}>{streaming ? "Live" : "Off"}</span></div>
+          <div className="workspace-heading"><h2><Camera size={16} strokeWidth={1.5} />Live camera</h2><span className={streaming || live.session ? "camera-status on" : "camera-status"}>{live.session ? "Detecting" : streaming ? "Live" : "Off"}</span></div>
           {sunPosition?.status === "estimated" && <p className={sunPosition.above_horizon ? "solar-reading" : "solar-reading below-horizon"}>{sunPosition.above_horizon ? `Sun ${sunPosition.elevation_deg}° high · bearing ${sunPosition.azimuth_deg}°` : "Sun below horizon · use a streetlamp-lit shadow area for recorded trials"}</p>}
           {activeAnalysis && <AnalysisActivity active={activeAnalysis} progress={analysisProgress} onDismiss={() => {
             clearActiveAnalysis();
             setNotice("Stopped watching. The analysis continues on the server; check this trial’s latest result when it finishes.");
           }} />}
+          <div className="live-controls">
+            <select aria-label="Camera source" disabled={liveLocked} value={cameraSource} onChange={(event) => { stopCamera(); setCameraSource(event.target.value as "browser" | "network"); }}><option value="browser">Browser camera</option><option value="network">LAN CCTV · RTSP</option></select>
+            {cameraSource === "network" ? <><input aria-label="Camera RTSP address" type="password" autoComplete="off" placeholder="rtsp://192.168.1.20/stream" disabled={liveLocked} value={cameraUrl} onChange={(event) => setCameraUrl(event.target.value)} /><button className="button secondary" disabled={!cameraCalibration || !cameraUrl || busy || liveLocked} onClick={() => { setNotice(""); void live.start(cameraUrl); }}>{live.starting ? "Connecting…" : "Connect CCTV"}</button></> : streaming && <button className="button secondary" disabled={!cameraCalibration || busy || liveLocked} onClick={() => { setNotice(""); void live.start(); }}>Start detection</button>}
+            {live.session && <button className="button ghost" onClick={live.stop}>Stop detection</button>}
+            {!cameraCalibration && detail && <span className="live-setup-hint">Save Camera setup to enable position estimates.</span>}
+          </div>
           <div className="camera-stage main-camera">
             <video ref={videoRef} autoPlay muted playsInline className={streaming ? "camera active" : "camera"} />
-            {!streaming && <div className="camera-placeholder"><div className="camera-aperture"><Aperture size={47} strokeWidth={.8} /></div><strong>Your perspective starts here.</strong><p>Position the camera so the corner and its pavement are in view.</p><button className="button primary" disabled={busy} onClick={() => void startCamera()}>Start camera <ArrowUpRight size={15} /></button><span className="camera-local-note">Camera access stays in this browser.</span></div>}
+            {live.networkImage && <img className="network-camera" src={live.networkImage} alt="Live CCTV camera" />}
+            {live.observation && cameraCalibration && <svg className="live-detection-overlay" viewBox={`0 0 1000 ${1000 / cameraCalibration.model.aspect_ratio}`} preserveAspectRatio="xMidYMid meet" aria-label="Live estimated position">
+              {live.observation.position_norm && <g>
+                <ellipse cx={live.observation.position_norm[0] * 1000} cy={live.observation.position_norm[1] * 1000 / cameraCalibration.model.aspect_ratio} rx={(live.observation.uncertainty_norm?.[0] ?? 0.03) * 1000} ry={(live.observation.uncertainty_norm?.[1] ?? 0.05) * 1000 / cameraCalibration.model.aspect_ratio} fill="none" stroke="#50a766" strokeWidth="2" />
+                <circle cx={live.observation.position_norm[0] * 1000} cy={live.observation.position_norm[1] * 1000 / cameraCalibration.model.aspect_ratio} r="8" fill="#46eb50" stroke="#dcffe2" strokeWidth="2" />
+                <text x={Math.max(10, Math.min(790, live.observation.position_norm[0] * 1000 - 70))} y={Math.max(22, live.observation.position_norm[1] * 1000 / cameraCalibration.model.aspect_ratio - 35)} fill="#7bff96" stroke="#07100b" strokeWidth="4" paintOrder="stroke" fontSize="20">estimated position</text>
+              </g>}
+              {live.observation.body_box && <rect x={live.observation.body_box[0] * 1000} y={live.observation.body_box[1] * 1000 / cameraCalibration.model.aspect_ratio} width={live.observation.body_box[2] * 1000} height={live.observation.body_box[3] * 1000 / cameraCalibration.model.aspect_ratio} fill="none" stroke="#e68eff" strokeWidth="2" />}
+            </svg>}
+            {!streaming && !live.session && <div className="camera-placeholder"><div className="camera-aperture"><Aperture size={47} strokeWidth={.8} /></div><strong>{cameraSource === "network" ? "Connect your CCTV camera." : "Your perspective starts here."}</strong><p>Position the camera so the corner and its pavement are in view.</p>{cameraSource === "browser" && <button className="button primary" disabled={busy} onClick={() => void startCamera()}>Start camera <ArrowUpRight size={15} /></button>}<span className="camera-local-note">Frames are processed by your local Umbra server.</span></div>}
+            {live.session && <span className="live-estimate-status">{live.observation?.state === "estimated" ? "Shadow position estimate · experimental" : live.observation?.state === "body_visible" ? "Body visible" : "Watching for shadow"}</span>}
           </div>
           {streaming && <button className="button ghost camera-stop" onClick={stopCamera}>Stop camera</button>}
           {busy && !activeAnalysis && <div className="working-line"><span className="spinner" />Working…</div>}
@@ -770,6 +799,7 @@ export default function App() {
             <button className="button primary" disabled={busy} type="submit">Create scene</button>
           </form>}
           {!detail ? !showNewScene && <section className="panel side-card"><h2>Start here</h2><p>Create a scene to add videos and trials.</p><button className="button primary" onClick={() => { fillBrowserMetadata(); setShowNewScene(true); }}>New scene</button></section> : <>
+            <CameraSetup key={detail.scene.id} detail={detail} disabled={busy} onSaved={() => loadScene(detail.scene.id)} onNotice={setNotice} onBusy={setBusy} />
             <details className="panel side-card videos-card" open={!videosComplete}>
               <summary className="side-summary"><h2>Videos</h2><span>{importedVideoCount}/3</span></summary>
               <div className="media-list">

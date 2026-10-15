@@ -70,6 +70,13 @@ export interface SceneDetail {
   media: MediaAsset[];
   trials: Trial[];
   analyses: { id: string; trial_id: string; trial_name: string; created_at: string }[];
+  position_calibration?: {
+    id: string;
+    calibration_media_id: string;
+    main_media_id: string;
+    updated_at: string;
+    model: { pair_count: number; internal_check_error_px: number; aspect_ratio: number; source_trial_id: string };
+  } | null;
 }
 
 export interface Job {
@@ -107,7 +114,7 @@ export interface AnalysisResult {
   los_detected?: boolean;
   entry_source?: string;
   hidden_source_estimate?: {
-    status: "estimated" | "unavailable";
+    status: "estimated" | "unavailable" | "calibration_required";
     calibrated: boolean;
     limitation: string;
     reason?: string;

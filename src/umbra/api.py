@@ -13,19 +13,23 @@ from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile, st
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 
 from . import __version__
 from .config import Settings, get_settings
 from .jobs import JobManager
+from .live import LiveSessions
 from .ml import ML_AVAILABLE
 from .schemas import (
     AnalysisRequest,
     Health,
     Job,
+    LiveSessionRequest,
     ManualGroundTruth,
     ManualRegion,
     MediaAsset,
     MediaRole,
+    PositionCalibrationRequest,
     Scene,
     SceneCreate,
     SyntheticRequest,
@@ -48,10 +52,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     store = Store(settings.database_path)
     service = UmbraService(settings, store)
     jobs = JobManager(store)
+    live = LiveSessions(service)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         yield
+        live.close_all()
         jobs.executor.shutdown(wait=False, cancel_futures=False)
 
     app = FastAPI(
@@ -107,7 +113,60 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         scene = database.get_scene(scene_id)
         if scene is None:
             raise HTTPException(status_code=404, detail="Scene not found")
-        return {"scene": scene, "media": database.list_media(scene_id), "trials": database.list_trials(scene_id), "analyses": database.list_analyses(scene_id)}
+        position = database.get_position_calibration(scene_id)
+        if position:
+            position = {key: value for key, value in position.items() if key != "reference_path"}
+        return {"scene": scene, "media": database.list_media(scene_id), "trials": database.list_trials(scene_id), "analyses": database.list_analyses(scene_id), "position_calibration": position}
+
+    @app.post("/api/v1/scenes/{scene_id}/position-calibration", tags=["camera"])
+    def save_position_calibration(scene_id: str, payload: PositionCalibrationRequest) -> dict[str, Any]:
+        try:
+            record = service.calibrate_camera_position(scene_id, payload.trial_id)
+            return {key: value for key, value in record.items() if key != "reference_path"}
+        except (ValueError, OSError) as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.delete("/api/v1/scenes/{scene_id}/position-calibration", tags=["camera"])
+    def remove_position_calibration(scene_id: str) -> dict[str, str]:
+        record = store.delete_position_calibration(scene_id)
+        if record:
+            service._remove_position_reference(record)
+        return {"scene_id": scene_id}
+
+    @app.post("/api/v1/scenes/{scene_id}/live-sessions", tags=["camera"])
+    def start_live_session(scene_id: str, payload: LiveSessionRequest) -> dict[str, Any]:
+        if store.get_scene(scene_id) is None:
+            raise HTTPException(404, "Scene not found")
+        try:
+            return live.start(scene_id, payload.camera_url)
+        except (ValueError, OSError) as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.post("/api/v1/live/{session_id}/frame", tags=["camera"])
+    async def live_browser_frame(session_id: str, file: Annotated[UploadFile, File()]) -> dict[str, Any]:
+        try:
+            data = await file.read(512_001)
+            return await run_in_threadpool(live.browser_frame, session_id, data)
+        except KeyError as error:
+            raise HTTPException(404, "Live session expired. Start detection again.") from error
+        except (ValueError, OSError) as error:
+            raise HTTPException(422, str(error)) from error
+        finally:
+            await file.close()
+
+    @app.get("/api/v1/live/{session_id}/frame", tags=["camera"])
+    def live_network_frame(session_id: str) -> dict[str, Any]:
+        try:
+            return live.network_frame(session_id)
+        except KeyError as error:
+            raise HTTPException(404, "Live session expired. Start detection again.") from error
+        except (ValueError, OSError) as error:
+            raise HTTPException(422, str(error)) from error
+
+    @app.delete("/api/v1/live/{session_id}", tags=["camera"])
+    def stop_live_session(session_id: str) -> dict[str, str]:
+        live.close(session_id)
+        return {"id": session_id}
 
     @app.get("/api/v1/scenes/{scene_id}/sun", tags=["scenes"])
     def get_scene_sun(

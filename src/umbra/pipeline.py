@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 
 from .body import night_body_tracks
-from .hidden import estimate_hidden_shadow_source
+from .position import PositionTracker
 from .sun import sun_metadata
 from .video import estimate_audio_offset, read_frames
 from .vision import (
@@ -355,6 +355,7 @@ def analyse_trial(
     track_length_m: float | None,
     manual_ground_truth: dict[str, Any] | None = None,
     progress: Progress | None = None,
+    position_calibration: tuple[dict[str, Any], np.ndarray, np.ndarray] | None = None,
 ) -> dict[str, Any]:
     """Run the complete, conservative analysis for one locally stored trial."""
 
@@ -502,13 +503,28 @@ def analyse_trial(
         ]
     elif streetlamp_mode and state == "no_coverage":
         hidden_motion = None
-    update(0.65, "Estimating a coarse hidden shadow-source zone")
-    source_edge = assessment.edge
-    if source_edge is None:
-        source_edge = detect_corner_and_roi(calibration.background, calibration.stability).edge
-    hidden_source_estimate = estimate_hidden_shadow_source(
-        main_frames, timestamps, calibration, assessment.roi, source_edge, los_onset,
-    )
+    update(0.65, "Applying saved camera position mapping")
+    if position_calibration is not None:
+        mapping, reference, noise = position_calibration
+        tracker = PositionTracker(mapping, reference, noise)
+        samples = [{"frame_index": i, "timestamp_s": round(timestamp, 3), **tracker.update(frame)}
+                   for i, (frame, timestamp) in enumerate(zip(main_frames, timestamps, strict=True))]
+        hidden_source_estimate = {
+            "method": "saved_shadow_body_mapping_v1", "calibrated": True,
+            "status": "estimated" if any(s["position_norm"] for s in samples) else "unavailable",
+            "calibration_kind": "empirical camera/route/light mapping, not physical geometry reconstruction",
+            "calibration_id": mapping.get("calibration_id"),
+            "limitation": mapping["limitation"], "samples": samples,
+            "source_media_id": mapping.get("source_media_id"),
+            "fit_error_px": mapping["fit_error_px"],
+            "internal_check_error_px": mapping["internal_check_error_px"],
+        }
+    else:
+        hidden_source_estimate = {
+            "method": "saved_shadow_body_mapping_v1", "status": "calibration_required", "calibrated": False,
+            "limitation": "Save a separate camera calibration walk before estimating hidden body position.",
+            "reason": "No saved position mapping for this camera", "samples": [],
+        }
     # The uncalibrated source preview does not promote a refused night scene
     # into a validated warning or claim that a person has been detected.
     hidden_source_estimate["shadow_warning_eligible"] = state in {"possible_motion", "strong_motion", "early_warning"}

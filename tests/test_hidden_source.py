@@ -127,13 +127,19 @@ def test_source_preview_cannot_promote_a_refused_night_warning(tmp_path, monkeyp
     from umbra.synthetic import generate_synthetic_bundle
 
     bundle = generate_synthetic_bundle(tmp_path, seed=7, frames=48)
-    monkeypatch.setattr("umbra.pipeline.estimate_hidden_shadow_source", lambda *_args: {
-        "status": "estimated", "calibrated": False, "samples": [],
-    })
+    class PreviewTracker:
+        def __init__(self, *_args):
+            pass
+
+        def update(self, _frame):
+            return {"position_norm": [0.2, 0.4], "state": "estimated"}
+
+    monkeypatch.setattr("umbra.pipeline.PositionTracker", PreviewTracker)
     result = analyse_trial(
         calibration_path=bundle.calibration_path, main_path=bundle.main_path,
         ground_truth_path=None, track_length_m=None,
         scene={"latitude": 44.4268, "longitude": 26.1025, "recorded_at": "2026-06-21T00:00:00+00:00"},
+        position_calibration=({"limitation": "test fixture", "fit_error_px": 0, "internal_check_error_px": 0}, np.zeros((1, 1)), np.zeros((1, 1))),
     )
     assert result["hidden_source_estimate"]["status"] == "estimated"
     assert result["hidden_source_estimate"]["shadow_warning_eligible"] is False

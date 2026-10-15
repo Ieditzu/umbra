@@ -358,6 +358,34 @@ input {
 .camera:not(.active) {
   visibility: hidden;
 }
+.network-camera,
+.live-detection-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.live-detection-overlay { pointer-events: none; }
+.live-estimate-status {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  max-width: calc(100% - 20px);
+  padding: 5px 8px;
+  background: #07100bdd;
+  color: #b4d7bc;
+  font-size: 11px;
+}
+.live-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.live-controls select { width: auto; max-width: 180px; font-size: 11px; min-height: 31px; }
+.live-controls input { flex: 1; min-width: 180px; font-size: 12px; }
+.live-controls .button { min-height: 31px; font-size: 11px; padding: 5px 10px; }
+.live-setup-hint { color: #a2aaa5; font-size: 11px; }
+.camera-setup p { color: #a2aaa5; font-size: 11px; line-height: 1.6; }
+.camera-setup label { font-size: 11px; margin: 12px 0; }
+.camera-setup select { font-size: 12px; }
+.camera-setup > .button { margin-top: 8px; }
 .camera-placeholder {
   position: absolute;
   inset: 0;

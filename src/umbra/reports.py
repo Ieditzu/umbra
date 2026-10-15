@@ -110,7 +110,7 @@ def _hidden_source_frames(result: dict[str, Any]) -> dict[int, dict[str, Any]] |
     }
 
 
-def _draw_hidden_source_zone(frame: np.ndarray, sample: dict[str, Any]) -> None:
+def _draw_hidden_source_zone(frame: np.ndarray, sample: dict[str, Any], calibrated: bool = False) -> None:
     """Draw an explicitly uncalibrated zone, never a hidden-body reconstruction."""
     height, width = frame.shape[:2]
     x, y = sample["position_norm"]
@@ -124,7 +124,7 @@ def _draw_hidden_source_zone(frame: np.ndarray, sample: dict[str, Any]) -> None:
     cv2.circle(frame, centre, 5, (215, 255, 220), 1, cv2.LINE_AA)
     # Put the caption next to the dot so it cannot be mistaken for an observed
     # body box on the visible pavement.
-    caption = "estimated source"
+    caption = "estimated position" if calibrated else "estimated source"
     (label_width, _), _ = cv2.getTextSize(caption, cv2.FONT_HERSHEY_SIMPLEX, 0.43, 1)
     origin = (max(4, min(width - label_width - 4, centre[0] - label_width // 2)), max(15, centre[1] - axes[1] - 10))
     _label(frame, caption, origin, green)
@@ -601,11 +601,11 @@ def _scene_tuned_visualization(
                 _draw_live_box(visual, body_box, "anonymous body", (230, 142, 255))
             source = source_frames.get(index) if source_frames is not None and not body_marked and not body_box else None
             if source:
-                _draw_hidden_source_zone(visual, source)
+                _draw_hidden_source_zone(visual, source, bool(result.get("hidden_source_estimate", {}).get("calibrated")))
             elif source_frames is None and index in motion_frames and not body_marked and not body_box:
                 progress = motion_frames[index]
                 _draw_shadow_derived_overlay(visual, progress, result)
-            state = "BODY VISIBLE" if body_box else "BODY ENTRY MARK" if body_marked else "SOURCE ESTIMATE" if source else "SHADOW CUE" if shadow_seen else "WATCHING PAVEMENT"
+            state = "BODY VISIBLE" if body_box else "BODY ENTRY MARK" if body_marked else "POSITION ESTIMATE" if source else "SHADOW CUE" if shadow_seen else "WATCHING PAVEMENT"
             colour = (230, 142, 255) if body_marked else (112, 243, 196) if shadow_seen else (90, 221, 255)
             header = f"{state}  S {score * 100:02.0f}%" if shadow_seen else state
             (header_width, _), _ = cv2.getTextSize(header, cv2.FONT_HERSHEY_SIMPLEX, 0.36, 1)
@@ -728,7 +728,7 @@ def _analysis_visualization(
             if source:
                 shadow_box = tuple(source["shadow_box"])
                 shadow_seen = True
-            state = "BODY EVIDENCE" if body_seen else "SOURCE ESTIMATE" if source else "SHADOW CUE" if shadow_seen else "WATCHING PAVEMENT"
+            state = "BODY EVIDENCE" if body_seen else "POSITION ESTIMATE" if source else "SHADOW CUE" if shadow_seen else "WATCHING PAVEMENT"
             colour = (230, 142, 255) if body_seen else (112, 243, 196) if shadow_seen else (90, 221, 255)
             shadow_score = float(point.get("presence_probability", 0.0)) * 100
             header = f"{state}  S {shadow_score:02.0f}%"
@@ -741,7 +741,7 @@ def _analysis_visualization(
             if body_box:
                 _draw_live_box(visual, body_box, "anonymous body", (230, 142, 255))
             if source:
-                _draw_hidden_source_zone(visual, source)
+                _draw_hidden_source_zone(visual, source, bool(result.get("hidden_source_estimate", {}).get("calibrated")))
             elif source_frames is None and index in motion_frames and not body_seen and (
                 not isinstance(entry_time, (int, float)) or timestamp < float(entry_time)
             ):
@@ -750,7 +750,7 @@ def _analysis_visualization(
             if body_seen:
                 _label(visual, "partial body observed", (12, target_height - 31), (255, 182, 243))
             elif source:
-                _label(visual, "shadow source estimate, not confirmed person", (12, target_height - 31), (70, 235, 80))
+                _label(visual, "position estimate, not confirmed person", (12, target_height - 31), (70, 235, 80))
             elif shadow_seen:
                 label = "pavement shadow observed" if isinstance(entry_time, (int, float)) and timestamp >= entry_time else "shadow precedes body"
                 _label(visual, label, (12, target_height - 31), (196, 243, 112))
