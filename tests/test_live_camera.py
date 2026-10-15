@@ -142,3 +142,46 @@ def test_live_session_expiry_and_shutdown_release_camera_resources(tmp_path):
         manager.get("expired")
     assert camera.closed
     manager.close_all()
+
+
+def test_network_reader_keeps_only_the_latest_frame_and_rejects_stale_frames(monkeypatch):
+    from umbra.live import NetworkCamera
+
+    class Capture:
+        count = 0
+        released = False
+        def isOpened(self):
+            return True
+        def read(self):
+            self.count += 1
+            return (True, np.full((20, 30, 3), self.count, dtype=np.uint8)) if self.count <= 4 else (False, None)
+        def release(self):
+            self.released = True
+    capture = Capture()
+    monkeypatch.setattr("umbra.live.cv2.VideoCapture", lambda *_args: capture)
+    camera = NetworkCamera("rtsp://192.168.1.20/stream")
+    camera.thread.join(timeout=1)
+    frame, sequence = camera.frame()
+    assert sequence == 4 and np.all(frame == 4)
+    camera.latest = frame, time.monotonic() - 2, sequence
+    with pytest.raises(ValueError, match="fresh frame"):
+        camera.frame()
+    camera.close()
+    assert capture.released
+
+
+def test_failed_cctv_connection_is_released_without_echoing_credentials(monkeypatch):
+    from umbra.live import NetworkCamera
+
+    class Capture:
+        released = False
+        def isOpened(self):
+            return False
+        def release(self):
+            self.released = True
+    capture = Capture()
+    monkeypatch.setattr("umbra.live.cv2.VideoCapture", lambda *_args: capture)
+    with pytest.raises(ValueError) as failure:
+        NetworkCamera("rtsp://user:secret-password@192.168.1.20/stream")
+    assert "secret-password" not in str(failure.value)
+    assert capture.released

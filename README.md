@@ -67,7 +67,9 @@ The dashboard then enables **Pretrain temporal model**; the same route is availa
 
 Analysis shows its current stage, completion percentage and elapsed time. Refreshing or reopening the research page resumes watching the saved job and opens the result when it is ready; the backend must keep running. Temporary connection failures are retried without starting another analysis. **Dismiss** stops watching, not the server job; its completed result remains in the trial's saved history.
 
-See [the field protocol](docs/field-protocol.md). In daylight, the sun must throw the walker's shadow **onto the pavement the main camera sees**. At night, a streetlamp must light that pavement enough to cast a visible moving shadow. Film an empty calibration under the same lamp and keep the camera fixed. Mark the lit ground patch, not the lamp fixture. The live camera remains a clean preview; night shadow tracking currently applies to recorded trials.
+See [the field protocol](docs/field-protocol.md). In daylight, the sun must throw the walker's shadow **onto the pavement the main camera sees**. At night, a streetlamp must light that pavement enough to cast a visible moving shadow. Film an empty calibration under the same lamp and keep the camera fixed. Mark the lit ground patch, not the lamp fixture.
+
+For experimental live position estimates, save **Camera setup → Calibrate from walk** using a prior visible body/shadow walk, then start browser-camera detection or connect a LAN RTSP CCTV camera. The saved mapping is specific to that camera, light and route; it does not require future frames during live deployment. See [live camera calibration](docs/live-camera-calibration.md) for setup, refusal checks and validation limits.
 
 ## RoSEF paperwork and demonstration
 
@@ -81,7 +83,7 @@ Reproduce the documented software checks with:
 uv run python scripts/validate_synthetic.py --data-dir ../umbra-data/submission-fixtures --output docs/competition/software-results.json
 ```
 
-The estimator is heuristic. Selecting a phone shadow area tunes the signal to that recording; it does not train a general neural model or establish performance on a new trial. Confidence scores are not calibrated probabilities. Position is an image-derived proxy. The recorded Corner trial can show a green dot and uncertainty ellipse where the observed ground-shadow axis projects behind a verified wall edge. This is an uncalibrated near-corner source zone: distance along that hidden ray is not measured. The dot uses current/past shadow evidence, disappears on missing evidence or visible body entry, and does not require a future body appearance or a drone clip. It does not confirm a person, recover pose, or override a refused night shadow warning. The live camera currently remains a clean preview. The optional neural checkpoint is advisory. No held-out field performance has been established.
+The estimator is heuristic. Selecting a phone shadow area tunes the signal to that recording; it does not train a general neural model or establish performance on a new trial. Confidence scores are not calibrated probabilities. Position is an image-derived estimate. New recorded/live body-centre dots require a saved camera mapping from a prior visible calibration walk; the old fixed-depth shadow-ray marker is no longer used in new analyses. A replay of that calibration walk is not independent validation. Position estimates do not confirm a person, recover pose or physical lamp height, or override a refused night shadow warning. The optional neural checkpoint is advisory. No held-out field performance has been established.
 
 ## Data and privacy
 

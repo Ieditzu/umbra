@@ -169,7 +169,7 @@ class UmbraService:
         try:
             mapping_record, reference, noise = self.load_camera_position(scene["id"])
             if mapping_record["calibration_media_id"] == calibration["id"]:
-                mapping = {**mapping_record["model"], "calibration_id": mapping_record["id"]}
+                mapping = {**mapping_record["model"], "calibration_id": mapping_record["id"], "calibration_media_id": mapping_record["calibration_media_id"]}
                 saved_position = mapping, reference, noise
         except ValueError:
             pass

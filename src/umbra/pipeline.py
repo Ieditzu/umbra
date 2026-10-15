@@ -516,6 +516,7 @@ def analyse_trial(
             "calibration_id": mapping.get("calibration_id"),
             "limitation": mapping["limitation"], "samples": samples,
             "source_media_id": mapping.get("source_media_id"),
+            "mapping": mapping,
             "fit_error_px": mapping["fit_error_px"],
             "internal_check_error_px": mapping["internal_check_error_px"],
         }

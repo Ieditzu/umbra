@@ -86,23 +86,26 @@ Processing
    If the shadow travels clearly before the body enters view, show a
    schematic relative-motion estimate in the corner-trial video. A
    nearby static wall edge can be estimated from the empty calibration;
-   In the recorded Corner trial, fit the observed elongated ground-shadow
-   axis and back-project it across a verified static wall edge. Show a
-   green dot and uncertainty ellipse in a coarse near-corner source zone
-   on that ray. Distance behind the wall is not measured: this is an
-   uncalibrated source-zone proxy, not a recovered person's position.
-   Use only current/past shadow observations, require consecutive support,
-   allow reversals, and remove the dot on missing evidence or visible body
-   entry. Do not normalize movement using the recording's final body entry
-   or animate a gait. No reference/drone footage is needed for the dot.
-   Night-time source-zone previews do not override the separate reviewed
-   streetlamp shadow-warning gate or turn a refusal into a confirmed alarm.
-   The live camera should remain a clean preview
-   until a shadow-to-hidden-path mapping is calibrated and checked. Do
-   not draw a placeholder person or a raw dark-pixel rectangle over the
-   live feed. Shadow alone does not support reliable limb pose or body
-   shape. Keep the camera fixed after calibration. No hidden-route points
-   are required from the user.
+   Camera setup can use a prior visible walk to pair anonymous body
+   centres with complete, unclipped ground-shadow tips. Save an empirical
+   one-dimensional camera/route/light mapping after checking enough motion
+   and internal consistency. It estimates on-screen body height, not lamp
+   or person height in metres. No hidden-route clicks or drone video are
+   required. Calibration may inspect its complete source recording, but
+   deployment uses only that saved mapping and current/past incoming frames.
+   Both recorded Corner trials and live browser/LAN RTSP cameras use the
+   same causal tracker. Show a green estimated-body-centre dot with an
+   error/extrapolation ring behind the wall; remove it on missing/clipped
+   shadow evidence, camera mismatch, excessive extrapolation, or body entry.
+   New analyses without a saved mapping withhold the previous fixed-depth
+   shadow-ray dot. Never normalize the live dot by a future body entry or
+   animate a gait. A replay of the calibration walk is flagged as such,
+   not counted as independent live validation. The mapping assumes the
+   same fixed view, dominant light, route and roughly similar body height;
+   internal residuals are not calibrated field-error bounds. Night position
+   previews do not override the separate reviewed-streetlamp warning gate.
+   Live sessions are bounded, stop on disconnect and expire when unused.
+   Shadow alone does not support reliable identity, limb pose or body shape.
 5. Gate on calibration quality, shadow strength, and temporal
    coherence. Refuse when the scene or signal is unusable.
    Use the scene's recording date, time, and coordinates to calculate
