@@ -81,7 +81,7 @@ Reproduce the documented software checks with:
 uv run python scripts/validate_synthetic.py --data-dir ../umbra-data/submission-fixtures --output docs/competition/software-results.json
 ```
 
-The estimator is heuristic. Selecting a phone shadow area tunes the signal to that recording; it does not train a general neural model or establish performance on a new trial. Confidence scores are not calibrated probabilities. Position is an image-derived proxy. The recorded Corner trial visualization uses a green dot on an automatically inferred building-side route, with position driven by measured shadow movement. The live camera currently shows a clean preview. The recorded dot is an estimate, not a person detected through the wall. The optional neural checkpoint is advisory. No held-out field performance has been established.
+The estimator is heuristic. Selecting a phone shadow area tunes the signal to that recording; it does not train a general neural model or establish performance on a new trial. Confidence scores are not calibrated probabilities. Position is an image-derived proxy. The recorded Corner trial can show a green dot and uncertainty ellipse where the observed ground-shadow axis projects behind a verified wall edge. This is an uncalibrated near-corner source zone: distance along that hidden ray is not measured. The dot uses current/past shadow evidence, disappears on missing evidence or visible body entry, and does not require a future body appearance or a drone clip. It does not confirm a person, recover pose, or override a refused night shadow warning. The live camera currently remains a clean preview. The optional neural checkpoint is advisory. No held-out field performance has been established.
 
 ## Data and privacy
 

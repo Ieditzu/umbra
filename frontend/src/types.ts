@@ -106,6 +106,12 @@ export interface AnalysisResult {
   los_onset_s?: number | null;
   los_detected?: boolean;
   entry_source?: string;
+  hidden_source_estimate?: {
+    status: "estimated" | "unavailable";
+    calibrated: boolean;
+    limitation: string;
+    reason?: string;
+  } | null;
   reasons: string[];
   sun?: SunPosition;
   illumination?: { source: "sun" | "streetlamp" | "unknown"; selected_pool_brightness: number | null };

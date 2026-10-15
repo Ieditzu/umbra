@@ -11,6 +11,7 @@ import cv2
 import numpy as np
 
 from .body import night_body_tracks
+from .hidden import estimate_hidden_shadow_source
 from .sun import sun_metadata
 from .video import estimate_audio_offset, read_frames
 from .vision import (
@@ -396,6 +397,7 @@ def analyse_trial(
             "los_onset_s": None,
             "los_detected": False,
             "hidden_motion": None,
+            "hidden_source_estimate": None,
             "reasons": assessment.reasons,
             "confidence_factors": {},
             "model": {"name": "calibration_temporal_evidence", "version": "0.2", "trained": False},
@@ -500,6 +502,16 @@ def analyse_trial(
         ]
     elif streetlamp_mode and state == "no_coverage":
         hidden_motion = None
+    update(0.65, "Estimating a coarse hidden shadow-source zone")
+    source_edge = assessment.edge
+    if source_edge is None:
+        source_edge = detect_corner_and_roi(calibration.background, calibration.stability).edge
+    hidden_source_estimate = estimate_hidden_shadow_source(
+        main_frames, timestamps, calibration, assessment.roi, source_edge, los_onset,
+    )
+    # The uncalibrated source preview does not promote a refused night scene
+    # into a validated warning or claim that a person has been detected.
+    hidden_source_estimate["shadow_warning_eligible"] = state in {"possible_motion", "strong_motion", "early_warning"}
     direction, speed_class, velocity = _speed_and_direction(positions, timestamps)
     if tuned or state in {"no_coverage", "no_reliable_signal"}:
         direction, speed_class, velocity = "unknown", "unknown", None
@@ -573,6 +585,7 @@ def analyse_trial(
         "los_onset_s": round(los_onset, 3) if los_onset is not None else None,
         "los_detected": los_present,
         "hidden_motion": hidden_motion,
+        "hidden_source_estimate": hidden_source_estimate,
         "entry_source": entry_source,
         "body_detection": body_detection,
         "model": {

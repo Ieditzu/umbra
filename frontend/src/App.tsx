@@ -98,6 +98,7 @@ function ResultPanel({ result, title }: { result: AnalysisResult; title: string 
         <div className="review-clip"><h2>Corner trial</h2><video key={`corner-${result.analysis_id}`} controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/visualization`} type="video/mp4" /></video><a className="button secondary" href={`${API}/analyses/${result.analysis_id}/visualization`} download={`corner-trial-${result.analysis_id}.mp4`}>Download video</a></div>
         {result.visualizations?.hidden_path_available && <div className="review-clip"><h2>Hidden path</h2><video key={`hidden-${result.analysis_id}`} controls preload="metadata" className="analysis-video"><source src={`${API}/analyses/${result.analysis_id}/hidden-path-visualization`} type="video/mp4" /></video><a className="button secondary" href={`${API}/analyses/${result.analysis_id}/hidden-path-visualization`} download={`hidden-path-${result.analysis_id}.mp4`}>Download video</a></div>}
       </div>}
+      {result.hidden_source_estimate?.status === "estimated" && <p className="source-estimate-note">Green dot: coarse shadow-source estimate, not confirmed person detection.</p>}
       <div className="review-downloads"><a className="button ghost" href={`${API}/analyses/${result.analysis_id}/bundle`}>Download files</a><a className="button ghost" href={predictionsUrl}>Predictions CSV</a><a className="button ghost" href={reportUrl} target="_blank" rel="noreferrer">Report</a></div>
     </section>
   );

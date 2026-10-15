@@ -420,6 +420,12 @@ input {
   font-size: 12px;
   color: #c6c6c6;
 }
+.source-estimate-note {
+  margin: 16px 0;
+  color: #a2b8aa;
+  font-size: 12px;
+  line-height: 1.5;
+}
 .analysis-activity {
   margin-bottom: 18px;
   padding: 14px 16px;

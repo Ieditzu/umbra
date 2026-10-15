@@ -100,6 +100,36 @@ def _recorded_body_boxes(result: dict[str, Any]) -> dict[int, tuple[int, int, in
     }
 
 
+def _hidden_source_frames(result: dict[str, Any]) -> dict[int, dict[str, Any]] | None:
+    estimate = result.get("hidden_source_estimate")
+    if not isinstance(estimate, dict):
+        return None
+    return {
+        int(sample["frame_index"]): sample
+        for sample in estimate.get("samples", []) if sample.get("position_norm") is not None
+    }
+
+
+def _draw_hidden_source_zone(frame: np.ndarray, sample: dict[str, Any]) -> None:
+    """Draw an explicitly uncalibrated zone, never a hidden-body reconstruction."""
+    height, width = frame.shape[:2]
+    x, y = sample["position_norm"]
+    centre = (round(x * width), round(y * height))
+    along, across = sample["uncertainty_norm"]
+    axes = (max(8, round(along * width)), max(6, round(across * height)))
+    green = (70, 235, 80)
+    cv2.ellipse(frame, centre, axes, sample["angle_deg"], 0, 360, (55, 150, 65), 1, cv2.LINE_AA)
+    cv2.circle(frame, centre, 7, (10, 30, 15), -1, cv2.LINE_AA)
+    cv2.circle(frame, centre, 4, green, -1, cv2.LINE_AA)
+    cv2.circle(frame, centre, 5, (215, 255, 220), 1, cv2.LINE_AA)
+    # Put the caption next to the dot so it cannot be mistaken for an observed
+    # body box on the visible pavement.
+    caption = "estimated source"
+    (label_width, _), _ = cv2.getTextSize(caption, cv2.FONT_HERSHEY_SIMPLEX, 0.43, 1)
+    origin = (max(4, min(width - label_width - 4, centre[0] - label_width // 2)), max(15, centre[1] - axes[1] - 10))
+    _label(frame, caption, origin, green)
+
+
 def _draw_hidden_motion(frame: np.ndarray, progress: float) -> None:
     """A schematic of relative shadow travel, deliberately not placed on the hidden ground."""
 
@@ -540,6 +570,7 @@ def _scene_tuned_visualization(
     entry_time = result.get("los_onset_s")
     motion_frames = _hidden_motion_frames(result)
     recorded_bodies = _recorded_body_boxes(result)
+    source_frames = _hidden_source_frames(result)
     try:
         for index, (frame, timestamp, cue) in enumerate(zip(frames, timestamps, signal, strict=True)):
             visual = frame.copy()
@@ -568,10 +599,13 @@ def _scene_tuned_visualization(
                 _draw_live_box(visual, (x + sx, y + sy, sw, sh), "shadow cue", (112, 243, 196))
             if body_box:
                 _draw_live_box(visual, body_box, "anonymous body", (230, 142, 255))
-            if index in motion_frames and not body_marked and not body_box:
+            source = source_frames.get(index) if source_frames is not None and not body_marked and not body_box else None
+            if source:
+                _draw_hidden_source_zone(visual, source)
+            elif source_frames is None and index in motion_frames and not body_marked and not body_box:
                 progress = motion_frames[index]
                 _draw_shadow_derived_overlay(visual, progress, result)
-            state = "BODY VISIBLE" if body_box else "BODY ENTRY MARK" if body_marked else "SHADOW CUE" if shadow_seen else "WATCHING PAVEMENT"
+            state = "BODY VISIBLE" if body_box else "BODY ENTRY MARK" if body_marked else "SOURCE ESTIMATE" if source else "SHADOW CUE" if shadow_seen else "WATCHING PAVEMENT"
             colour = (230, 142, 255) if body_marked else (112, 243, 196) if shadow_seen else (90, 221, 255)
             header = f"{state}  S {score * 100:02.0f}%" if shadow_seen else state
             (header_width, _), _ = cv2.getTextSize(header, cv2.FONT_HERSHEY_SIMPLEX, 0.36, 1)
@@ -636,6 +670,7 @@ def _analysis_visualization(
     motion_frames = _hidden_motion_frames(result)
     entry_time = result.get("los_onset_s")
     recorded_bodies = _recorded_body_boxes(result)
+    source_frames = _hidden_source_frames(result)
     try:
         for index, (frame, timestamp) in enumerate(zip(main_frames, timestamps, strict=True)):
             point = timeline[min(index, len(timeline) - 1)] if timeline else {}
@@ -689,7 +724,11 @@ def _analysis_visualization(
                 body_box = body_candidate if body_candidate_frames >= 2 else None
             shadow_seen = shadow_box is not None
             body_seen = body_box is not None
-            state = "BODY EVIDENCE" if body_seen else "SHADOW CUE" if shadow_seen else "WATCHING PAVEMENT"
+            source = source_frames.get(index) if source_frames is not None and not body_seen else None
+            if source:
+                shadow_box = tuple(source["shadow_box"])
+                shadow_seen = True
+            state = "BODY EVIDENCE" if body_seen else "SOURCE ESTIMATE" if source else "SHADOW CUE" if shadow_seen else "WATCHING PAVEMENT"
             colour = (230, 142, 255) if body_seen else (112, 243, 196) if shadow_seen else (90, 221, 255)
             shadow_score = float(point.get("presence_probability", 0.0)) * 100
             header = f"{state}  S {shadow_score:02.0f}%"
@@ -701,13 +740,17 @@ def _analysis_visualization(
                 _draw_live_box(visual, shadow_box, "shadow cue", (190, 72, 245))
             if body_box:
                 _draw_live_box(visual, body_box, "anonymous body", (230, 142, 255))
-            if index in motion_frames and not body_seen and (
+            if source:
+                _draw_hidden_source_zone(visual, source)
+            elif source_frames is None and index in motion_frames and not body_seen and (
                 not isinstance(entry_time, (int, float)) or timestamp < float(entry_time)
             ):
                 progress = motion_frames[index]
                 _draw_shadow_derived_overlay(visual, progress, result)
             if body_seen:
                 _label(visual, "partial body observed", (12, target_height - 31), (255, 182, 243))
+            elif source:
+                _label(visual, "shadow source estimate, not confirmed person", (12, target_height - 31), (70, 235, 80))
             elif shadow_seen:
                 label = "pavement shadow observed" if isinstance(entry_time, (int, float)) and timestamp >= entry_time else "shadow precedes body"
                 _label(visual, label, (12, target_height - 31), (196, 243, 112))
