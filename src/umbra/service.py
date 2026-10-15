@@ -10,14 +10,19 @@ from pathlib import Path
 from shutil import rmtree
 from typing import Any
 
+import cv2
+import numpy as np
+
 from . import __version__
 from .config import Settings
 from .ml import ML_AVAILABLE, predict_checkpoint, train_synthetic_model
 from .pipeline import analyse_trial
+from .position import calibrate_position
 from .reports import write_artifacts
 from .store import Store
 from .synthetic import SyntheticBundle, generate_synthetic_bundle
-from .video import inspect_video
+from .video import inspect_video, read_frames
+from .vision import build_calibration_model, detect_corner_and_roi
 
 Progress = Callable[[float, str], None]
 
@@ -26,6 +31,58 @@ class UmbraService:
     def __init__(self, settings: Settings, store: Store) -> None:
         self.settings = settings
         self.store = store
+
+    def calibrate_camera_position(self, scene_id: str, trial_id: str) -> dict[str, Any]:
+        trial = self.store.get_trial(trial_id)
+        if trial is None or trial["scene_id"] != scene_id:
+            raise ValueError("Choose a calibration walk belonging to this scene")
+        empty = self._media(trial["calibration_media_id"], "calibration")
+        main = self._media(trial["main_media_id"], "main")
+        empty_frames, _, _ = read_frames(Path(empty["path"]), max_frames=180)
+        calibration = build_calibration_model(empty_frames)
+        assessment = detect_corner_and_roi(calibration.background, calibration.stability)
+        if assessment.edge is None or assessment.roi is None:
+            raise ValueError("A visible wall edge and pavement are required for camera setup")
+        frames, times, _ = read_frames(Path(main["path"]))
+        h, w = calibration.background.shape
+        frames = [cv2.resize(frame, (w, h)) for frame in frames]
+        model, reference, noise = calibrate_position(frames, times, calibration, assessment.edge, assessment.roi)
+        model["source_trial_id"] = trial_id
+        model["source_media_id"] = main["id"]
+        model["calibration_uses_complete_recording"] = True
+        model["deployment_uses_future_frames"] = False
+        previous = self.store.get_position_calibration(scene_id)
+        calibration_id = str(uuid.uuid4())
+        directory = self.settings.model_dir / "cameras"
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f"{calibration_id}.npz"
+        np.savez_compressed(path, reference=reference, noise=noise)
+        try:
+            record = self.store.save_position_calibration(scene_id, calibration_id, empty["id"], main["id"], model, str(path))
+        except Exception:
+            path.unlink(missing_ok=True)
+            raise
+        if previous:
+            self._remove_position_reference(previous)
+        return record
+
+    def _remove_position_reference(self, record: dict[str, Any]) -> None:
+        path = Path(record["reference_path"])
+        if self._within(path, self.settings.model_dir / "cameras"):
+            path.unlink(missing_ok=True)
+
+    def load_camera_position(self, scene_id: str) -> tuple[dict[str, Any], np.ndarray, np.ndarray]:
+        record = self.store.get_position_calibration(scene_id)
+        if record is None:
+            raise ValueError("Save a camera position calibration before starting live detection")
+        latest_empty = [m for m in self.store.list_media(scene_id) if m["role"] == "calibration"]
+        if not latest_empty or latest_empty[-1]["id"] != record["calibration_media_id"]:
+            raise ValueError("The empty camera view was replaced. Calibrate this camera again.")
+        path = Path(record["reference_path"])
+        if not self._within(path, self.settings.model_dir / "cameras") or not path.is_file():
+            raise ValueError("The saved camera reference is missing. Calibrate this camera again.")
+        with np.load(path, allow_pickle=False) as data:
+            return record, data["reference"].copy(), data["noise"].copy()
 
     def _media(self, media_id: str, expected_role: str | None = None) -> dict[str, Any]:
         media = self.store.get_media(media_id)
@@ -182,6 +239,9 @@ class UmbraService:
         deleted = self.store.delete_scene(scene_id)
         if deleted is None:
             return False
+
+        if deleted.get("position_reference_path"):
+            self._remove_position_reference({"reference_path": deleted["position_reference_path"]})
 
         media_root = self.settings.media_dir.resolve()
         synthetic_root = self.settings.synthetic_dir.resolve()

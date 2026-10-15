@@ -88,6 +88,15 @@ class Store:
                     region_json TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS position_calibrations (
+                    scene_id TEXT PRIMARY KEY REFERENCES scenes(id) ON DELETE CASCADE,
+                    id TEXT NOT NULL UNIQUE,
+                    calibration_media_id TEXT NOT NULL REFERENCES media(id),
+                    main_media_id TEXT NOT NULL REFERENCES media(id),
+                    payload_json TEXT NOT NULL,
+                    reference_path TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
                 """
             )
 
@@ -144,6 +153,7 @@ class Store:
             media_rows = connection.execute(
                 "SELECT path FROM media WHERE scene_id = ?", (scene_id,)
             ).fetchall()
+            position = connection.execute("SELECT reference_path FROM position_calibrations WHERE scene_id = ?", (scene_id,)).fetchone()
             analysis_rows = connection.execute(
                 """
                 SELECT analyses.id, analyses.path
@@ -160,13 +170,42 @@ class Store:
             )
             connection.execute("DELETE FROM trials WHERE scene_id = ?", (scene_id,))
             connection.execute("DELETE FROM scene_shadow_regions WHERE scene_id = ?", (scene_id,))
+            connection.execute("DELETE FROM position_calibrations WHERE scene_id = ?", (scene_id,))
             connection.execute("DELETE FROM media WHERE scene_id = ?", (scene_id,))
             connection.execute("DELETE FROM scenes WHERE id = ?", (scene_id,))
         return {
             "scene": self._row(scene),
             "media_paths": [str(row["path"]) for row in media_rows],
             "analyses": [dict(row) for row in analysis_rows],
+            "position_reference_path": str(position["reference_path"]) if position else None,
         }
+
+    def get_position_calibration(self, scene_id: str) -> dict[str, Any] | None:
+        with self._connection() as connection:
+            row = connection.execute("SELECT * FROM position_calibrations WHERE scene_id = ?", (scene_id,)).fetchone()
+        if row is None:
+            return None
+        result = dict(row)
+        result["model"] = json.loads(result.pop("payload_json"))
+        return result
+
+    def save_position_calibration(self, scene_id: str, calibration_id: str, calibration_media_id: str,
+                                  main_media_id: str, model: dict[str, Any], reference_path: str) -> dict[str, Any]:
+        with self._connection() as connection:
+            connection.execute(
+                """INSERT INTO position_calibrations VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(scene_id) DO UPDATE SET id=excluded.id,
+                calibration_media_id=excluded.calibration_media_id, main_media_id=excluded.main_media_id,
+                payload_json=excluded.payload_json, reference_path=excluded.reference_path, updated_at=excluded.updated_at""",
+                (scene_id, calibration_id, calibration_media_id, main_media_id, json.dumps(model), reference_path, utc_now()),
+            )
+        return self.get_position_calibration(scene_id)
+
+    def delete_position_calibration(self, scene_id: str) -> dict[str, Any] | None:
+        record = self.get_position_calibration(scene_id)
+        with self._connection() as connection:
+            connection.execute("DELETE FROM position_calibrations WHERE scene_id = ?", (scene_id,))
+        return record
 
     def create_media(self, payload: dict[str, Any]) -> dict[str, Any]:
         record = {
