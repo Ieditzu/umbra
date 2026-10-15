@@ -65,6 +65,8 @@ The dashboard then enables **Pretrain temporal model**; the same route is availa
 5. If the automatic shadow area misses the pavement, open **Manual review → Phone shot**, pause on the empty pavement and click two corners around the place where the shadow will arrive. Mark the first visible body frame. Save, then rerun analysis. The first 1.8 seconds of the phone clip must still be empty; Umbra adapts its background to those frames. The **Drone shot** tab is for independent route labels.
 6. Read lead time, shadow onset, line-of-sight onset, and the refusal reasons. Empty trials and no-coverage results count.
 
+Analysis shows its current stage, completion percentage and elapsed time. Refreshing or reopening the research page resumes watching the saved job and opens the result when it is ready; the backend must keep running. Temporary connection failures are retried without starting another analysis. **Dismiss** stops watching, not the server job; its completed result remains in the trial's saved history.
+
 See [the field protocol](docs/field-protocol.md). In daylight, the sun must throw the walker's shadow **onto the pavement the main camera sees**. At night, a streetlamp must light that pavement enough to cast a visible moving shadow. Film an empty calibration under the same lamp and keep the camera fixed. Mark the lit ground patch, not the lamp fixture. The live camera remains a clean preview; night shadow tracking currently applies to recorded trials.
 
 ## RoSEF paperwork and demonstration
@@ -94,5 +96,7 @@ make test
 make lint
 make build
 ```
+
+Frontend job-monitoring regression tests use Node 22.6 or newer: `npm --prefix frontend test`.
 
 Related work: [Bouman et al., “Turning Corners into Cameras” (ICCV 2017)](https://openaccess.thecvf.com/content_iccv_2017/html/Bouman_Turning_Corners_Into_ICCV_2017_paper.html). Umbra does not implement that inverse problem. Synthetic results validate the software pipeline, not outdoor lead-time performance.

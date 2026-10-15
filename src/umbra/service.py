@@ -145,6 +145,7 @@ class UmbraService:
         }
         analysis_id = str(uuid.uuid4())
         result["analysis_id"] = analysis_id
+        progress(0.93, "Rendering annotated videos")
         artifact_paths = write_artifacts(
             run_directory=self.settings.run_dir,
             report_directory=self.settings.report_dir,

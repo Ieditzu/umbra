@@ -1,5 +1,7 @@
 import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { API, request } from "./api";
+import { ACTIVE_ANALYSIS_KEY, elapsedAnalysisTime, monitorAnalysis, readActiveAnalysis } from "./analysis-job";
+import type { ActiveAnalysis, AnalysisProgress } from "./analysis-job";
 import { Camera, ScanLine, ArrowUpRight, Aperture, Plus, Check } from "lucide-react";
 import type {
   AnalysisResult,
@@ -32,8 +34,6 @@ const stateLabel: Record<State, string> = {
   entered_view: "Entered view"
 };
 
-const sleep = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
-
 type SceneForm = {
   name: string;
   notes: string;
@@ -62,6 +62,24 @@ function newSceneForm(): SceneForm {
 
 function StatePill({ state }: { state: State }) {
   return <span className={`state-pill ${state}`}>{stateLabel[state]}</span>;
+}
+
+function AnalysisActivity({ active, progress, onDismiss }: {
+  active: ActiveAnalysis;
+  progress: AnalysisProgress | null;
+  onDismiss: () => void;
+}) {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const percentage = Math.round((progress?.progress ?? 0) * 100);
+  return <section className="analysis-activity" aria-label={`Analysis progress for ${active.title}`}>
+    <div className="analysis-activity-heading"><strong>Analyzing {active.title}</strong><span>{elapsedAnalysisTime(active.startedAt, now)}</span><button className="text-button" onClick={onDismiss} title="Stop watching without cancelling the server job">Dismiss</button></div>
+    <div className="analysis-activity-status" role="status"><span className="spinner" aria-hidden="true" />{progress?.message ?? "Finding analysis…"}<span>{percentage}%</span></div>
+    <progress max={100} value={percentage} aria-label="Analysis completion" />
+  </section>;
 }
 
 function ResultPanel({ result, title }: { result: AnalysisResult; title: string }) {
@@ -327,7 +345,13 @@ export default function App() {
   const [reviewTitle, setReviewTitle] = useState("");
   const [screen, setScreen] = useState<"camera" | "review">("camera");
   const [notice, setNotice] = useState<string>("");
-  const [busy, setBusy] = useState(false);
+  const [working, setBusy] = useState(false);
+  const [activeAnalysis, setActiveAnalysis] = useState<ActiveAnalysis | null>(() => {
+    try { return readActiveAnalysis(window.localStorage); } catch { return null; }
+  });
+  const [analysisProgress, setAnalysisProgress] = useState<AnalysisProgress | null>(null);
+  const [scenesReady, setScenesReady] = useState(false);
+  const busy = working || activeAnalysis !== null;
   const [form, setForm] = useState<SceneForm>(newSceneForm);
   const [locationStatus, setLocationStatus] = useState("");
   const [trialName, setTrialName] = useState("Trial 1");
@@ -395,8 +419,9 @@ export default function App() {
     if (!detail && values.length) await loadScene(values[0].id);
   }
 
-  async function loadScene(sceneId: string) {
-    const next = await request<SceneDetail>(`/scenes/${sceneId}`);
+  async function loadScene(sceneId: string, signal?: AbortSignal) {
+    const next = await request<SceneDetail>(`/scenes/${sceneId}`, { signal });
+    if (signal?.aborted) return;
     const savedTime = savedFrozenClock(sceneId);
     setFrozenClock(savedTime ? { sceneId, value: savedTime } : null);
     setDetail(next);
@@ -470,8 +495,19 @@ export default function App() {
   }
 
   useEffect(() => {
-    void refreshScenes().catch((error: unknown) => setNotice(error instanceof Error ? error.message : "Could not load scenes"));
-    return () => streamRef.current?.getTracks().forEach((track) => track.stop());
+    const controller = new AbortController();
+    void request<Scene[]>("/scenes", { signal: controller.signal }).then(async (values) => {
+      if (controller.signal.aborted) return;
+      setScenes(values);
+      const initial = values.find((scene) => scene.id === activeAnalysis?.sceneId) ?? values[0];
+      if (initial) await loadScene(initial.id, controller.signal);
+    }).catch((error: unknown) => {
+      if (!controller.signal.aborted) setNotice(error instanceof Error ? error.message : "Could not load scenes");
+    }).finally(() => { if (!controller.signal.aborted) setScenesReady(true); });
+    return () => {
+      controller.abort();
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    };
   }, []);
 
   useEffect(() => {
@@ -480,28 +516,48 @@ export default function App() {
     }
   }, [screen, streaming]);
 
-  async function watchJob(jobId: string, resultTitle = "Analysis result") {
-    for (let attempt = 0; attempt < 180; attempt += 1) {
-      await sleep(900);
-      const next = await request<Job>(`/jobs/${jobId}`);
-      if (next.status === "succeeded") {
-        const analysisId = next.result?.analysis_id;
-        if (typeof analysisId === "string") {
-          const payload = await request<{ result: AnalysisResult }>(`/analyses/${analysisId}`);
-          const sceneId = next.result?.scene_id;
-          if (typeof sceneId === "string") await loadScene(sceneId);
-          setResult(payload.result);
-          setReviewTitle(resultTitle);
-          setScreen("review");
-        }
-        return;
-      }
-      if (next.status === "failed") {
-        throw new Error(next.error?.split("\n")[0] ?? "The background job failed");
-      }
-    }
-    throw new Error("The analysis took too long to finish. Check the local server log.");
+  function clearActiveAnalysis() {
+    try { window.localStorage.removeItem(ACTIVE_ANALYSIS_KEY); } catch { /* Storage may be disabled. */ }
+    setActiveAnalysis(null);
+    setAnalysisProgress(null);
   }
+
+  useEffect(() => {
+    if (!activeAnalysis || !scenesReady) return;
+    const controller = new AbortController();
+    setAnalysisProgress(null);
+    void monitorAnalysis({
+      jobId: activeAnalysis.jobId,
+      signal: controller.signal,
+      getJob: (id, signal) => request<Job>(`/jobs/${id}`, { signal }),
+      finish: async (job, signal) => {
+        const analysisId = job.result?.analysis_id;
+        if (typeof analysisId !== "string") throw new Error("The completed job has no saved result.");
+        const [payload, scene] = await Promise.all([
+          request<{ result: AnalysisResult }>(`/analyses/${analysisId}`, { signal }),
+          request<SceneDetail>(`/scenes/${activeAnalysis.sceneId}`, { signal })
+        ]);
+        return { result: payload.result, scene };
+      },
+      onProgress: setAnalysisProgress
+    }).then(({ result: completedResult, scene }) => {
+      if (controller.signal.aborted) return;
+      setDetail(scene);
+      const savedTime = savedFrozenClock(scene.scene.id);
+      setFrozenClock(savedTime ? { sceneId: scene.scene.id, value: savedTime } : null);
+      setManualTrialId(null);
+      setResult(completedResult);
+      setReviewTitle(activeAnalysis.title);
+      setScreen("review");
+      setNotice("");
+      clearActiveAnalysis();
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted) return;
+      setNotice(error instanceof Error ? error.message : "Could not retrieve analysis");
+      clearActiveAnalysis();
+    });
+    return () => controller.abort();
+  }, [activeAnalysis, scenesReady]);
 
   async function createScene(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -623,12 +679,14 @@ export default function App() {
   }
 
   async function analyse(trial: Trial) {
+    if (busy) return;
     setBusy(true);
     setNotice("");
     try {
       const next = await request<Job>(`/trials/${trial.id}/analysis`, { method: "POST", body: JSON.stringify({ include_baselines: true }) });
-      await watchJob(next.id, trial.name);
-      if (detail) setDetail(await request<SceneDetail>(`/scenes/${detail.scene.id}`));
+      const active = { jobId: next.id, sceneId: trial.scene_id, trialId: trial.id, title: trial.name, startedAt: Date.now() };
+      try { window.localStorage.setItem(ACTIVE_ANALYSIS_KEY, JSON.stringify(active)); } catch { /* Monitoring still works without storage. */ }
+      setActiveAnalysis(active);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not analyse trial");
     } finally {
@@ -656,12 +714,12 @@ export default function App() {
         <div className="research-brand-group"><a className="brand" href="/research.html" aria-label="Umbra research home"><span className="brand-mark">◒</span><span>umbra<span className="brand-period">.</span></span></a><span className="research-brand-divider"/><span className="research-brand-label">Research studio</span></div>
         {screen === "review" ? <button className="button ghost review-tab" onClick={() => { setScreen("camera"); setResult(null); }}>← Back to camera <span aria-hidden="true">×</span></button> : <div className="scene-switcher">
           <label htmlFor="scene-select">Scene</label>
-          <select id="scene-select" value={detail?.scene.id ?? ""} onChange={(event) => event.target.value && void loadScene(event.target.value).catch((error: Error) => setNotice(error.message))}>
+          <select id="scene-select" disabled={busy} value={detail?.scene.id ?? ""} onChange={(event) => event.target.value && void loadScene(event.target.value).catch((error: Error) => setNotice(error.message))}>
             {!detail && <option value="">Choose scene</option>}
             {scenes.map((scene) => <option key={scene.id} value={scene.id}>{scene.name}</option>)}
           </select>
           {detail && <button className="icon-button scene-delete-button" title="Delete scene" aria-label="Delete scene" disabled={busy} onClick={() => void deleteScene(detail.scene)}>×</button>}
-          <button className="button secondary" onClick={() => { if (!showNewScene) fillBrowserMetadata(); setShowNewScene((value) => !value); }}>{showNewScene ? "Cancel" : "New scene"}</button>
+          <button className="button secondary" disabled={busy} onClick={() => { if (!showNewScene) fillBrowserMetadata(); setShowNewScene((value) => !value); }}>{showNewScene ? "Cancel" : "New scene"}</button>
         </div>}
       </header>
 
@@ -681,12 +739,16 @@ export default function App() {
           </div>
           <div className="workspace-heading"><h2><Camera size={16} strokeWidth={1.5} />Live camera</h2><span className={streaming ? "camera-status on" : "camera-status"}>{streaming ? "Live" : "Off"}</span></div>
           {sunPosition?.status === "estimated" && <p className={sunPosition.above_horizon ? "solar-reading" : "solar-reading below-horizon"}>{sunPosition.above_horizon ? `Sun ${sunPosition.elevation_deg}° high · bearing ${sunPosition.azimuth_deg}°` : "Sun below horizon · use a streetlamp-lit shadow area for recorded trials"}</p>}
+          {activeAnalysis && <AnalysisActivity active={activeAnalysis} progress={analysisProgress} onDismiss={() => {
+            clearActiveAnalysis();
+            setNotice("Stopped watching. The analysis continues on the server; check this trial’s latest result when it finishes.");
+          }} />}
           <div className="camera-stage main-camera">
             <video ref={videoRef} autoPlay muted playsInline className={streaming ? "camera active" : "camera"} />
             {!streaming && <div className="camera-placeholder"><div className="camera-aperture"><Aperture size={47} strokeWidth={.8} /></div><strong>Your perspective starts here.</strong><p>Position the camera so the corner and its pavement are in view.</p><button className="button primary" disabled={busy} onClick={() => void startCamera()}>Start camera <ArrowUpRight size={15} /></button><span className="camera-local-note">Camera access stays in this browser.</span></div>}
           </div>
           {streaming && <button className="button ghost camera-stop" onClick={stopCamera}>Stop camera</button>}
-          {busy && <div className="working-line"><span className="spinner" />Working…</div>}
+          {busy && !activeAnalysis && <div className="working-line"><span className="spinner" />Working…</div>}
           {manualTrialId && detail?.trials.find((trial) => trial.id === manualTrialId) && <ManualReview trial={detail.trials.find((trial) => trial.id === manualTrialId)!} busy={busy} onClose={() => setManualTrialId(null)} onNotice={setNotice} />}
         </section>
 
@@ -720,7 +782,7 @@ export default function App() {
                 const analyses = (detail.analyses ?? []).filter((analysis) => analysis.trial_id === trial.id).sort((a, b) => b.created_at.localeCompare(a.created_at));
                 return <article className="trial-card" key={trial.id}>
                   <div className="trial-card-head"><strong>{trial.name}</strong><button className="icon-button delete-icon" title="Delete trial" aria-label={`Delete ${trial.name}`} disabled={busy} onClick={() => void deleteTrial(trial)}>×</button></div>
-                  <div className="trial-card-actions"><button className="button secondary" disabled={busy} onClick={() => void analyse(trial)}>Analyze</button><button className="button ghost" disabled={busy} onClick={() => setManualTrialId(trial.id)}>{trial.ground_truth_media_id ? "Labels" : "Shadow area"}</button></div>
+                  <div className="trial-card-actions"><button className="button secondary" disabled={busy} onClick={() => void analyse(trial)}>{activeAnalysis?.trialId === trial.id ? "Analyzing…" : "Analyze"}</button><button className="button ghost" disabled={busy} onClick={() => setManualTrialId(trial.id)}>{trial.ground_truth_media_id ? "Labels" : "Shadow area"}</button></div>
                   {analyses.length > 0 && <div className="saved-result-row"><span>Latest · {new Date(analyses[0].created_at).toLocaleString()}</span><div><button className="button primary" disabled={busy} onClick={() => void reviewAnalysis(analyses[0].id, trial.name)}>Review result</button><button className="icon-button delete-icon" title="Delete latest result" aria-label="Delete latest result" disabled={busy} onClick={() => void deleteAnalysis(analyses[0].id, trial.name)}>×</button></div></div>}
                   {analyses.length > 1 && <details className="older-results"><summary>Older results ({analyses.length - 1})</summary>{analyses.slice(1).map((analysis) => <div className="saved-result-row" key={analysis.id}><span>{new Date(analysis.created_at).toLocaleString()}</span><div><button className="button secondary" disabled={busy} onClick={() => void reviewAnalysis(analysis.id, trial.name)}>Review</button><button className="icon-button delete-icon" title="Delete result" aria-label="Delete result" disabled={busy} onClick={() => void deleteAnalysis(analysis.id, trial.name)}>×</button></div></div>)}</details>}
                 </article>;
