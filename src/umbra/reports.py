@@ -89,6 +89,17 @@ def _hidden_motion_frames(result: dict[str, Any]) -> dict[int, float]:
     }
 
 
+def _recorded_body_boxes(result: dict[str, Any]) -> dict[int, tuple[int, int, int, int] | None] | None:
+    """Replay the detector's evidence exactly, including frames with no body."""
+    detection = result.get("body_detection")
+    if not isinstance(detection, dict):
+        return None
+    return {
+        int(sample["frame_index"]): tuple(sample["box"]) if sample.get("box") else None
+        for sample in detection.get("samples", [])
+    }
+
+
 def _draw_hidden_motion(frame: np.ndarray, progress: float) -> None:
     """A schematic of relative shadow travel, deliberately not placed on the hidden ground."""
 
@@ -200,6 +211,13 @@ def _scene_overlay(
     overlay_path = destination / "scene_assessment.png"
     cv2.imwrite(str(overlay_path), sheet)
     return overlay_path.name
+
+
+def _sampled_video_fps(timestamps: list[float]) -> float:
+    """Keep sampled replays on the source clock, even for 30.08/29.97 fps."""
+    intervals = np.diff(timestamps)
+    positive = intervals[intervals > 0]
+    return float(1.0 / np.median(positive)) if len(positive) else 10.0
 
 
 def _encode_h264(temporary_path: Path, output_path: Path) -> bool:
@@ -515,12 +533,13 @@ def _scene_tuned_visualization(
     signal = extract_scene_shadow_signal(frames, calibration, (x, y, roi_width, roi_height))
     temporary_path = destination / "_analysis-visualization-source.mp4"
     output_path = destination / "analysis-visualization.mp4"
-    writer = cv2.VideoWriter(str(temporary_path), cv2.VideoWriter_fourcc(*"mp4v"), 10.0, (width, height))
+    writer = cv2.VideoWriter(str(temporary_path), cv2.VideoWriter_fourcc(*"mp4v"), _sampled_video_fps(timestamps), (width, height))
     if not writer.isOpened():
         return None
     motion_model = cv2.createBackgroundSubtractorMOG2(history=36, varThreshold=20, detectShadows=False)
     entry_time = result.get("los_onset_s")
     motion_frames = _hidden_motion_frames(result)
+    recorded_bodies = _recorded_body_boxes(result)
     try:
         for index, (frame, timestamp, cue) in enumerate(zip(frames, timestamps, signal, strict=True)):
             visual = frame.copy()
@@ -528,7 +547,10 @@ def _scene_tuned_visualization(
             mask = cue["shadow_mask"].astype(np.uint8).copy()
             score = float(cue["presence"])
             body_marked = isinstance(entry_time, (int, float)) and timestamp >= float(entry_time)
-            body_box = _visible_body_box(motion) if body_marked else None
+            if recorded_bodies is not None:
+                body_box = recorded_bodies.get(index)
+            else:
+                body_box = _visible_body_box(motion) if body_marked else None
             if body_box:
                 bx, by, bw, bh = body_box
                 mx0, my0 = max(0, bx - x), max(0, by - y)
@@ -595,7 +617,7 @@ def _analysis_visualization(
     temporary_path = destination / "_analysis-visualization-source.mp4"
     output_path = destination / "analysis-visualization.mp4"
     writer = cv2.VideoWriter(
-        str(temporary_path), cv2.VideoWriter_fourcc(*"mp4v"), 10.0, (target_width, target_height)
+        str(temporary_path), cv2.VideoWriter_fourcc(*"mp4v"), _sampled_video_fps(timestamps), (target_width, target_height)
     )
     if not writer.isOpened():
         return None
@@ -613,6 +635,7 @@ def _analysis_visualization(
     previous_shadow: tuple[int, int, int, int] | None = None
     motion_frames = _hidden_motion_frames(result)
     entry_time = result.get("los_onset_s")
+    recorded_bodies = _recorded_body_boxes(result)
     try:
         for index, (frame, timestamp) in enumerate(zip(main_frames, timestamps, strict=True)):
             point = timeline[min(index, len(timeline) - 1)] if timeline else {}
@@ -628,7 +651,10 @@ def _analysis_visualization(
             # Use the frame-level threshold for bodies. A person crossing a
             # noisy tree background must not inherit that tree's high threshold.
             body_motion = motion & (np.abs(residual) > max(10.0, calibration.noise * 3.0))
-            proposed_body = _visible_body_box(body_motion) if index >= baseline_count else None
+            if recorded_bodies is not None:
+                proposed_body = recorded_bodies.get(index)
+            else:
+                proposed_body = _visible_body_box(body_motion) if index >= baseline_count else None
             sx, sy, sw, sh = (int(value) for value in assessment["roi"])
             # Match the detector's exposure-corrected darkening evidence. A
             # slow shadow can be absorbed by MOG2 while still being present.
@@ -657,7 +683,10 @@ def _analysis_visualization(
             else:
                 body_candidate = proposed_body
                 body_candidate_frames = 1
-            body_box = body_candidate if body_candidate_frames >= 2 else None
+            if recorded_bodies is not None:
+                body_box = proposed_body
+            else:
+                body_box = body_candidate if body_candidate_frames >= 2 else None
             shadow_seen = shadow_box is not None
             body_seen = body_box is not None
             state = "BODY EVIDENCE" if body_seen else "SHADOW CUE" if shadow_seen else "WATCHING PAVEMENT"
@@ -706,7 +735,7 @@ def _hidden_path_visualization(
     height, width = frames[0].shape[:2]
     temporary_path = destination / "_hidden-path-source.mp4"
     output_path = destination / "hidden-path-visualization.mp4"
-    writer = cv2.VideoWriter(str(temporary_path), cv2.VideoWriter_fourcc(*"mp4v"), 10.0, (width, height))
+    writer = cv2.VideoWriter(str(temporary_path), cv2.VideoWriter_fourcc(*"mp4v"), _sampled_video_fps(timestamps), (width, height))
     if not writer.isOpened():
         return None
     background_gray = np.median(

@@ -10,6 +10,7 @@ from typing import Any
 import cv2
 import numpy as np
 
+from .body import night_body_tracks
 from .sun import sun_metadata
 from .video import estimate_audio_offset, read_frames
 from .vision import (
@@ -426,6 +427,20 @@ def analyse_trial(
         [0.0] * len(signal)
         if tuned else [_sigmoid((energy - 3.2 * calibration.noise) / los_scale) for energy in los_energies]
     )
+    body_detection = None
+    if sun["above_horizon"] is False:
+        update(0.56, "Separating low-light upright foreground from cast shadows")
+        body_boxes = night_body_tracks(main_frames, calibration)
+        los_scores = [0.9 if box is not None else 0.0 for box in body_boxes]
+        body_detection = {
+            "method": "low_light_upright_foreground_v1",
+            "baseline_samples": min(18, len(main_frames)),
+            "limitation": "Silhouette evidence, not semantic person recognition. The trial opening must be empty.",
+            "samples": [
+                {"frame_index": index, "timestamp_s": round(timestamp, 3), "box": list(box) if box else None}
+                for index, (timestamp, box) in enumerate(zip(timestamps, body_boxes, strict=True))
+            ],
+        }
     raw_probabilities = [
         _position_distribution(float(item["position"]), present) for item, present in zip(signal, presence, strict=True)
     ]
@@ -559,6 +574,7 @@ def analyse_trial(
         "los_detected": los_present,
         "hidden_motion": hidden_motion,
         "entry_source": entry_source,
+        "body_detection": body_detection,
         "model": {
             "name": "scene_tuned_pavement_residual" if tuned else "calibration_temporal_evidence",
             "version": "0.3" if tuned else "0.2",

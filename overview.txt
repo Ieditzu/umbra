@@ -102,6 +102,15 @@ Processing
    a reviewed streetlamp-lit pavement area instead of a solar-shadow
    region, provided the empty calibration shows adequate stable light.
    Withhold the warning at night if that area is missing or too dark.
+   Night-time visible-body evidence uses a separate low-light upright
+   foreground detector. The first 18 trial samples must be empty; they
+   supply a fixed baseline with exposure correction and per-pixel noise
+   thresholds. An upright core separates the body from a connected long
+   pavement shadow. Require two consecutive observations, keep observing
+   stopped foreground, and remove the box when evidence disappears.
+   Replay these exact recorded boxes in the analysis video. This is a
+   silhouette heuristic, not semantic person recognition or pose recovery;
+   it does not override the night-time shadow-warning coverage gate.
    The live scene clock shows the sun position for its displayed time,
    including a frozen/editable time. Sun bearing or lamp illumination
    alone cannot locate a person behind a wall without calibrated camera
