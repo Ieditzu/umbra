@@ -1,7 +1,28 @@
 UMBRA
-Shadow-based inference of occluded approach for fixed cameras
+Indirect imaging and early approach warning at blind spots
 
-STATUS NOTE: This file is the research design. README.md and
+CURRENT DIRECTION - 20 OCTOBER 2026
+
+The accepted project direction is to help people observe blind spots before
+entering them, initially a car-park exit with an obstructed pavement view.
+The intended use includes parking assistance and complementary perception
+for autonomous vehicles. See docs/umbra-idea.en.md for the full idea.
+
+The first implementation is a separate Hidden image lab at /periscope.html.
+It measures a grayscale light-transport matrix from photographs of a visible
+receiving surface while a hidden display shows calibration cells. It then
+reconstructs an unfamiliar 2x2, 3x3 or 4x4 image using bounded regression.
+Only the measured surface photograph and calibration enter reconstruction.
+Background drift, clipping, additivity and distinguishable-cell checks can
+reject unsuitable calibration. Captures, models and results persist locally
+and can be exported together. See docs/hidden-image-lab.md for setup.
+
+Physical optical performance still needs a real apparatus and independent
+measurements. Reconstruction of physical objects, adaptive acquisition and
+pedestrian/traffic warning from reconstructed images are not implemented.
+The original cast-shadow workflow remains a separate baseline below.
+
+ORIGINAL CAST-SHADOW BASELINE: This part is the earlier research design. README.md and
 docs/competition/ describe the current software. The estimator is
 heuristic. Lead time is measured on the main camera (shadow onset vs
 the moment a person enters the frame). It is not Bouman-style

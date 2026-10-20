@@ -1,5 +1,7 @@
 # Umbra
 
+The new **[Hidden image lab](docs/hidden-image-lab.md)** implements the first experiment for [Umbra's blind-spot imaging direction](docs/umbra-idea.en.md): measure the light response of a hidden screen and reconstruct an unfamiliar coarse grayscale image. Open `/periscope.html` on the local research server, or choose **Hidden image lab** in Research studio. It supports real photograph import, browser-camera capture, calibration checks and saved evidence exports. Pedestrian/traffic detection from reconstructed scenes is not implemented or field-validated yet.
+
 Umbra also includes a **public developer platform**: a Go API, customer dashboard, API keys, prepaid analysis credits, and optional Stripe Checkout. See [public platform setup and operations](docs/public-platform.md). The public service uses the Python engine as a private worker; the original local research workflow below remains available separately at `/research.html`.
 
 ```bash
@@ -16,7 +18,7 @@ Umbra investigates whether **visible cast shadows** can provide reliable evidenc
 
 The [research plan](docs/research-plan.md) defines the hypotheses, proposed recording experiments, independent labels, detector comparisons, and evaluation measures. These experiments are planned; research results have not yet been established.
 
-It is not a camera that sees through walls. It is not Bouman-style penumbra reconstruction. It compares an empty calibration to a trial clip, tracks darkening on the pavement, then timestamps when a walker enters the frame. Lead time is that gap. It reports no coverage or no reliable signal when the evidence is weak.
+The existing shadow-approach workflow compares an empty calibration to a trial clip, tracks darkening on the pavement, then timestamps when a walker enters the frame. Lead time is that gap. It reports no coverage or no reliable signal when the evidence is weak. That workflow is distinct from the new experimental hidden-image reconstruction lab; neither provides vision through a completely closed opaque wall.
 
 ## What is included
 

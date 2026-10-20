@@ -725,7 +725,7 @@ export default function App() {
   return (
     <main className="app-shell">
       <header className="app-header">
-        <div className="research-brand-group"><a className="brand" href="/research.html" aria-label="Umbra research home"><span className="brand-mark">◒</span><span>umbra<span className="brand-period">.</span></span></a><span className="research-brand-divider"/><span className="research-brand-label">Research studio</span></div>
+        <div className="research-brand-group"><a className="brand" href="/research.html" aria-label="Umbra research home"><span className="brand-mark">◒</span><span>umbra<span className="brand-period">.</span></span></a><span className="research-brand-divider"/><a className="button ghost" href="/periscope.html">Hidden image lab</a></div>
         {screen === "review" ? <button className="button ghost review-tab" onClick={() => { setScreen("camera"); setResult(null); }}>← Back to camera <span aria-hidden="true">×</span></button> : <div className="scene-switcher">
           <label htmlFor="scene-select">Scene</label>
           <select id="scene-select" disabled={busy || liveLocked} value={detail?.scene.id ?? ""} onChange={(event) => event.target.value && void loadScene(event.target.value).catch((error: Error) => setNotice(error.message))}>
