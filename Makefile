@@ -1,4 +1,4 @@
-.PHONY: setup api web build test lint demo public research
+.PHONY: setup api web build test lint demo public research evaluate
 
 setup:
 	uv sync --extra dev
@@ -33,3 +33,6 @@ public:
 
 demo:
 	curl -sS -X POST http://127.0.0.1:8000/api/v1/demo | python -m json.tool
+
+evaluate:
+	uv run python scripts/evaluate_parking.py --manifest $(MANIFEST) --output $(OUTPUT)

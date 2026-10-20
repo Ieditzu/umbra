@@ -32,6 +32,7 @@ The **Parking camera** is the local application's main view at `/parking.html`.
 - An automatic past-frame ground reference while stopped, with colour-attenuation and texture-preservation checks, separate moving-shadow tracks and measured-contour overlays. Indirect cues do not depend on a visible person detection.
 - Manual first-visibility/unrelated-cue reviews, signed frame-time lead measurements and bounded exportable evidence logs. Labels do not drive the warning algorithm.
 - Removal of stale detections when frames stop arriving or a video is paused.
+- An offline [method comparison](parking-evaluation.md) that replays labelled recordings through the visible detector, a simple ground-change detector, the shadow channel and the combined method, with operating points fixed on tuning trials and compared at matched false-alert rates.
 
 These are prototype features, not field-validated collision-prevention performance. Image guides do not measure distance. A warning does not establish a collision trajectory, and absence of a warning does not establish a clear path. Shadows do not establish a hidden object's identity or exact position.
 
@@ -62,5 +63,6 @@ Measure achieved warning time, missed approaches, false alerts, processing laten
 - [MIT CSAIL: Helping self-driving cars see around corners](https://www.csail.mit.edu/news/helping-self-driving-cars-see-around-corners): prior shadow-based warning experiments in a parking garage and with an autonomous wheelchair.
 - [OpenCV Zoo YOLOX detector](https://github.com/opencv/opencv_zoo/tree/main/models/object_detection_yolox): the pretrained visible-object baseline used by the prototype.
 - [Parking camera setup and limitations](parking-camera.md).
+- [Parking warning method comparison](parking-evaluation.md).
 
 These sources establish prior work. Umbra's benefit, novelty and suitability for deployment must be established by the team's own experiments.
