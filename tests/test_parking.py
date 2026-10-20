@@ -149,6 +149,13 @@ def test_parking_api_starts_without_scene_training_and_expires_stale_sessions(tm
         assert client.post(route + "/reference").status_code == 200
         assert client.put(route + "/shadow-zone", json={"zone": "right"}).status_code == 200
         assert client.put(route + "/shadow-zone", json={"zone": "invalid"}).status_code == 422
+        geometry = {"vertical_fov_deg": 60, "height_m": 1.1, "tilt_deg": 10}
+        assert client.put(route + "/camera-geometry", json=geometry).json() == geometry
+        assert client.put(route + "/camera-geometry", json={**geometry, "vertical_fov_deg": 5}).status_code == 422
+        assert client.put(route + "/camera-geometry", json={**geometry, "height_m": 40}).status_code == 422
+        response = client.post(route + "/frame", files={"file": ("parking.jpg", encoded)}, data={"timestamp_s": 1.6})
+        assert response.json()["camera_geometry"] == geometry
+        assert response.json()["detections"][0]["distance"]["bound"] == "range"
         tracker = app.state.parking.sessions[session_id].tracker
         tracker.evidence.update({"cues": [{"id": 1, "side": "left", "observed_since_s": 1}]}, 1.2, [])
         review = {"segment_id": tracker.evidence.segment_id, "outcome": "first_visible", "visible_s": 1.3}

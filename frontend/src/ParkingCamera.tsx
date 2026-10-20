@@ -1,12 +1,27 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Video, Square, Volume2, VolumeX, Upload, ArrowLeft, ArrowRight } from "lucide-react";
 import { request } from "./api";
-import type { ParkingObservation, ParkingEvidence as Evidence } from "./parking-types";
-import { parkingMessage, screenBox } from "./parking-types";
+import type { CameraGeometry, ParkingObservation, ParkingEvidence as Evidence } from "./parking-types";
+import { distanceLabel, nearestRoadUser, parkingMessage, screenBox } from "./parking-types";
 import { ParkingEvidence } from "./ParkingEvidence";
 
 type Session = { id: string; source: "browser" | "network" };
 type Source = "camera" | "video" | "network";
+
+const GEOMETRY_KEY = "umbra.parking.camera-geometry";
+const DEFAULT_GEOMETRY: CameraGeometry = { vertical_fov_deg: 45, height_m: null, tilt_deg: 0 };
+
+function savedGeometry(): CameraGeometry {
+  try {
+    const value = JSON.parse(localStorage.getItem(GEOMETRY_KEY) ?? "null");
+    if (value && typeof value.vertical_fov_deg === "number") return { ...DEFAULT_GEOMETRY, ...value };
+  } catch { /* Storage can be unavailable; defaults still work. */ }
+  return DEFAULT_GEOMETRY;
+}
+
+function draftOf(geometry: CameraGeometry) {
+  return { fov: String(geometry.vertical_fov_deg), height: geometry.height_m === null ? "" : String(geometry.height_m), tilt: String(geometry.tilt_deg) };
+}
 
 export function ParkingCamera() {
   const [source, setSource] = useState<Source>("camera");
@@ -28,6 +43,8 @@ export function ParkingCamera() {
   const [status, setStatus] = useState("Camera off");
   const [aspect, setAspect] = useState(16 / 9);
   const [clock, setClock] = useState(new Date());
+  const [geometry, setGeometry] = useState<CameraGeometry>(savedGeometry);
+  const [geometryDraft, setGeometryDraft] = useState(() => draftOf(savedGeometry()));
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [device, setDevice] = useState("");
   const element = useRef<HTMLVideoElement>(null);
@@ -85,9 +102,15 @@ export function ParkingCamera() {
         void request(`/parking/sessions/${next.id}`, { method: "DELETE" }).catch(() => {});
         media?.getTracks().forEach(track => track.stop()); return;
       }
+      try {
+        await request(`/parking/sessions/${next.id}/camera-geometry`, { method: "PUT", body: JSON.stringify(geometry), signal: controller.signal });
+      } catch (error) {
+        if (controller.signal.aborted) throw error;
+        setNotice(`Distance settings were not applied: ${(error as Error).message}`);
+      }
       current.current = next; setSession(next); setRunning(true); setStatus("Waiting for camera frames…");
       log.current = []; evidenceSegments.current.clear(); setEvidence(null); setZone("ground");
-      logSource.current = { source, video_name: source === "video" ? filename : undefined, started_at: new Date().toISOString(), method: "parking-indirect-shadow-v2", model: "OpenCV Zoo YOLOX 2022nov", guides: { x_min: 0.34, x_max: 0.66, ground_y_min: 0.42 } };
+      logSource.current = { source, video_name: source === "video" ? filename : undefined, started_at: new Date().toISOString(), method: "parking-indirect-shadow-v2", model: "OpenCV Zoo YOLOX 2022nov", guides: { x_min: 0.34, x_max: 0.66, ground_y_min: 0.42 }, camera_geometry: geometry };
       if (source === "video") await element.current?.play();
     } catch (error) {
       media?.getTracks().forEach(track => track.stop());
@@ -214,7 +237,24 @@ export function ParkingCamera() {
     } catch (error) { setNotice((error as Error).message); }
   }
 
+  async function applyGeometry() {
+    const fov = Number(geometryDraft.fov), tilt = Number(geometryDraft.tilt || 0);
+    const height = geometryDraft.height.trim() === "" ? null : Number(geometryDraft.height);
+    if (!(fov >= 10 && fov <= 150) || !(tilt >= -30 && tilt <= 80) || (height !== null && !(height >= 0.2 && height <= 5))) {
+      setNotice("Use a field of view of 10–150°, a tilt of −30–80° and a camera height of 0.2–5 m (or leave height empty).");
+      return;
+    }
+    const next: CameraGeometry = { vertical_fov_deg: fov, height_m: height, tilt_deg: tilt };
+    try {
+      if (session) await request(`/parking/sessions/${session.id}/camera-geometry`, { method: "PUT", body: JSON.stringify(next) });
+      setGeometry(next); setGeometryDraft(draftOf(next)); setNotice("");
+      try { localStorage.setItem(GEOMETRY_KEY, JSON.stringify(next)); } catch { /* Not remembered, still applied. */ }
+      if (log.current.length < 10_000) log.current.push({ type: "camera_geometry", ...next, timestamp_s: latestObservation.current?.timestamp_s, received_at: new Date().toISOString() });
+    } catch (error) { setNotice((error as Error).message); }
+  }
+
   const warning = observation && ["obstacle", "cross_traffic"].includes(observation.state);
+  const closest = observation ? nearestRoadUser(observation.detections) : null;
   const message = observation ? parkingMessage(observation, mirrored) : status;
   const boxHeight = 1000 / aspect;
   const shadowRegion = observation?.shadow.region ? screenBox(observation.shadow.region, mirrored) : null;
@@ -233,14 +273,14 @@ export function ParkingCamera() {
         {guides && shadowRegion && <rect x={shadowRegion[0] * 1000} y={shadowRegion[1] * boxHeight} width={shadowRegion[2] * 1000} height={shadowRegion[3] * boxHeight} fill="#e7b65108" stroke="#e7b65155" strokeWidth="1" strokeDasharray="3 8" />}
         {objects && observation?.detections.map(item => {
           const [x, y, w, h] = screenBox(item.box, mirrored), colour = item.risk === "observed" ? "#a3e6df" : "#ff786f";
-          return <g key={item.id}><rect x={x * 1000} y={y * boxHeight} width={w * 1000} height={h * boxHeight} rx="3" fill="none" stroke={colour} strokeWidth="2.5" /><text x={Math.max(5, x * 1000)} y={Math.max(20, y * boxHeight - 8)} fill={colour} stroke="#07100d" strokeWidth="4" paintOrder="stroke" fontSize="17">{item.label} · {Math.round(item.score * 100)}%</text></g>;
+          return <g key={item.id}><rect x={x * 1000} y={y * boxHeight} width={w * 1000} height={h * boxHeight} rx="3" fill="none" stroke={colour} strokeWidth="2.5" /><text x={Math.max(5, x * 1000)} y={Math.max(20, y * boxHeight - 8)} fill={colour} stroke="#07100d" strokeWidth="4" paintOrder="stroke" fontSize="17">{item.label} · {distanceLabel(item.distance) ?? `${Math.round(item.score * 100)}%`}</text></g>;
         })}
         {observation?.shadow.cues.map(cue => { const box = screenBox(cue.box, mirrored); return <g key={cue.id}><polygon points={cue.contour.map(([x, y]) => `${(mirrored ? 1 - x : x) * 1000},${y * boxHeight}`).join(" ")} fill="#ffd07422" stroke="#ffd074" strokeWidth="2.5" /><text x={box[0] * 1000} y={Math.max(20, box[1] * boxHeight - 9)} fill="#ffd074" stroke="#17130b" strokeWidth="4" paintOrder="stroke" fontSize="16">moving shadow · source unconfirmed</text></g>; })}
       </svg>}
       {running && <span className="parking-feed-label">{source === "video" ? "VIDEO REPLAY" : "LIVE"} · {observation ? `${observation.processing_ms} ms` : "waiting"}</span>}
     </section>
     <div className={`parking-status ${warning ? "danger" : observation?.state === "shadow_cue" ? "caution" : ""}`} role="status" aria-live="polite"><span className="parking-status-icon">{direction.includes("left") && warning ? <ArrowLeft size={24} /> : <span className="parking-status-dot" />}</span><strong>{message}</strong><span>{direction.includes("right") && warning && <ArrowRight size={24} />}</span></div>
-    {observation && <div className="parking-signal-status"><span>Indirect: {observation.shadow.message}{observation.shadow.progress !== undefined ? ` · ${Math.round(observation.shadow.progress * 100)}%` : ""}</span><span>Visible road users: {observation.detections.length}</span></div>}
+    {observation && <div className="parking-signal-status"><span>Indirect: {observation.shadow.message}{observation.shadow.progress !== undefined ? ` · ${Math.round(observation.shadow.progress * 100)}%` : ""}</span><span>Visible road users: {observation.detections.length}{closest ? ` · nearest ${closest.label} ${distanceLabel(closest.distance)}` : ""}</span></div>}
     <footer className="parking-controls">
       <div className="parking-source-controls">
         {source === "camera" && devices.length > 1 && <select aria-label="Camera device" value={device} disabled={running || starting} onChange={event => setDevice(event.target.value)}><option value="">Default rear-facing camera</option>{devices.map(item => <option value={item.deviceId} key={item.deviceId}>{item.label || "Camera"}</option>)}</select>}
@@ -251,8 +291,9 @@ export function ParkingCamera() {
         {log.current.length > 0 && <button className="button ghost" onClick={downloadLog}>Download session log</button>}
       </div>
       <details className="parking-shadow-settings"><summary>Ground observation settings</summary><p>Shadow monitoring starts automatically once the camera is stopped and the visible ground is clear. Select only ground that is actually visible. Camera movement suspends indirect warnings; visible-object detection continues.</p><label>Watch <select aria-label="Ground observation zone" value={zone} disabled={!session || starting} onChange={event => void changeZone(event.target.value)}><option value="ground">All lower ground</option><option value="left">{mirrored ? "Right ground" : "Left ground"}</option><option value="right">{mirrored ? "Left ground" : "Right ground"}</option></select></label><button className="button secondary" disabled={!session || starting} onClick={() => { if (session) void request(`/parking/sessions/${session.id}/reference`, { method: "POST" }).then(() => { setObservation(null); if (log.current.length < 10_000) log.current.push({ type: "reference_reset", timestamp_s: latestObservation.current?.timestamp_s, received_at: new Date().toISOString() }); }).catch(error => setNotice(error.message)); }}>Relearn stopped view</button></details>
+      <details className="parking-shadow-settings"><summary>Distance settings</summary><p>Distances are approximate ranges from typical object sizes and your camera settings, not measurements. A partly hidden person, a child or a fisheye lens can look farther away than they are. Field of view is the camera's top-to-bottom viewing angle: about 40–50° for laptop and USB webcams, often 80–120° for rear parking cameras. Adding the camera's height above the ground and its downward tilt adds a second estimate from where objects touch the ground.</p><div className="parking-geometry"><label>Vertical field of view (°)<input type="number" min="10" max="150" step="1" value={geometryDraft.fov} onChange={event => setGeometryDraft(draft => ({ ...draft, fov: event.target.value }))} /></label><label>Camera height (m, optional)<input type="number" min="0.2" max="5" step="0.05" placeholder="e.g. 1.0" value={geometryDraft.height} onChange={event => setGeometryDraft(draft => ({ ...draft, height: event.target.value }))} /></label><label>Downward tilt (°)<input type="number" min="-30" max="80" step="1" value={geometryDraft.tilt} onChange={event => setGeometryDraft(draft => ({ ...draft, tilt: event.target.value }))} /></label><button className="button secondary" onClick={() => void applyGeometry()}>Apply</button></div></details>
       <ParkingEvidence key={evidence?.segment_id ?? "none"} evidence={evidence} replay={source === "video"} active={!!session} mirrored={mirrored} onReview={reviewCue} />
-      <p className="parking-footnote">Experimental parking view · guides are image references, not measured distances · always check surroundings.</p>
+      <p className="parking-footnote">Experimental parking view · guides are image references · distances are approximate ranges, not measurements · always check surroundings.</p>
     </footer>
     <input ref={input} type="file" accept="video/*" hidden onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (file) importVideo(file); }} />
   </main>;

@@ -7,6 +7,7 @@ import time
 import cv2
 import numpy as np
 
+from .parking_distance import CameraGeometry, estimate_distance, smooth_distance
 from .parking_evidence import ParkingEvidence
 from .parking_shadow import GroundShadowMonitor
 
@@ -42,6 +43,12 @@ class ParkingTracker:
         self.last_time: float | None = None
         self.shadow_monitor = GroundShadowMonitor()
         self.evidence = ParkingEvidence()
+        self.geometry = CameraGeometry()
+
+    def set_geometry(self, geometry: CameraGeometry):
+        self.geometry = geometry
+        for track in self.tracks:
+            track["distance"] = None  # Do not blend estimates made with old settings.
 
     def request_empty_reference(self):
         self.shadow_monitor.reset()
@@ -81,9 +88,11 @@ class ParkingTracker:
                 if distance < max(0.12, bw * 0.6):
                     candidates.append((distance, index, center))
             track = {**detection, "point": point.tolist(), "id": self.next_id, "age": 1, "velocity": None}
+            prior_distance = None
             if candidates:
                 _, index, previous_point = min(candidates, key=lambda item: item[0])
                 matched.add(index)
+                prior_distance = old[index].get("distance")
                 track["id"], track["age"] = old[index]["id"], old[index]["age"] + 1
                 if reliable and dt > 0.04:
                     velocity = (point - previous_point) / dt
@@ -93,6 +102,7 @@ class ParkingTracker:
                     track["velocity"] = velocity.tolist()
             else:
                 self.next_id += 1
+            track["distance"] = smooth_distance(prior_distance, estimate_distance(detection, self.geometry))
             # Normalized image-space corridor, NOT a measured stopping distance.
             in_path = 0.34 <= point[0] <= 0.66 and point[1] > 0.42
             approaching = False
@@ -126,4 +136,6 @@ class ParkingTracker:
         return {"state": status, "message": message, "detections": updated, "alerts": alerts,
                 "motion_reliable": reliable, "shadow": shadow, "frame_aspect": width / height,
                 "timestamp_s": now, "warning_basis": "image-space experimental heuristic",
+                "camera_geometry": self.geometry.as_dict(),
+                "distance_basis": "approximate single-camera range from assumed object sizes and camera settings, not measured",
                 "evidence": self.evidence.snapshot()}
