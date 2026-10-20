@@ -82,12 +82,13 @@ Comparațiile propuse sunt diferența de fundal pe întregul cadru, un prag fix 
 
 Vom compara metodele la rate similare de alarme false sau prin curbe complete de prag. Eliminarea succesivă a corecției expunerii, a persistenței și a urmăririi va arăta ce aduce fiecare componentă. Scorurile de comparație existente în aplicație nu constituie încă acest experiment independent.
 
-## Activitatea documentată din septembrie 2026
+## Perioada proiectului și activitatea documentată
 
-Istoricul repository-ului înregistrează prima versiune la 15 septembrie 2026. Acesta susține formularea că dezvoltarea tehnică a început în septembrie, fără să dovedească o dată anterioară a ideii sau a documentării bibliografice.
+Data de început declarată de echipă este 27 august 2026. Până la 20 octombrie 2026, perioada calendaristică este de 7 săptămâni și 5 zile. Această dată declarată trebuie susținută prin evidențele reale ale echipei; nu reprezintă, singură, dovada unor activități sau experimente efectuate. Istoricul repository-ului înregistrează prima versiune la 15 septembrie 2026 și documentează dezvoltarea software de la acea dată.
 
-| Perioadă documentată | Activitate observabilă în istoricul proiectului |
+| Perioadă | Activitate și sursa evidenței |
 | --- | --- |
+| 27 august 2026 | Începutul proiectului declarat de echipă; activitățile inițiale și dovezile aferente urmează să fie precizate de autori |
 | 15 septembrie 2026 | Inițializarea proiectului și realizarea structurii aplicației pentru experimente locale |
 | 16 septembrie 2026 | Materiale pregătitoare pentru RoSEF și revizuiri ale dovezilor software |
 | 17 până la 24 septembrie 2026 | Revizuiri ale organizării scenelor, analizei, interfeței și modului experimental pentru iluminare artificială |

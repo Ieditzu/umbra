@@ -40,6 +40,8 @@ Acest text descrie rațiunea tehnică a proiectului. Dacă ideea a pornit de la 
 
 ### Etapele parcurse
 
+Data de început declarată de echipă este 27 august 2026. La 20 octombrie 2026, aceasta corespunde unei perioade calendaristice de 7 săptămâni și 5 zile. Autorii trebuie să descrie numai activitățile efectiv realizate și să păstreze dovezile disponibile; această durată nu confirmă singură îndeplinirea cerințelor de eligibilitate ale concursului.
+
 Dezvoltarea software este documentată din 15 septembrie 2026. Am realizat structura aplicației pentru scene și înregistrări, apoi am revizuit analiza umbrelor și vizualizările rezultatelor. Am introdus metadate de timp și coordonate pentru verificarea poziției solare și un mod experimental pentru regiuni iluminate artificial. În etapa actuală, am formulat un protocol care separă avertizarea realizată de simpla apariție vizibilă a umbrei. Evaluarea controlată pe scene independente urmează să fie realizată.
 
 ### Ajutor primit și platforme AI

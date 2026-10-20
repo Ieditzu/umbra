@@ -13,7 +13,7 @@ Coordonator și date de contact: [DE COMPLETAT]. Liderul echipei, dacă este caz
 
 Ediție, categorie de vârstă și tip individual/echipă: [DE CONFIRMAT]. Încadrare propusă: Tehnologia informației, pentru contribuția software; de confirmat cu coordonatorul.
 
-Perioada efectivă de lucru: [DE COMPLETAT]. Continuare a unui proiect anterior și îmbunătățiri realizate în perioada eligibilă: [DE COMPLETAT].
+Perioada proiectului: 27 august 2026 – în prezent (data de început declarată de echipă; de susținut prin evidențele reale ale autorilor). Dezvoltarea software este documentată în repository din 15 septembrie 2026. Continuare a unui proiect anterior și îmbunătățiri realizate în perioada eligibilă: [DE COMPLETAT].
 
 ### Rezumat în limba română
 
