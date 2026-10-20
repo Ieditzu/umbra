@@ -20,6 +20,8 @@ from .config import Settings, get_settings
 from .jobs import JobManager
 from .live import LiveSessions
 from .ml import ML_AVAILABLE
+from .periscope import PeriscopeLab
+from .periscope_api import periscope_router
 from .schemas import (
     AnalysisRequest,
     Health,
@@ -70,6 +72,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.store = store
     app.state.service = service
     app.state.jobs = jobs
+    app.include_router(periscope_router(PeriscopeLab(settings.data_dir / "periscope")))
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://127.0.0.1:5173", "http://localhost:5173", "http://127.0.0.1:5174", "http://localhost:5174"],
