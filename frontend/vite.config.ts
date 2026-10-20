@@ -9,7 +9,7 @@ export default defineConfig({
       else next();
     });
   } }],
-  build: { rollupOptions: { input: { main: resolve(import.meta.dirname, "index.html"), research: resolve(import.meta.dirname, "research.html"), parking: resolve(import.meta.dirname, "parking.html") } } },
+  build: { rollupOptions: { input: { main: resolve(import.meta.dirname, "index.html"), research: resolve(import.meta.dirname, "research.html"), parking: resolve(import.meta.dirname, "parking.html"), label: resolve(import.meta.dirname, "label.html") } } },
   server: {
     proxy: {
       "/api": "http://127.0.0.1:8000",

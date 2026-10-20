@@ -19,7 +19,9 @@ Each method has a small grid of operating points: a score threshold per channel 
 
 Record the trials described in the idea document: both sides, different speeds, stationary parked objects, empty trials, unrelated shadows and changing illumination. Keep recordings in `../umbra-data`, not in Git. Label each trial independently of the software's output, ideally by someone who does not see the warnings.
 
-Write a JSON manifest next to the videos (paths are relative to the manifest):
+The easiest way to label is the **Label clips** page at `/label.html` (linked from the parking camera). Choose a batch of videos, pause at each moment and click **Shadow starts here**, **Visible here** and **Gone here**, or mark a clip **Nobody came**. Comma and period step one frame. No detection runs on that page. Labels stay in the browser until exported. **Export manifest** downloads `manifest.json`; save it in the same folder as the videos. **Load manifest** continues an earlier file.
+
+The manifest can also be written by hand (paths are relative to the manifest):
 
 ```json
 {
