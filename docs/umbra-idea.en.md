@@ -29,10 +29,13 @@ The **Parking camera** is the local application's main view at `/parking.html`.
 - A pretrained COCO road-user detector running locally through OpenCV, without per-scene training videos or an account.
 - Image-space object tracking, approximate background-motion compensation, exit-path warnings and lateral-approach warnings.
 - Optional mirrored view, image-reference parking guides and user-enabled warning sounds.
-- An optional empty-ground reference for experimental changing-shadow cues while the camera is stopped.
+- An automatic past-frame ground reference while stopped, with colour-attenuation and texture-preservation checks, separate moving-shadow tracks and measured-contour overlays. Indirect cues do not depend on a visible person detection.
+- Manual first-visibility/unrelated-cue reviews, signed frame-time lead measurements and bounded exportable evidence logs. Labels do not drive the warning algorithm.
 - Removal of stale detections when frames stop arriving or a video is paused.
 
 These are prototype features, not field-validated collision-prevention performance. Image guides do not measure distance. A warning does not establish a collision trajectory, and absence of a warning does not establish a clear path. Shadows do not establish a hidden object's identity or exact position.
+
+The indirect channel currently requires a stopped camera with suitable illuminated, textured pavement. It suspends on unsupported motion or large lighting changes. Extending this to a moving reversing vehicle is unresolved research, not an implemented capability. Frame-time lead measurements exclude end-to-end latency; a live benefit must be evaluated separately.
 
 ## The research contribution to investigate
 

@@ -38,5 +38,22 @@
 .parking-shadow-settings summary { cursor: pointer; font-size: 12px; color: var(--muted-foreground); }
 .parking-shadow-settings p { max-width: 650px; font-size: 12px; margin: 14px 0; }
 .parking-shadow-note { margin-left: 14px; color: var(--muted-foreground); font-size: 12px; }
+.parking-signal-status { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; margin: -6px 0 20px; font-size: 12px; color: var(--muted-foreground); }
+.parking-shadow-settings select { margin: 0 14px 0 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--foreground); padding: 8px; }
+.parking-shadow-settings label { font-size: 12px; }
+.parking-evidence { border-top: 1px solid var(--border); padding-top: 18px; }
+.parking-evidence-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; }
+.parking-evidence h2 { margin: 0; font-size: 15px; font-weight: 500; }
+.parking-evidence-heading > span, .parking-evidence p { font-size: 12px; color: var(--muted-foreground); }
+.parking-evidence p { max-width: 850px; line-height: 1.6; }
+.parking-evidence-list { display: grid; gap: 8px; max-height: 360px; overflow: auto; }
+.parking-evidence article { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; padding: 14px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); }
+.parking-evidence article > div:first-child { display: grid; gap: 5px; font-size: 12px; }
+.parking-evidence article strong { font-weight: 500; color: #f0cf86; }
+.parking-evidence article span { color: var(--muted-foreground); }
+.parking-evidence article span.positive { color: #a7ddba; }
+.parking-review-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.parking-review-controls input { width: 125px; padding: 9px; font-size: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; color: var(--foreground); }
+.parking-review-controls .button { font-size: 12px; padding: 9px; }
 .parking-footnote { font-size: 11px; margin: 0; color: #748077; }
 @media (max-width: 680px) { .parking-shell { padding: 0 12px 16px; } .parking-header { gap: 12px; padding: 14px 0; flex-wrap: wrap; } .parking-header > span { display: none; } .parking-clock { gap: 8px; font-size: 11px; } .parking-header .button { font-size: 11px; padding: 8px; } .parking-toolbar { flex-wrap: wrap; gap: 8px; } .parking-sources button { padding: 8px; font-size: 12px; } .parking-options { margin-left: auto; gap: 10px; } .parking-feed { min-height: 230px; } .parking-placeholder h1 { font-size: 21px; } .parking-status { padding: 10px; } .parking-status strong { font-size: 14px; } .parking-shadow-note { display: block; margin: 10px 0 0; } }

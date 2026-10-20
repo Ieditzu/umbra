@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import time
-from collections import deque
 
 import cv2
 import numpy as np
+
+from .parking_evidence import ParkingEvidence
+from .parking_shadow import GroundShadowMonitor
 
 
 def compensate_camera(previous: np.ndarray, current: np.ndarray, excluded: list[list[float]]) -> tuple[np.ndarray, bool]:
@@ -38,23 +40,26 @@ class ParkingTracker:
         self.tracks: list[dict] = []
         self.next_id = 1
         self.last_time: float | None = None
-        self.background: np.ndarray | None = None
-        self.reference_frames: list[np.ndarray] | None = None
-        self.shadow_history: deque = deque(maxlen=8)
+        self.shadow_monitor = GroundShadowMonitor()
+        self.evidence = ParkingEvidence()
 
     def request_empty_reference(self):
-        self.background = None
-        self.reference_frames = []
-        self.shadow_history.clear()
+        self.shadow_monitor.reset()
+        self.evidence.open.clear()
+
+    def set_shadow_zone(self, zone: str):
+        self.shadow_monitor.set_zone(zone)
+        self.evidence.open.clear()
 
     def update(self, frame: np.ndarray, detections: list[dict], timestamp: float | None = None) -> dict:
         now = time.monotonic() if timestamp is None else timestamp
         height, width = frame.shape[:2]
-        gray = cv2.cvtColor(cv2.resize(frame, (480, round(height * 480 / width))), cv2.COLOR_BGR2GRAY)
+        small = cv2.resize(frame, (480, round(height * 480 / width)))
+        gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
         if self.last_time is not None and (now <= self.last_time or now - self.last_time > 2.5):
             self.tracks, self.previous = [], None
-            self.background, self.reference_frames = None, None
-            self.shadow_history.clear()
+            self.shadow_monitor.reset()
+            self.evidence = ParkingEvidence()
         dt = now - self.last_time if self.last_time is not None else 0
         transform, reliable = (compensate_camera(self.previous, gray, [t["box"] for t in self.tracks])
                                if self.previous is not None and self.previous.shape == gray.shape else (None, False))
@@ -102,7 +107,8 @@ class ParkingTracker:
                 alerts.append({"id": track["id"], "label": track["label"], "side": side, "kind": track["risk"]})
             updated.append(track)
         self.tracks = updated
-        shadow = self._shadow(gray, detections, now, transform, reliable)
+        shadow = self.shadow_monitor.update(small, updated, now, transform, reliable)
+        self.evidence.update(shadow, now, updated)
         self.previous, self.last_time = gray, now
         status = "obstacle" if any(a["kind"] == "in_path" for a in alerts) else "cross_traffic" if alerts else "observing"
         if status == "obstacle":
@@ -110,7 +116,7 @@ class ParkingTracker:
         elif status == "cross_traffic":
             message = "Approaching from " + " and ".join(sorted({a["side"] for a in alerts}))
         elif shadow.get("box"):
-            status, message = "shadow_cue", "Changing shadow · check the blind spot"
+            status, message = "shadow_cue", "Moving shadow · check the blind spot"
         else:
             message = "Observing · check surroundings"
         if float(np.mean(gray)) < 18 or float(np.mean(gray > 250)) > 0.85:
@@ -119,68 +125,5 @@ class ParkingTracker:
                 track["risk"] = "observed"
         return {"state": status, "message": message, "detections": updated, "alerts": alerts,
                 "motion_reliable": reliable, "shadow": shadow, "frame_aspect": width / height,
-                "timestamp_s": now, "warning_basis": "image-space experimental heuristic"}
-
-    def _shadow(self, gray, detections, now, transform, reliable):
-        if self.reference_frames is not None:
-            if any(d["label"] == "person" for d in detections):
-                self.reference_frames.clear()
-                return {"state": "calibrating", "message": "Keep people out of the reference view", "progress": 0}
-            if transform is not None and reliable and np.linalg.norm(transform[:, 2]) > 1.2:
-                self.reference_frames.clear()
-                return {"state": "calibrating", "message": "Hold the camera still", "progress": 0}
-            if self.reference_frames and self.reference_frames[0].shape != gray.shape:
-                self.reference_frames.clear()
-            self.reference_frames.append(cv2.GaussianBlur(gray.astype(np.float32), (3, 3), 0))
-            if len(self.reference_frames) < 8:
-                return {"state": "calibrating", "message": "Measuring empty view", "progress": len(self.reference_frames) / 8}
-            self.background = np.median(self.reference_frames, axis=0)
-            self.reference_frames = None
-        if self.background is None:
-            return {"state": "needs_reference", "message": "Set an empty view to watch shadow changes"}
-        if gray.shape != self.background.shape:
-            self.background = None
-            return {"state": "needs_reference", "message": "Camera framing changed"}
-        if transform is not None and (not reliable or np.linalg.norm(transform[:, 2]) > 1.5
-                                      or abs(transform[0, 0] - 1) > 0.004):
-            self.background = None
-            self.shadow_history.clear()
-            return {"state": "camera_moved", "message": "Set a new empty view when the camera is stopped"}
-        reference = self.background
-        current = cv2.GaussianBlur(gray.astype(np.float32), (3, 3), 0)
-        difference = current - reference
-        difference -= np.median(difference)
-        if float(np.mean(np.abs(difference) > 22)) > 0.3:
-            self.background = None
-            self.shadow_history.clear()
-            return {"state": "camera_moved", "message": "View or light changed; set a new empty view"}
-        mask = ((difference < -16) & (reference > 45)).astype(np.uint8)
-        h, w = gray.shape
-        mask[:int(h * 0.48)] = 0
-        for detection in detections:
-            x, y, bw, bh = detection["box"]
-            mask[max(0, int(y * h) - 5):min(h, int((y + bh) * h) + 5),
-                 max(0, int(x * w) - 5):min(w, int((x + bw) * w) + 5)] = 0
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
-        count, _, stats, centers = cv2.connectedComponentsWithStats(mask)
-        candidates = []
-        for i in range(1, count):
-            x, y, bw, bh, area = stats[i]
-            if 80 < area < mask.size * 0.12 and bw > 1.8 * bh:
-                candidates.append((area, i))
-        if not candidates:
-            self.shadow_history.clear()
-            return {"state": "watching", "message": "Watching the visible ground"}
-        _, chosen = max(candidates)
-        center = centers[chosen] / [w, h]
-        if self.shadow_history and np.linalg.norm(center - self.shadow_history[-1][1]) > 0.12:
-            self.shadow_history.clear()
-        self.shadow_history.append((now, center))
-        if len(self.shadow_history) < 3:
-            return {"state": "watching", "message": "Checking shadow change"}
-        movement = np.linalg.norm(center - self.shadow_history[0][1])
-        if movement < 0.008:
-            return {"state": "watching", "message": "Watching the visible ground"}
-        x, y, bw, bh, _area = stats[chosen]
-        return {"state": "possible_motion", "message": "Changing shadow; source is unconfirmed",
-                "box": [float(x / w), float(y / h), float(bw / w), float(bh / h)]}
+                "timestamp_s": now, "warning_basis": "image-space experimental heuristic",
+                "evidence": self.evidence.snapshot()}

@@ -24,13 +24,25 @@ The algorithm uses image coordinates, not physical speed, distance, steering or 
 
 No current warning is reported as **Observing · check surroundings**. This is not a clear-path signal. Missing, delayed or stale frames clear annotations and warnings. Very dark or largely overexposed frames report limited visibility.
 
-## Shadow cues
+## Indirect approach cues
 
-With the camera stopped and the visible ground clear of moving traffic, open **Blind-spot shadow cues** and select **Set empty view**. The next eight frames establish a background. Keep the camera and illumination stable.
+The shadow channel now starts automatically, independently of visible-object detections. Keep the camera stopped with a clear view of lit pavement for at least twelve processed frames. The median of those past frames becomes a fixed ground reference. This is not certified empty: an object or shadow already present can become part of it. No training clip, hidden-route mapping or future frame is used.
 
-The experimental detector examines elongated dark changes on the lower visible ground, excludes visible detected object boxes and requires a moving cue across multiple observations. A cue is labelled **Changing shadow · check the blind spot**, with an unconfirmed source. It does not identify a pedestrian, reconstruct a body or locate someone behind a wall.
+The monitor examines the lower 58% of the image by default. In **Ground observation settings**, choose all lower ground, left ground or right ground according to the actual visible pavement. These are image regions, not an automatic understanding of the road. **Relearn stopped view** discards the reference. The selected region appears when Guides is enabled.
 
-Camera movement or substantial view/lighting change invalidates the reference. Visible-object detection remains available; capture a new ground reference once stopped. The dark-change heuristic can confuse other image changes with shadows and has not been field-validated.
+Candidate shadows must attenuate the reference's colour channels similarly and preserve local ground texture. Global channel gains compensate modest brightness/white-balance changes. Detected road-user boxes are excluded. Separate candidate tracks require displacement across at least three observations; shadows need not be horizontal. The UI outlines the measured patch, not an invented hidden person. A shadow warning can occur with zero visible road-user detections. Static changes, dark textureless foreground and unsupported camera motion are rejected in the controlled software tests.
+
+**Moving shadow · check the blind spot** is an indirect cue with an unconfirmed source, not a classification of a hidden pedestrian or a hidden-vehicle location. Shadow travel direction is image motion; it is not necessarily the direction of the hidden person. Textureless ground, multiple lights, colour-changing illumination, weak shadows and moving textured objects can defeat these tests.
+
+Small estimated camera movements accumulate relative to the reference. Camera movement, unreliable background tracking, substantial view change or a large lighting change suspends indirect warnings and starts reference learning again. Visible-object detection remains available. This first implementation targets a stopped camera observing the exit **before** reversing; it does not establish shadow sensing from a moving reversing vehicle. Check the **Indirect** status below the feed to see learning, monitoring and unavailable states. Object boxes can be enabled separately with **Objects**.
+
+## Review warning time
+
+Each temporally grouped shadow warning becomes an unreviewed episode, even if no road user appears. For a video replay, pause at the first frame where any part of the corresponding approaching person or vehicle is directly visible, then select **First visible here** for the matching episode. Alternatively enter its exact media time. **Unrelated cue** marks a warning with no related approach; **Reset label** removes a review. These are human annotations, never automatic ground truth. A paused seek can be used to inspect the first visible frame without feeding that frame to the estimator. Resuming after a backward seek or a gap greater than 2.5 seconds starts a new segment and reference; old-segment annotations cannot be attached to reused IDs.
+
+Lead time is `first visible frame time - first warning-trigger frame time`. The trigger timestamp is when temporal confirmation first succeeds, not backdated to the first weak candidate. Negative values are retained. These are **frame-time** measurements: they exclude inference, transport and display latency. Frame logs include processing duration; achieved live warning benefit must subtract end-to-end latency and be validated independently. An early shadow cue is not necessarily from the subsequently appearing actor; the reviewer must establish the correspondence.
+
+The summary covers reviewed warning episodes only. Unreviewed cues are not successful detections; missed approaches and no-warning trials are not counted by this panel. Do not call the displayed counts accuracy, recall or a false-alert rate. A full experiment requires independently labelled approach/no-approach clips, including failures, and a visible-detector-only comparison using the same recordings.
 
 ## Evidence and current limits
 
@@ -38,7 +50,7 @@ The software is not connected to steering or braking and has not been tested as 
 
 Verification includes unit/API tests, synthetic tracking tests and a real pretrained-model smoke check on a published example image. These do not establish accuracy for parking footage. Evaluate controlled real clips with independent visibility/approach labels and report false alerts, missed approaches, warning lead time and latency. Keep recorded-replay performance distinct from actual live camera performance.
 
-Camera frames are processed locally and not recorded by this mode. Browser imports remain local files; the service receives sampled JPEG frames. **Download session log** exports up to 10,000 timestamped detection/alert records without raw images or RTSP credentials. A new session starts a new in-memory log; download before starting another session or closing the page. Reference-setting timestamps are not currently recorded separately, so annotate that action in the experiment notebook.
+Camera frames are processed locally and not recorded by this mode. Browser imports remain local files; the service receives sampled JPEG frames. **Download session log** exports up to 10,000 frame/action records, including shadow contours, texture/attenuation measurements, detector results, processing durations, reference/zone actions and manual reviews. It includes up to 20 segment summaries, each retaining its latest 100 warning episodes. No raw images or RTSP credentials are exported. A new session starts a new in-memory log; download before starting another session or closing the page. No performance claims should be drawn from truncated logs.
 
 Processing runs while the page is visible. This is not an unattended vehicle service. Reopen the camera after a long background pause if its session expires.
 

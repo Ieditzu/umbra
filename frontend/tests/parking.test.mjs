@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parkingMessage, screenBox } from "../src/parking-types.ts";
+import { leadLabel, parkingMessage, screenBox } from "../src/parking-types.ts";
 
 test("mirroring moves boxes and warning direction together", () => {
   const box = [0.1, 0.2, 0.2, 0.4];
@@ -12,4 +12,11 @@ test("mirroring moves boxes and warning direction together", () => {
   assert.equal(parkingMessage(observation, false), "Approaching from left");
   assert.equal(parkingMessage(observation, true), "Approaching from right");
   assert.equal(parkingMessage({ state: "obstacle", message: "Object in the exit path" }, true), "Object in the exit path");
+});
+
+test("warning evidence does not turn late or unreviewed cues into early warnings", () => {
+  assert.equal(leadLabel(null), "Not reviewed");
+  assert.equal(leadLabel(1.234), "1.23 s before visibility");
+  assert.equal(leadLabel(-0.45), "0.45 s after visibility");
+  assert.equal(leadLabel(0), "At first visibility");
 });

@@ -13,8 +13,12 @@ research server and Vite development root open this view. Browser/USB cameras,
 local video replay and private-LAN RTSP cameras use a pretrained road-user
 detector without per-scene training. The interface shows current detections,
 image-space exit-path and lateral-approach warnings, optional mirrored guides
-and warning sound. An optional empty-ground reference supports experimental
-changing-shadow cues while the camera is stopped. Detection of fully hidden
+and warning sound. A separate automatic ground-shadow channel checks colour
+attenuation, preserved ground texture and temporal movement while stopped.
+It can warn without a visible-person detection, outlines measured shadow
+contours, and logs manually reviewed frame-time lead (including late cues).
+The channel suspends on unsupported camera movement or lighting changes.
+Frame-time lead excludes processing/transport/display latency. Detection of fully hidden
 pedestrians or traffic, physical distance and collision avoidance are not
 established. See docs/parking-camera.md.
 

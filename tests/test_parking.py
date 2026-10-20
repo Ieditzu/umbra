@@ -31,7 +31,10 @@ def test_cross_traffic_is_causal_requires_history_and_uses_relative_motion():
     for i, x in enumerate([0.04, 0.08, 0.12, 0.16]):
         result = first.update(image, [road_user(x)], 10 + i * 0.2)
         outputs.append(result)
-        assert result == replay.update(image, [road_user(x)], 10 + i * 0.2)
+        repeated = replay.update(image, [road_user(x)], 10 + i * 0.2)
+        # Session-segment tokens are unique; all measured outputs stay causal.
+        repeated["evidence"]["segment_id"] = result["evidence"]["segment_id"]
+        assert result == repeated
     assert outputs[0]["state"] == "observing"
     assert outputs[-1]["state"] == "cross_traffic"
     assert outputs[-1]["alerts"][0]["side"] == "left"
@@ -65,7 +68,7 @@ def test_visible_path_obstacle_does_not_require_an_empty_scene_or_mapping():
     result = tracker.update(image, [road_user(0.44, "person")], 1.3)
     assert result["state"] == "obstacle"
     assert result["detections"][0]["risk"] == "in_path"
-    assert result["shadow"]["state"] == "needs_reference"
+    assert result["shadow"]["state"] == "calibrating"
 
 
 def test_camera_translation_does_not_turn_a_static_car_into_cross_traffic():
@@ -82,18 +85,20 @@ def test_shadow_reference_requires_stillness_and_missing_cues_clear_immediately(
     image = background()
     tracker = ParkingTracker()
     tracker.request_empty_reference()
-    for i in range(8):
+    for i in range(12):
         output = tracker.update(image, [], i * 0.2 + 1)
     assert output["shadow"]["state"] == "watching"
     for i, x in enumerate([150, 159, 168, 177]):
         shadow = image.copy()
-        cv2.ellipse(shadow, (x, 210), (42, 7), 0, 0, 360, (30, 30, 30), -1)
-        output = tracker.update(shadow, [], 3 + i * 0.2)
+        mask = np.zeros(image.shape[:2], np.uint8)
+        cv2.ellipse(mask, (x, 210), (42, 7), 0, 0, 360, 1, -1)
+        shadow[mask > 0] = (shadow[mask > 0] * 0.55).astype(np.uint8)
+        output = tracker.update(shadow, [], 4 + i * 0.2)
     assert output["shadow"]["state"] == "possible_motion"
     assert "source is unconfirmed" in output["shadow"]["message"]
-    assert tracker.update(image, [], 4)["shadow"].get("box") is None
+    assert tracker.update(image, [], 5)["shadow"].get("box") is None
     moved = cv2.warpAffine(image, np.float32([[1, 0, 10], [0, 1, 0]]), (480, 270), borderMode=cv2.BORDER_REFLECT)
-    assert tracker.update(moved, [], 4.2)["shadow"]["state"] == "camera_moved"
+    assert tracker.update(moved, [], 5.2)["shadow"]["state"] == "camera_moved"
 
 
 def test_detector_decodes_and_filters_coco_classes_without_downloading_model():
@@ -142,6 +147,17 @@ def test_parking_api_starts_without_scene_training_and_expires_stale_sessions(tm
             assert response.status_code == 200, response.text
         assert response.json()["state"] == "obstacle"
         assert client.post(route + "/reference").status_code == 200
+        assert client.put(route + "/shadow-zone", json={"zone": "right"}).status_code == 200
+        assert client.put(route + "/shadow-zone", json={"zone": "invalid"}).status_code == 422
+        tracker = app.state.parking.sessions[session_id].tracker
+        tracker.evidence.update({"cues": [{"id": 1, "side": "left", "observed_since_s": 1}]}, 1.2, [])
+        review = {"segment_id": tracker.evidence.segment_id, "outcome": "first_visible", "visible_s": 1.3}
+        response = client.post(route + "/episodes/1/review", json=review)
+        assert response.status_code == 200
+        assert response.json()["episodes"][0]["lead_s"] == 0.1
+        assert client.post(route + "/episodes/999/review", json=review).status_code == 404
+        assert client.post(route + "/episodes/1/review", json={**review, "segment_id": "old"}).status_code == 422
+        assert client.post(route + "/episodes/1/review", json={**review, "visible_s": 80}).status_code == 422
         assert client.post(route + "/frame", files={"file": ("bad.jpg", b"invalid")}).status_code == 422
         assert client.post(route + "/frame", files={"file": ("a.jpg", encoded)}, data={"timestamp_s": -1}).status_code == 422
         app.state.parking.sessions[session_id].touched = time.monotonic() - 60

@@ -8,7 +8,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import cv2
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -104,6 +104,18 @@ class ParkingSessions:
         with session.lock:
             session.tracker.request_empty_reference()
 
+    def zone(self, session_id, zone):
+        session = self.get(session_id)
+        with session.lock:
+            session.tracker.set_shadow_zone(zone)
+
+    def review(self, session_id, event_id, outcome, visible_s, segment_id):
+        session = self.get(session_id)
+        with session.lock:
+            if session.tracker.last_time is None:
+                raise ValueError("Receive camera frames before reviewing a warning")
+            return session.tracker.evidence.review(event_id, outcome, visible_s, session.tracker.last_time, segment_id)
+
     def close(self, session_id):
         with self.lock:
             session = self.sessions.pop(session_id, None)
@@ -120,6 +132,16 @@ class ParkingStart(BaseModel):
     camera_url: str | None = Field(default=None, max_length=2048)
 
 
+class ShadowZone(BaseModel):
+    zone: Literal["ground", "left", "right"]
+
+
+class CueReview(BaseModel):
+    segment_id: str = Field(min_length=1, max_length=64)
+    outcome: Literal["first_visible", "unrelated", "unreviewed"]
+    visible_s: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+
+
 def parking_router(manager: ParkingSessions):
     router = APIRouter(prefix="/api/v1/parking", tags=["parking camera"])
 
@@ -127,7 +149,7 @@ def parking_router(manager: ParkingSessions):
         try:
             return function(*args)
         except KeyError as error:
-            raise HTTPException(404, "Parking session expired. Start again.") from error
+            raise HTTPException(404, str(error.args[0])) from error
         except (ValueError, OSError, cv2.error) as error:
             raise HTTPException(422, str(error)) from error
 
@@ -156,5 +178,14 @@ def parking_router(manager: ParkingSessions):
     def close(session_id: str):
         manager.close(session_id)
         return {"id": session_id}
+
+    @router.put("/sessions/{session_id}/shadow-zone")
+    def zone(session_id: str, payload: ShadowZone):
+        checked(manager.zone, session_id, payload.zone)
+        return {"zone": payload.zone, "status": "relearning_ground"}
+
+    @router.post("/sessions/{session_id}/episodes/{event_id}/review")
+    def review(session_id: str, event_id: int, payload: CueReview):
+        return checked(manager.review, session_id, event_id, payload.outcome, payload.visible_s, payload.segment_id)
 
     return router
