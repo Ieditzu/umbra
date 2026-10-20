@@ -1,6 +1,6 @@
 # Umbra
 
-The new **[Hidden image lab](docs/hidden-image-lab.md)** implements the first experiment for [Umbra's blind-spot imaging direction](docs/umbra-idea.en.md): measure the light response of a hidden screen and reconstruct an unfamiliar coarse grayscale image. Open `/periscope.html` on the local research server, or choose **Hidden image lab** in Research studio. It supports real photograph import, browser-camera capture, calibration checks and saved evidence exports. Pedestrian/traffic detection from reconstructed scenes is not implemented or field-validated yet.
+The local app now opens **[Parking camera](docs/parking-camera.md)**: a rear/parking-camera prototype for visible pedestrian/vehicle detection, lateral-approach warnings and experimental ground-shadow cues. Start `make research` and open `http://127.0.0.1:8002/`. It accepts browser/USB cameras, local video replay and private-LAN RTSP cameras without scene-training videos. The approximately 36 MB pretrained detector downloads on first start and then runs locally. Field accuracy and collision prevention are not established. [Project idea](docs/umbra-idea.en.md).
 
 Umbra also includes a **public developer platform**: a Go API, customer dashboard, API keys, prepaid analysis credits, and optional Stripe Checkout. See [public platform setup and operations](docs/public-platform.md). The public service uses the Python engine as a private worker; the original local research workflow below remains available separately at `/research.html`.
 
@@ -18,7 +18,7 @@ Umbra investigates whether **visible cast shadows** can provide reliable evidenc
 
 The [research plan](docs/research-plan.md) defines the hypotheses, proposed recording experiments, independent labels, detector comparisons, and evaluation measures. These experiments are planned; research results have not yet been established.
 
-The existing shadow-approach workflow compares an empty calibration to a trial clip, tracks darkening on the pavement, then timestamps when a walker enters the frame. Lead time is that gap. It reports no coverage or no reliable signal when the evidence is weak. That workflow is distinct from the new experimental hidden-image reconstruction lab; neither provides vision through a completely closed opaque wall.
+The existing shadow-approach workflow compares an empty calibration to a trial clip, tracks darkening on the pavement, then timestamps when a walker enters the frame. Lead time is that gap. It reports no coverage or no reliable signal when the evidence is weak. The parking prototype adds a visible road-user baseline and experimental shadow cues; it does not provide vision through a completely closed opaque wall.
 
 ## What is included
 

@@ -20,8 +20,7 @@ from .config import Settings, get_settings
 from .jobs import JobManager
 from .live import LiveSessions
 from .ml import ML_AVAILABLE
-from .periscope import PeriscopeLab
-from .periscope_api import periscope_router
+from .parking_api import ParkingSessions, parking_router
 from .schemas import (
     AnalysisRequest,
     Health,
@@ -55,11 +54,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     service = UmbraService(settings, store)
     jobs = JobManager(store)
     live = LiveSessions(service)
+    parking = ParkingSessions(settings.model_dir / "parking")
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         yield
         live.close_all()
+        parking.close_all()
         jobs.executor.shutdown(wait=False, cancel_futures=False)
 
     app = FastAPI(
@@ -72,7 +73,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.store = store
     app.state.service = service
     app.state.jobs = jobs
-    app.include_router(periscope_router(PeriscopeLab(settings.data_dir / "periscope")))
+    app.include_router(parking_router(parking))
+    app.state.parking = parking
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://127.0.0.1:5173", "http://localhost:5173", "http://127.0.0.1:5174", "http://localhost:5174"],
@@ -458,7 +460,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if frontend.exists():
         @app.get("/", include_in_schema=False)
         def research_home() -> RedirectResponse:
-            return RedirectResponse("/research.html")
+            return RedirectResponse("/parking.html")
 
         app.mount("/", StaticFiles(directory=frontend, html=True), name="dashboard")
     return app

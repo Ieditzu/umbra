@@ -8,19 +8,18 @@ entering them, initially a car-park exit with an obstructed pavement view.
 The intended use includes parking assistance and complementary perception
 for autonomous vehicles. See docs/umbra-idea.en.md for the full idea.
 
-The first implementation is a separate Hidden image lab at /periscope.html.
-It measures a grayscale light-transport matrix from photographs of a visible
-receiving surface while a hidden display shows calibration cells. It then
-reconstructs an unfamiliar 2x2, 3x3 or 4x4 image using bounded regression.
-Only the measured surface photograph and calibration enter reconstruction.
-Background drift, clipping, additivity and distinguishable-cell checks can
-reject unsuitable calibration. Captures, models and results persist locally
-and can be exported together. See docs/hidden-image-lab.md for setup.
+The main application is now the Parking camera at /parking.html. The local
+research server and Vite development root open this view. Browser/USB cameras,
+local video replay and private-LAN RTSP cameras use a pretrained road-user
+detector without per-scene training. The interface shows current detections,
+image-space exit-path and lateral-approach warnings, optional mirrored guides
+and warning sound. An optional empty-ground reference supports experimental
+changing-shadow cues while the camera is stopped. Detection of fully hidden
+pedestrians or traffic, physical distance and collision avoidance are not
+established. See docs/parking-camera.md.
 
-Physical optical performance still needs a real apparatus and independent
-measurements. Reconstruction of physical objects, adaptive acquisition and
-pedestrian/traffic warning from reconstructed images are not implemented.
-The original cast-shadow workflow remains a separate baseline below.
+Real parking performance needs controlled recordings and independent labels.
+The original recorded cast-shadow workflow remains a separate baseline below.
 
 ORIGINAL CAST-SHADOW BASELINE: This part is the earlier research design. README.md and
 docs/competition/ describe the current software. The estimator is

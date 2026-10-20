@@ -1,58 +1,63 @@
-# Umbra: seeing into blind spots through indirect light
+# Umbra: a parking-exit camera with blind-spot approach warnings
 
-Project direction agreed on 20 October 2026. This document describes the intended application and proposed research; it does not report validated performance.
-
-## The purpose
-
-Umbra aims to help people detect what is approaching from a blind spot before they have to enter that space themselves.
-
-Consider a driver leaving a car park. A wall blocks the view of the pavement. To check for an approaching pedestrian or cyclist, the driver has to move forward, potentially entering their path before seeing them. Umbra would investigate whether light and shadows visible to a camera can reveal useful information about that hidden approach earlier.
-
-The same need occurs at building exits, between parked vehicles, and at corridor junctions used by pedestrians and wheelchair users. The first application to investigate is a car-park exit with an obstructed view, reproduced in a controlled model before considering a full-scale site.
-
-**The goal is to reduce situations in which someone must expose themselves to a possible hazard simply to find out whether it is there.**
+Agreed project direction, clarified on 20 October 2026. This document distinguishes the intended application, current prototype and research still needed.
 
 ## The idea
 
-Objects outside a camera's direct view can still affect light reaching visible surfaces. Under suitable geometry and illumination, an obstruction partially blocks different light paths, creating patterns that contain information about the hidden scene.
+**Umbra is a camera-based parking assistant intended to warn about pedestrians, cyclists and vehicles approaching across the exit path when reversing out of a parking space or leaving a car park with an obstructed view.**
 
-Umbra would measure those patterns and attempt to recover a coarse image or spatial representation of the hidden area. Where the measurements support it, successive estimates could indicate an object's position and movement toward the visible path.
+Imagine reversing out between two parked cars. Their bodies block the view of traffic approaching from either side. Similarly, a wall beside a driveway can hide the pavement until the front or rear of the car has already entered it. The driver's practical need is to obtain useful information before moving into that hidden traffic path.
 
-A useful output might be an approximate hidden-region view, a movement indicator, or an early warning. The output must reflect the information actually recovered; uncertain measurements should produce an unavailable or uncertain result.
+Umbra aims to combine ordinary camera detections with evidence from visible light and shadows that may arrive before the approaching object becomes directly visible. The intended interface is a rear/parking camera view with object annotations, left/right approach warnings, and an optional warning sound.
 
-Light must have a path from the hidden area to a surface the camera can observe. This does not provide vision through a completely closed opaque wall.
+The purpose is daily parking and blind-spot awareness. The same sensing approach could eventually complement perception in autonomous vehicles. That would require a separately validated integration; the current application does not operate vehicle controls.
 
-## The first demonstration
+## What the camera would do
 
-Place a screen displaying a large letter, such as L, behind a cardboard barrier. A fixed camera observes only a matte white receiving surface. After calibration, Umbra attempts to reconstruct unfamiliar patterns from the camera measurements alone.
+1. Show the real camera view and detect visible road users: people, bicycles, motorcycles, cars, buses and trucks.
+2. Track their image-space movement and identify objects occupying the displayed exit corridor or approaching it from a side.
+3. Where the camera can observe suitable illuminated ground, examine changing shadows for additional evidence of an unseen approach.
+4. Present the warning together with its basis. A visible detected person and an unconfirmed shadow cue are different observations.
 
-The reconstruction program receives the calibration and measured camera images, never the hidden test pattern. Test letters and random patterns are selected independently of calibration.
+A fully hidden road user cannot be identified by an ordinary object detector alone. Recovering useful hidden-scene information requires an indirect light path and suitable conditions. It does not provide vision through a completely closed opaque wall.
 
-This experiment establishes whether the apparatus recovers spatial information. The next stage replaces the screen with illuminated physical shapes and moving objects in a model of a blind car-park exit. Success with a bright display alone does not establish detection of real pedestrians.
+## The implemented starting point
 
-## The research question
+The **Parking camera** is the local application's main view at `/parking.html`.
 
-**How much useful information about a hidden approach can an ordinary camera recover from indirect light, and under which conditions does that information arrive early enough to help?**
+- Browser/USB camera, local video replay and private-LAN RTSP camera inputs.
+- A pretrained COCO road-user detector running locally through OpenCV, without per-scene training videos or an account.
+- Image-space object tracking, approximate background-motion compensation, exit-path warnings and lateral-approach warnings.
+- Optional mirrored view, image-reference parking guides and user-enabled warning sounds.
+- An optional empty-ground reference for experimental changing-shadow cues while the camera is stopped.
+- Removal of stale detections when frames stop arriving or a video is paused.
 
-One proposed contribution is adaptive measurement selection: choosing among available measurement positions to reduce reconstruction uncertainty. Compare it with fixed, uniformly spaced, and randomly selected positions using the same capture budget. Initially, an operator can move the apparatus between marked positions; that experiment does not yet demonstrate an autonomous system.
+These are prototype features, not field-validated collision-prevention performance. Image guides do not measure distance. A warning does not establish a collision trajectory, and absence of a warning does not establish a clear path. Shadows do not establish a hidden object's identity or exact position.
 
-Keep two related experiments distinct: detecting a visible cast shadow and reconstructing a hidden scene from indirect light. Each needs its own method, baseline, and evidence. Their potential combination must be tested.
+## The research contribution to investigate
 
-## What we would measure
+**Can indirect shadow evidence provide earlier useful warnings than a visible-object detector alone, without an unacceptable increase in false alerts?**
 
-- Reconstruction error on previously unseen patterns and physical targets.
-- Achieved warning time relative to the first direct visibility of the approaching object.
-- Missed approaches, false alerts, and the frequency of uncertain or unavailable results.
-- Processing and acquisition time, including any movement of the apparatus.
-- Sensitivity to ambient light, receiving-surface texture, camera movement, and geometry changes.
-- Performance on sessions and arrangements withheld from development.
+The comparison should include:
 
-Live decisions must use only measurements available at that moment. Report all tested conditions, including failures. Compare practical alternatives, including direct cameras and mirrors, to establish where indirect sensing could add value.
+- The visible-object detector alone.
+- A simple ground-change detector.
+- The combined method with temporal checks, camera-motion checks and uncertainty/refusal handling.
+
+The team's own contribution should be demonstrated in the evidence-selection and warning method, its operating limits, and reproducible evaluation. Using a pretrained detector is a baseline, not a claim of inventing object detection. Shadow-based corner warning also has prior research.
+
+## How we would demonstrate it
+
+Begin with a model of an obstructed parking exit and illuminated moving physical targets. Then conduct consented, controlled recordings at a full-scale corner with the camera stopped, followed by separately evaluated slow camera movement. Keep test subjects out of live vehicle traffic.
+
+Independently label the first useful indirect cue, the first direct visibility of any part of the road user, and the actual warning timestamp. Test both sides, different approach speeds, stationary parked objects, empty trials, unrelated shadows and changing illumination. Evaluate unfamiliar arrangements and later sessions after fixing the method's parameters.
+
+Measure achieved warning time, missed approaches, false alerts, processing latency and the frequency of unavailable estimates. Compare alternatives at matched false-alert rates. Test camera movement and illumination changes explicitly, rather than assuming a stationary-camera result transfers to a reversing vehicle.
 
 ## Research foundation
 
-- [Computational periscopy with an ordinary digital camera, Nature (2019)](https://www.nature.com/articles/s41586-018-0868-6): a foundation for reconstructing hidden images from occlusion-dependent indirect light.
-- [Boston University: Can Technology Eliminate Blind Spots?](https://www.bu.edu/articles/2019/can-technology-eliminate-blind-spots/): explanation of the experiment, physical-target demonstrations, and lighting limitations.
-- [MIT CSAIL: Helping self-driving cars see around corners](https://www.csail.mit.edu/news/helping-self-driving-cars-see-around-corners): related work on shadow-based early warning in a parking garage and with an autonomous wheelchair.
+- [MIT CSAIL: Helping self-driving cars see around corners](https://www.csail.mit.edu/news/helping-self-driving-cars-see-around-corners): prior shadow-based warning experiments in a parking garage and with an autonomous wheelchair.
+- [OpenCV Zoo YOLOX detector](https://github.com/opencv/opencv_zoo/tree/main/models/object_detection_yolox): the pretrained visible-object baseline used by the prototype.
+- [Parking camera setup and limitations](parking-camera.md).
 
-These sources establish prior work, not Umbra's performance or worldwide novelty. The team's contribution must be demonstrated through its own apparatus, algorithms, comparisons, and measurements.
+These sources establish prior work. Umbra's benefit, novelty and suitability for deployment must be established by the team's own experiments.
