@@ -1,4 +1,9 @@
-export type RoadUser = { id: number; label: string; score: number; box: [number, number, number, number]; risk: "observed" | "approaching" | "in_path" };
+export type Distance = {
+  bound: "range" | "at_most"; low_m: number | null; estimate_m: number | null; high_m: number;
+  method: "size" | "ground" | "ground+size" | "conflict";
+};
+export type RoadUser = { id: number; label: string; score: number; box: [number, number, number, number]; risk: "observed" | "approaching" | "in_path"; distance?: Distance | null };
+export type CameraGeometry = { vertical_fov_deg: number; height_m: number | null; tilt_deg: number };
 export type ShadowCue = {
   id: number; box: [number, number, number, number]; contour: [number, number][];
   side: "left" | "right"; direction: "rightward" | "leftward" | "vertical";
@@ -22,14 +27,37 @@ export type ParkingObservation = {
   frame_aspect: number; processing_ms: number; motion_reliable: boolean;
   shadow: { state: string; message: string; progress?: number; box?: [number, number, number, number];
     zone: "ground" | "left" | "right"; region: [number, number, number, number]; cues: ShadowCue[] };
-  evidence: ParkingEvidence; timestamp_s: number;
+  evidence: ParkingEvidence; timestamp_s: number; camera_geometry?: CameraGeometry;
   image?: string;
 };
 
+function metres(value: number): string {
+  return value < 10 ? value.toFixed(1) : String(Math.round(value));
+}
+
+/** A range, never a single exact number: these are image-based estimates. */
+export function distanceLabel(distance?: Distance | null): string | null {
+  if (!distance) return null;
+  if (distance.bound === "at_most" || distance.low_m === null) return `< ${metres(distance.high_m)} m`;
+  return `${metres(distance.low_m)}–${metres(distance.high_m)} m`;
+}
+
+/** The road user that could be closest: smallest near bound (a cut-off box could be very close). */
+export function nearestRoadUser(detections: RoadUser[], ids?: Set<number>): RoadUser | null {
+  const candidates = detections.filter(item => item.distance && (!ids || ids.has(item.id)));
+  const near = (item: RoadUser) => item.distance!.low_m ?? 0;
+  return candidates.sort((a, b) => near(a) - near(b) || a.distance!.high_m - b.distance!.high_m)[0] ?? null;
+}
+
 export function parkingMessage(observation: ParkingObservation, mirrored: boolean): string {
-  if (observation.state !== "cross_traffic") return observation.message;
-  const sides = [...new Set(observation.alerts.map(alert => mirrored ? alert.side === "left" ? "right" : "left" : alert.side))];
-  return `Approaching from ${sides.sort().join(" and ")}`;
+  let message = observation.message;
+  if (observation.state === "cross_traffic") {
+    const sides = [...new Set(observation.alerts.map(alert => mirrored ? alert.side === "left" ? "right" : "left" : alert.side))];
+    message = `Approaching from ${sides.sort().join(" and ")}`;
+  }
+  if (observation.state !== "cross_traffic" && observation.state !== "obstacle") return message;
+  const closest = nearestRoadUser(observation.detections ?? [], new Set((observation.alerts ?? []).map(alert => alert.id)));
+  return closest ? `${message} · ${closest.label} ${distanceLabel(closest.distance)}` : message;
 }
 
 export function screenBox(box: [number, number, number, number], mirrored: boolean): [number, number, number, number] {

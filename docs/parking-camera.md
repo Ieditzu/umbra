@@ -24,6 +24,19 @@ The algorithm uses image coordinates, not physical speed, distance, steering or 
 
 No current warning is reported as **Observing · check surroundings**. This is not a clear-path signal. Missing, delayed or stale frames clear annotations and warnings. Very dark or largely overexposed frames report limited visibility.
 
+## Distance estimates
+
+Each visible road user gets an approximate distance range, shown on its box (enable **Objects**), after a warning message and as the nearest visible object below the feed. Ranges come from two image cues. Both assume an undistorted camera:
+
+- **Size:** typical real heights per class divided by the box height. The person range is 1.0–1.95 m, so a child is never assumed to be an adult far away. A box cut off by the frame edge only gives an upper bound (`< 3.0 m`).
+- **Ground contact (optional):** the camera's height above the ground and downward tilt, with the row where the box meets the ground, assuming flat ground and allowing ±2° of tilt error. Near the horizon this cue is refused.
+
+When both cues agree, the overlap is shown; when they disagree, the union is shown so the nearer possibility is not hidden. Estimates are smoothed per tracked object and cleared when settings change. Objects estimated beyond 40 m get no distance.
+
+Set the camera's vertical field of view under **Distance settings** (about 40–50° for laptop and USB webcams, often 80–120° for rear parking cameras). Settings are remembered in this browser and included in the session log. To check them, place a person at a measured distance and adjust the field of view until the range contains it.
+
+These are estimates, not measurements, and do not change warnings. A person partly hidden behind a car, fisheye distortion, sloped ground, wrong settings or an unusually sized object can make something look farther away than it is. Distance accuracy has not been evaluated.
+
 ## Indirect approach cues
 
 The shadow channel now starts automatically, independently of visible-object detections. Keep the camera stopped with a clear view of lit pavement for at least twelve processed frames. The median of those past frames becomes a fixed ground reference. This is not certified empty: an object or shadow already present can become part of it. No training clip, hidden-route mapping or future frame is used.
@@ -42,7 +55,7 @@ Each temporally grouped shadow warning becomes an unreviewed episode, even if no
 
 Lead time is `first visible frame time - first warning-trigger frame time`. The trigger timestamp is when temporal confirmation first succeeds, not backdated to the first weak candidate. Negative values are retained. These are **frame-time** measurements: they exclude inference, transport and display latency. Frame logs include processing duration; achieved live warning benefit must subtract end-to-end latency and be validated independently. An early shadow cue is not necessarily from the subsequently appearing actor; the reviewer must establish the correspondence.
 
-The summary covers reviewed warning episodes only. Unreviewed cues are not successful detections; missed approaches and no-warning trials are not counted by this panel. Do not call the displayed counts accuracy, recall or a false-alert rate. A full experiment requires independently labelled approach/no-approach clips, including failures, and a visible-detector-only comparison using the same recordings.
+The summary covers reviewed warning episodes only. Unreviewed cues are not successful detections; missed approaches and no-warning trials are not counted by this panel. Do not call the displayed counts accuracy, recall or a false-alert rate. A full experiment requires independently labelled approach/no-approach clips, including failures, and a visible-detector-only comparison using the same recordings. The [method comparison](parking-evaluation.md) tool scores such clips.
 
 ## Evidence and current limits
 

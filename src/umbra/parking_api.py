@@ -18,6 +18,7 @@ from starlette.concurrency import run_in_threadpool
 from .live import NetworkCamera, decode_live_jpeg
 from .parking import ParkingTracker
 from .parking_detector import RoadUserDetector, install_model
+from .parking_distance import CameraGeometry
 
 
 @dataclass
@@ -109,6 +110,11 @@ class ParkingSessions:
         with session.lock:
             session.tracker.set_shadow_zone(zone)
 
+    def geometry(self, session_id, geometry: CameraGeometry):
+        session = self.get(session_id)
+        with session.lock:
+            session.tracker.set_geometry(geometry)
+
     def review(self, session_id, event_id, outcome, visible_s, segment_id):
         session = self.get(session_id)
         with session.lock:
@@ -134,6 +140,12 @@ class ParkingStart(BaseModel):
 
 class ShadowZone(BaseModel):
     zone: Literal["ground", "left", "right"]
+
+
+class Geometry(BaseModel):
+    vertical_fov_deg: float = Field(ge=10, le=150, allow_inf_nan=False)
+    height_m: float | None = Field(default=None, ge=0.2, le=5, allow_inf_nan=False)
+    tilt_deg: float = Field(default=0, ge=-30, le=80, allow_inf_nan=False)
 
 
 class CueReview(BaseModel):
@@ -183,6 +195,12 @@ def parking_router(manager: ParkingSessions):
     def zone(session_id: str, payload: ShadowZone):
         checked(manager.zone, session_id, payload.zone)
         return {"zone": payload.zone, "status": "relearning_ground"}
+
+    @router.put("/sessions/{session_id}/camera-geometry")
+    def geometry(session_id: str, payload: Geometry):
+        settings = CameraGeometry(payload.vertical_fov_deg, payload.height_m, payload.tilt_deg)
+        checked(manager.geometry, session_id, settings)
+        return settings.as_dict()
 
     @router.post("/sessions/{session_id}/episodes/{event_id}/review")
     def review(session_id: str, event_id: int, payload: CueReview):
