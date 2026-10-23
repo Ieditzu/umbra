@@ -85,7 +85,7 @@ Reproduce the documented software checks with:
 uv run python scripts/validate_synthetic.py --data-dir ../umbra-data/submission-fixtures --output docs/competition/software-results.json
 ```
 
-The estimator is heuristic. Selecting a phone shadow area tunes the signal to that recording; it does not train a general neural model or establish performance on a new trial. Confidence scores are not calibrated probabilities. Position is an image-derived estimate. New recorded/live body-centre dots require a saved camera mapping from a prior visible calibration walk; the old fixed-depth shadow-ray marker is no longer used in new analyses. A replay of that calibration walk is not independent validation. Position estimates do not confirm a person, recover pose or physical lamp height, or override a refused night shadow warning. The optional neural checkpoint is advisory. No held-out field performance has been established.
+The estimator is heuristic. Selecting a phone shadow area tunes the signal to that recording; it does not train a general neural model or establish performance on a new trial. Confidence scores are not calibrated probabilities. Position is an image-derived estimate. New recorded/live body-centre dots require a saved camera mapping from a prior visible calibration walk; the old fixed-depth shadow-ray marker is no longer used in new analyses. A replay of that calibration walk is not independent validation. Position estimates do not confirm a person, recover pose or physical lamp height or override a refused night shadow warning. The optional neural checkpoint is advisory. No held-out field performance has been established.
 
 ## Data and privacy
 
