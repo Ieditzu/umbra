@@ -50,6 +50,12 @@ Unknown duration is never counted as shade. The selection score is `sun_seconds 
 
 Night (solar center below -0.833 degrees) and near-horizon periods return `unknown` with an explicit reason. When the entire planning interval is dark/low Sun, only the fastest candidate is considered. No nighttime benefit is described as shade.
 
+## Displayed map polygons
+
+`POST /v1/shadows` projects each usable building's vertical prism away from the Sun and unions the footprint, translated footprint, and swept exterior/interior boundary faces. It then subtracts the original footprint and clips to the pilot/viewport. Concavities and courtyard holes are preserved; a convex hull is not used. The pinned `simplefeatures/geom` library performs polygon overlays in metres. Output is converted to WGS84 GeoJSON rings.
+
+Tagged heights produce `osm_height` polygons. Floor-count estimates produce `levels_estimate` polygons using their lower assumed height, not a claimed mean or measured height. Missing/elevated geometry produces `unknown` footprint outlines. The map is a geometric visualization, not evidence that unshaded pixels are sunny or that all obstructions are known. Results at the solar cutoff/night have no daylight shadow polygons. A pilot-center solar position is used for this small-area display; route samples continue to use their own time/location.
+
 ## Contract coordination proposals
 
 The existing contract is implemented unchanged. For a future coordinated frontend/backend version consider per-segment height/position provenance, sun-exposure bounds, explicit night classification and snapped endpoints with access distances. These would avoid placing all explanations in global warnings. They are proposals only; schema version 1 still has exactly `shade`, `sun`, `unknown` and the existing route fields.
@@ -60,3 +66,4 @@ The existing contract is implemented unchanged. For a future coordinated fronten
 - [pvlib solar-position documentation](https://pvlib-python.readthedocs.io/en/stable/reference/generated/pvlib.solarposition.get_solarposition.html) for the independent numerical test references.
 - [EPSG:32635 definition via PROJ](https://proj.org/en/stable/operations/projections/utm.html).
 - [OSM building tagging](https://wiki.openstreetmap.org/wiki/Simple_3D_Buildings).
+- [Simple Features polygon operations](https://github.com/peterstace/simplefeatures/tree/v0.59.0), MIT license; see [license notice](simplefeatures-LICENSE.txt).

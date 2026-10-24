@@ -12,9 +12,9 @@ Umbra este o aplicație mobilă React Native pentru Android și iOS care urmăre
 Reducerea expunerii pietonilor la soare, în special vara, când temperaturile sunt ridicate.
 
 ### Implementare
-Interfața mobilă este realizată în React Native, cu Expo și TypeScript. Motorul de calcul este planificat separat, în Python, folosind OSMnx pentru rețeaua pietonală, pvlib pentru poziția Soarelui și un algoritm de optimizare a traseelor.
+Interfața mobilă este realizată în React Native, cu Expo și TypeScript. Backend-ul este implementat în Go: import OSM explicit și păstrat în cache, graf pietonal, poziția Soarelui prin ecuații NOAA/Meeus și geometrie în metri (EPSG:32635). Valorile solare sunt comparate în teste cu referințe pvlib; pvlib nu este o dependență a serverului.
 
-Prima implementare mobilă include harta nativă, alegerea punctelor, localizarea la cerere, căutarea adreselor, data/ora plecării și preferința de ocol. Clientul are un contract pentru serviciul de calcul, dar motorul de trasee și umbre nu este încă implementat. Nu se afișează trasee sau rezultate fictive în lipsa lui.
+Aplicația mobilă afișează harta pe tot ecranul, urmărește locația în prim-plan și cere doar destinația prin „Unde mergi?”. Stratul de umbre folosește ora selectată și zona vizibilă. API-ul oferă comparația traseelor și poligoane de umbre; rezultatele lipsă nu sunt înlocuite cu date fictive. Testele verifică integrarea software, nu demonstrează încă precizia în teren.
 
 Prima versiune ar acoperi o zonă restrânsă din Constanța. Înălțimile lipsă ale clădirilor ar fi estimate sau introduse manual, cu sursa și incertitudinea marcate. Acoperirea locală a înălțimilor OpenStreetMap trebuie verificată înainte de alegerea zonei de studiu.
 
