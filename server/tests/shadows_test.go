@@ -109,3 +109,24 @@ func TestSolarUsesInstantAcrossDST(t *testing.T) {
 		t.Fatal("ambiguous DST instants collapsed")
 	}
 }
+
+func TestCourtyardHoleAndCoverageBoundary(t *testing.T) {
+	d := shadowData(t)
+	p := d.Nodes[0].Point
+	outer := u.Rect(u.Bounds{West: p.X - 20, South: p.Y - 20, East: p.X + 20, North: p.Y + 20})
+	hole := u.Rect(u.Bounds{West: p.X - 10, South: p.Y - 10, East: p.X + 10, North: p.Y + 10})
+	poly := append(outer, hole[0])
+	d.Buildings = []u.Building{{ID: "courtyard", Geometry: []u.Polygon{poly}, Tags: map[string]string{"height": "5"}}}
+	if err := d.Initialize(); err != nil {
+		t.Fatal(err)
+	}
+	m := u.Model{Data: d}
+	if got := m.ClassifyAt(p, u.Sun{Elevation: 80, Azimuth: 0}, true); got.Exposure != "sun" {
+		t.Fatal("courtyard treated as solid", got)
+	}
+	d.Buildings = nil
+	d.Audit.Area = u.Rect(u.Bounds{West: p.X - 1, South: p.Y - 1, East: p.X + 1, North: p.Y + 1})
+	if got := m.ClassifyAt(p, u.Sun{Elevation: 45, Azimuth: 0}, true); got.Exposure != "unknown" || got.Reason != "outside_obstruction_coverage" {
+		t.Fatal(got)
+	}
+}
