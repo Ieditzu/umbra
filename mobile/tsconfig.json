@@ -1,0 +1,9 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "allowImportingTsExtensions": true,
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM"]
+  }
+}
