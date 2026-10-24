@@ -4,7 +4,7 @@ This service implements the current Constanța walking/shade pilot. It has no ca
 
 ## Install and prepare
 
-Requirements: Go 1.24 or newer. Node.js 22.13+ is also required **for the integration test** which executes the existing mobile TypeScript validator. Neither Python nor npm dependencies are required by the service. The Go module has no third-party dependencies. IANA time-zone data is embedded in the binary.
+Requirements: Go 1.24 or newer. Node.js 22.13+ is also required **for integration tests** that execute the existing mobile TypeScript validators. Neither Python nor npm dependencies are required by the service. Map polygon union/clipping uses the pinned pure-Go MIT-licensed `github.com/peterstace/simplefeatures/geom` dependency; CGO and native GIS libraries are not required. IANA time-zone data is embedded in the binary.
 
 From the repository root:
 
@@ -45,7 +45,7 @@ Check readiness:
 curl http://127.0.0.1:8000/health
 ```
 
-A ready response includes `ready: true`, map counts, height-source counts, the OSM snapshot timestamp and `field_validated: false`. Without data, `/health` and `/v1/routes/compare` return 503. After loading, the process serves the same snapshot even if the upstream provider is unavailable.
+A ready response includes `ready: true`, map counts, height-source counts, the OSM snapshot timestamp and `field_validated: false`. Without data, `/health`, `/v1/routes/compare` and `/v1/shadows` return 503. After loading, the process serves the same snapshot even if the upstream provider is unavailable.
 
 ## Route request
 
@@ -70,6 +70,20 @@ The request example in the older mobile integration document has a destination l
 The exact `departure_at` string is echoed, including its original offset and fractional-second spelling. `departure_timezone` must be an IANA zone. An explicit UTC instant avoids the ambiguity of repeated local times during DST. The API validates required fields, geographic bounds, current/future departure (60 s grace), 25 m–20 km endpoint separation, positive speed and detour values 0/5/10/15. The solar model is limited to years 2000–2100; the pilot has a four-hour planning horizon including the detour allowance. Native client requests use a 1.4 m/s default.
 
 Responses contain the fastest route and at most two distinct useful alternatives. Every route has connected metric-derived geometry converted back to WGS84 coordinates and positive segment durations summing to total duration. Non-success responses use `{"detail":"..."}`: 422 for input/coverage/connectivity failures, 413 for bodies over 16 KiB, 415 for unsupported content type, and 503 for missing data, capacity or compute timeout. At most two calculations run concurrently. The compute budget is 12 s, leaving room under the mobile client's 20 s timeout. These are budgets, not a latency guarantee on every host.
+
+## Map shadows
+
+```bash
+curl --fail-with-body http://127.0.0.1:8000/v1/shadows \
+  -H 'Content-Type: application/json' \
+  --data '{"at":"2026-10-24T09:00:00.000Z","bounds":[28.630,44.170,28.640,44.180]}'
+```
+
+The endpoint implements the mobile GeoJSON contract in `docs/mobile-app.md`. Bounds are west/south/east/north; historical and future inspection instants in 2000–2100 are allowed. Polygons are clipped to both viewport and pilot, preserving inner rings. Responses echo the requested instant, classify `available`/`night`/`low_sun`, and disclose `partial_coverage`, height provenance, warnings and attribution. Missing or elevated/unsupported heights produce footprint outlines, never fabricated shadow extents.
+
+At night or below the five-degree solar cutoff, no daylight shadows are drawn. Floor-estimated shadows use the lower assumed height, consistent with the routing model's conservative shade label; the larger possible shadow remains uncertain. The model assumes flat terrain and opaque vertical prisms, not detailed roofs, trees or weather.
+
+The endpoint shares the two-calculation capacity limit with routing. It has a 12-second cooperative budget, an eight-entry immutable response cache, a 16 KiB request cap, a 4.9 MB response cap, and at most 2,000 polygon features/60,000 coordinates. Very complex building polygons are omitted with a warning; truncation is flagged so users can zoom in. Invalid/outside viewports return 422, malformed content types 415, oversized bodies 413, and unavailable/busy calculation 503. Serving never downloads OSM data.
 
 ## Model and research evidence
 

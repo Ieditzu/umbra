@@ -25,6 +25,62 @@ func failure(w http.ResponseWriter, status int, message string) {
 func NewHandler(router *Router) http.Handler {
 	mux := http.NewServeMux()
 	slots := make(chan struct{}, 2)
+	cache := &overlayCache{}
+	mux.HandleFunc("POST /v1/shadows", func(w http.ResponseWriter, r *http.Request) {
+		if router == nil {
+			failure(w, 503, "Pilot data is not prepared. Run prepare and restart the server.")
+			return
+		}
+		media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err != nil || media != "application/json" {
+			failure(w, 415, "Content-Type must be application/json")
+			return
+		}
+		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 16384))
+		if err != nil {
+			failure(w, 413, "Request body exceeds 16 KiB")
+			return
+		}
+		var q OverlayRequest
+		decoder := json.NewDecoder(strings.NewReader(string(body)))
+		decoder.DisallowUnknownFields()
+		if decoder.Decode(&q) != nil || decoder.Decode(new(any)) != io.EOF {
+			failure(w, 422, "Invalid shadow request")
+			return
+		}
+		if _, _, _, err = overlayViewport(q, router.Data); err != nil {
+			failure(w, 422, err.Error())
+			return
+		}
+		key := string(body)
+		if result, ok := cache.get(key); ok {
+			writeJSON(w, 200, result)
+			return
+		}
+		select {
+		case slots <- struct{}{}:
+			defer func() { <-slots }()
+		default:
+			w.Header().Set("Retry-After", "1")
+			failure(w, 503, "Calculation capacity is busy")
+			return
+		}
+		result, err := router.MapShadows(r.Context(), q)
+		if err != nil {
+			if r.Context().Err() != nil {
+				return
+			}
+			var re *RouteError
+			if errors.As(err, &re) {
+				failure(w, re.Status, re.Message)
+			} else {
+				failure(w, 503, "Shadow calculation unavailable or exceeded its budget")
+			}
+			return
+		}
+		cache.put(key, result)
+		writeJSON(w, 200, result)
+	})
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		if router == nil {
 			writeJSON(w, 503, map[string]any{"status": "not_ready", "ready": false, "detail": "Prepare the pilot dataset then restart the server."})

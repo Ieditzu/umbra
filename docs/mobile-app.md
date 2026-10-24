@@ -25,7 +25,7 @@ There is no background location tracking or analytics SDK. GPS watching stops wh
 
 ## Calculation-service contract
 
-**No operational API is included yet.** The checkpointed `server/` geometry modules are incomplete. Set a base URL in Settings when a compatible service exists. The client posts JSON to `<base URL>/v1/routes/compare`:
+The Go service in `server/` implements the route and map-shadow contracts. Prepare its OSM snapshot and start it as described in `docs/backend/README.md`, then configure its reachable base URL in Settings. The client posts JSON to `<base URL>/v1/routes/compare`:
 
 ```json
 {
@@ -39,7 +39,7 @@ There is no background location tracking or analytics SDK. GPS watching stops wh
 }
 ```
 
-The response must contain `schema_version: 1`, the exact requested `departure_at`, a valid `generated_at`, a nonempty `method`, `warnings: string[]`, `attribution: string[]`, and one to three `routes`. These fields are a proposed integration contract, not an existing external API.
+The response must contain `schema_version: 1`, the exact requested `departure_at`, a valid `generated_at`, a nonempty `method`, `warnings: string[]`, `attribution: string[]`, and one to three `routes`.
 
 Each route contains a unique `id`, a unique `kind` (`fastest`, `balanced` or `shadiest`), positive `distance_m` and `duration_s`, and nonempty `segments`. A segment contains at least two `{latitude, longitude}` coordinates, positive `duration_s`, and `exposure` equal to `shade`, `sun` or `unknown`.
 
@@ -55,7 +55,7 @@ The frontend requests `POST /v1/shadows` with `{ "at": "2026-10-24T12:00:00.000Z
 
 The response is a GeoJSON `FeatureCollection` with `at` matching the requested instant, `state` (`available`, `night`, `low_sun`), `features`, `attribution: string[]`, and `warnings: string[]`. An optional `truncated` flag indicates clipping of the result count. Each feature is a closed Polygon in `[longitude, latitude]` order, with `properties.building_id` and `properties.height_source` equal to `osm_height`, `levels_estimate`, or `unknown`. Inner rings are supported.
 
-Known-height shadow polygons are darker; estimated-height shadows are lighter. `unknown` features represent building footprints, not calculated shadow extents, and render as neutral outlines. The client rejects malformed geometry, wrong timestamps and oversized responses. There is no synthetic shadow display or placeholder route in the actual app. Rendering real shadows still requires a working compatible API.
+Known-height shadow polygons are darker; estimated-height shadows are lighter. `unknown` features represent building footprints, not calculated shadow extents, and render as neutral outlines. The client rejects malformed geometry, wrong timestamps and oversized responses. There is no synthetic shadow display or placeholder route in the actual app. The Go service supplies modeled geometry from a prepared real OSM snapshot; it is not field-validated shadow measurement.
 
 Public servers must use HTTPS. Local HTTP is allowed for development only; a physical phone needs the computer's reachable LAN IP, not `localhost`. Native standalone cleartext policies may need explicit development configuration. Do not put server secrets in the app URL or Expo public environment variables.
 
