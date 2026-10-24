@@ -110,7 +110,7 @@ func CastShadow(poly Polygon, height float64, sun Sun) (geom.Geometry, error) {
 	if err != nil {
 		return geom.Geometry{}, err
 	}
-	if height <= 0 || sun.Elevation < 5 || sun.Elevation > 90 || !finite(height) {
+	if height <= 0 || height > 1000 || sun.Elevation < 5 || sun.Elevation > 90 || !finite(height) || !finite(sun.Elevation) || !finite(sun.Azimuth) {
 		return geom.Geometry{}, fmt.Errorf("unsupported shadow height or solar elevation")
 	}
 	center := bounds(poly[0])

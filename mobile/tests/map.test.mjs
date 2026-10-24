@@ -111,6 +111,16 @@ test("unknown building heights remain distinct from calculated shadow geometry",
   assert.equal(parseShadowLayer(data, at).polygons[0].source, "unknown");
 });
 
+test("partial and truncated map coverage is exposed rather than presented as complete", () => {
+  const layer = parseShadowLayer(
+    { ...fixture(), partial_coverage: true, truncated: true },
+    at,
+  );
+  assert.equal(layer.partialCoverage, true);
+  assert.equal(layer.truncated, true);
+  assert.equal(parseShadowLayer(fixture(), at).partialCoverage, false);
+});
+
 test("old shadow snapshots and malformed map geometry cannot be displayed", () => {
   assert.throws(() => parseShadowLayer(fixture(), "2026-10-24T13:00:00.000Z"));
   const bad = fixture();

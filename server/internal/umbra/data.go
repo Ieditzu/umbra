@@ -84,7 +84,9 @@ func BuildingHeight(tags map[string]string) Height {
 	if parsePositive(tags["min_height"]) > 0 || parsePositive(tags["building:min_level"]) > 0 || tags["building"] == "roof" {
 		return Height{Source: "unsupported_elevated"}
 	}
-	if h := parsePositive(tags["height"]); h > 0 {
+	// Reject implausible pilot tags before they cast an effectively infinite
+	// shadow. This sanity cap is not a completeness/height-ceiling audit.
+	if h := parsePositive(tags["height"]); h > 0 && h <= 1000 {
 		return Height{h, h, "osm_height_tag"}
 	}
 	if n := parsePositive(tags["building:levels"]); n > 0 && n <= 150 {
