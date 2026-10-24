@@ -6,14 +6,15 @@ A React Native mobile app for planning walks with less estimated exposure to dir
 
 The Android/iOS application lives in [`mobile/`](mobile/). It uses Expo SDK 58, TypeScript and Expo Router.
 
-- A native map initially centered on Constanța.
-- Start/destination selection by map tap, native address search, or foreground device location.
+- A full-screen native map with continuous foreground location, camera following and recentering.
+- A single **Unde mergi?** destination search; long-press the map to choose a destination. There are no A/B input fields or tutorial panels.
+- A time selector and a validated map-shadow overlay client, refreshed by minute and viewport.
 - Departure date/time and a maximum extra walking-time preference.
 - Local preference storage without saving coordinates or route history.
 - A typed, validated client contract for comparing fastest, balanced and shade-oriented routes.
 - Segment colors for estimated shade, sun and **unknown** exposure when a calculation service returns real data.
 
-**The routing/shadow calculation service is not implemented yet.** The app does not invent routes, shade percentages or weather measurements. Without a configured service, you can test maps, location, address search and planning inputs, but not calculate a shaded route. The native basemap is not the OSM building-shadow model.
+**The routing/shadow API is not operational yet.** Initial geometry modules are checkpointed in `server/`, but there is no running route/overlay service. The frontend does not invent routes or shadows: without a compatible service, native maps, live location and destination search work, but calculated overlays and shaded routes remain unavailable. The native basemap is not the OSM building-shadow model.
 
 ## Run on your phone
 

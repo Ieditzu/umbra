@@ -27,7 +27,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Umbra folosește locația doar pentru a alege punctul de plecare sau pentru căutarea adreselor.",
+          "locationWhenInUsePermission": "Umbra folosește locația în prim-plan pentru poziția pe hartă și actualizarea traseului.",
           "isAndroidBackgroundLocationEnabled": false,
           "isAndroidForegroundServiceEnabled": false
         }

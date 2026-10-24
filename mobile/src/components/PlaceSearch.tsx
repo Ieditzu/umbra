@@ -99,16 +99,12 @@ export function PlaceSearch({
             <Text style={styles.closeText}>Închide</Text>
           </Pressable>
         </View>
-        <Text style={styles.note}>
-          Caută o adresă în Constanța. Căutarea folosește serviciul de geocodare
-          al telefonului și poate necesita internet.
-        </Text>
         <TextInput
           autoFocus
           value={query}
           onChangeText={setQuery}
           style={styles.input}
-          placeholder="Stradă, număr sau loc"
+          placeholder="Unde mergi?"
           placeholderTextColor={colors.muted}
           accessibilityLabel="Adresa căutată"
           returnKeyType="search"

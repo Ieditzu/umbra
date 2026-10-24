@@ -80,6 +80,14 @@ function usePlannerState() {
     setOrigin(destination);
     setDestination(origin);
   }
+  function updateOrigin(place: Place | null) {
+    setOrigin(place);
+    if (!place) invalidate();
+  }
+  function clearDestination() {
+    invalidate();
+    setDestination(null);
+  }
   function changeDeparture(value: Date | null) {
     invalidate();
     setDeparture(value);
@@ -90,7 +98,12 @@ function usePlannerState() {
     setSettings(value);
   }
   async function calculate() {
-    invalidate();
+    generation.current++;
+    pending.current?.abort();
+    setMessage("");
+    const preferredKind =
+      comparison?.routes.find((route) => route.id === selectedId)?.kind ??
+      "balanced";
     const controller = new AbortController();
     pending.current = controller;
     const ticket = generation.current;
@@ -119,7 +132,7 @@ function usePlannerState() {
       setComparison(result);
       setSelectedId(
         (
-          result.routes.find((route) => route.kind === "balanced") ??
+          result.routes.find((route) => route.kind === preferredKind) ??
           result.routes[0]
         ).id,
       );
@@ -158,6 +171,8 @@ function usePlannerState() {
     message,
     setMessage,
     choosePlace,
+    updateOrigin,
+    clearDestination,
     swap,
     saveSettings,
     calculate,
