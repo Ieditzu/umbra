@@ -16,16 +16,16 @@ Floor counts can support approximate extrusion, but floor height, roofs and buil
 
 1. In `mobile/`, run `npm ci` and `npm start`.
 2. Open the project using Expo Go for SDK 58. The app has been upgraded from SDK 57 to match the current iPhone Expo Go release. If Metro was running before the upgrade, stop it, run `npm ci`, then `npx expo start --clear`. Scan the new QR code rather than reopening an old recent-project entry. Physical iPhones can only install the current Expo Go release from the App Store.
-3. Tap **A** and a map point for the origin; tap **B** and a map point for the destination. The first origin selection automatically switches to destination selection.
-4. Alternatively, use the search icon for an address in Constanța, or the location icon for a one-time current-location lookup. Android's native geocoder requires foreground location permission. Search is only submitted explicitly, not on every keystroke.
-5. Choose **Acum**, another date or another time. The device's time zone and an unambiguous UTC instant are sent to the service.
-6. Set the maximum extra duration in **Preferințe**. It persists across restarts. Points, results and selected departure time do not persist.
+3. Allow foreground location. A live blue dot replaces a manually selected origin. The camera follows the dot until you pan; the location button resumes following. A stale fix is hidden rather than presented as live.
+4. Tap **Unde mergi?** for an address in Constanța, or long-press the map to set a destination. Android's native geocoder requires foreground location permission. No origin/destination A/B form is displayed.
+5. Tap **Acum** at the top for the shadow time. Current-time shadows refresh by minute; a selected date/time stays fixed. The layer button opens shadow visibility and the height-source legend.
+6. Set the maximum extra duration and service URL in **Setări**. Only these preferences persist. Points, results and selected departure time do not persist.
 
-There is no background location tracking or analytics SDK. Native maps/geocoding use their providers' network services. Coordinates are sent to the configured calculation endpoint only when the user requests a comparison. This does not control the server's own retention policy.
+There is no background location tracking or analytics SDK. GPS watching stops when the app leaves the foreground and resumes on return if permission remains granted. Native maps/geocoding use their providers' network services. With a destination and a configured service, routes update automatically after useful movement (25 m, throttled to at least 10 seconds), input changes, or one minute. Visible map bounds and the selected instant are sent for enabled shadow overlays. These controls do not govern the server's own retention policy.
 
 ## Calculation-service contract
 
-**No server is included yet.** Set a base URL in Preferences only when a compatible service exists. The client posts JSON to `<base URL>/v1/routes/compare`:
+**No operational API is included yet.** The checkpointed `server/` geometry modules are incomplete. Set a base URL in Settings when a compatible service exists. The client posts JSON to `<base URL>/v1/routes/compare`:
 
 ```json
 {
@@ -48,6 +48,14 @@ The client requires a fastest baseline, connected segments, total segment durati
 The server must additionally verify pedestrian access, lawful crossings, coverage, height quality, solar geometry and exposure at traversal time. Client validation cannot establish physical accuracy or route safety. The initial walking speed does not model signals or stops.
 
 Requests time out after 20 seconds. Changing inputs or leaving the foreground cancels outstanding requests and stale responses cannot replace current results. No fallback invents route geometry or shadow metrics. A restarted app restores only the service URL and detour preference.
+
+## Map-shadow overlay contract
+
+The frontend requests `POST /v1/shadows` with `{ "at": "2026-10-24T12:00:00.000Z", "bounds": [28.630, 44.170, 28.640, 44.180] }`. Bounds are west/south/east/north. Requests debounce viewport movement by 500 ms and time out after 15 seconds. Old server/viewport/time responses are discarded. Hiding the layer or backgrounding the app cancels requests and hides the overlay.
+
+The response is a GeoJSON `FeatureCollection` with `at` matching the requested instant, `state` (`available`, `night`, `low_sun`), `features`, `attribution: string[]`, and `warnings: string[]`. An optional `truncated` flag indicates clipping of the result count. Each feature is a closed Polygon in `[longitude, latitude]` order, with `properties.building_id` and `properties.height_source` equal to `osm_height`, `levels_estimate`, or `unknown`. Inner rings are supported.
+
+Known-height shadow polygons are darker; estimated-height shadows are lighter. `unknown` features represent building footprints, not calculated shadow extents, and render as neutral outlines. The client rejects malformed geometry, wrong timestamps and oversized responses. There is no synthetic shadow display or placeholder route in the actual app. Rendering real shadows still requires a working compatible API.
 
 Public servers must use HTTPS. Local HTTP is allowed for development only; a physical phone needs the computer's reachable LAN IP, not `localhost`. Native standalone cleartext policies may need explicit development configuration. Do not put server secrets in the app URL or Expo public environment variables.
 
