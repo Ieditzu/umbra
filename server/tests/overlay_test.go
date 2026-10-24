@@ -225,3 +225,25 @@ func TestOverlayComputeBudget(t *testing.T) {
 		t.Fatal("deadline ignored")
 	}
 }
+
+func TestShadowRejectsImplausibleHeightAndOversizedFootprint(t *testing.T) {
+	if got := u.BuildingHeight(map[string]string{"height": "1e308"}); got.Source != "missing" {
+		t.Fatal("implausible height became shade", got)
+	}
+	p := u.Project(u.Coordinate{Latitude: 44.1733, Longitude: 28.6383})
+	poly := u.Rect(u.Bounds{West: p.X, South: p.Y, East: p.X + 10, North: p.Y + 10})
+	if _, err := u.CastShadow(poly, 1e308, u.Sun{Elevation: 45, Azimuth: 0}); err == nil {
+		t.Fatal("oversized height accepted")
+	}
+	if _, err := u.CastShadow(poly, 10, u.Sun{Elevation: math.NaN(), Azimuth: 0}); err == nil {
+		t.Fatal("nonfinite solar position accepted")
+	}
+	ring := []u.Point{}
+	for i := 0; i <= 1100; i++ {
+		angle := float64(i%1100) * 2 * math.Pi / 1100
+		ring = append(ring, u.Point{X: p.X + 10*math.Cos(angle), Y: p.Y + 10*math.Sin(angle)})
+	}
+	if _, err := u.CastShadow(u.Polygon{ring}, 10, u.Sun{Elevation: 45, Azimuth: 0}); err == nil {
+		t.Fatal("oversized footprint accepted")
+	}
+}

@@ -267,6 +267,14 @@ export default function MapScreen() {
           <Text style={styles.subtle}>
             {shadowStatus[shadow.status] ?? "Indisponibile"}
           </Text>
+          {shadow.layer?.partialCoverage && (
+            <Text style={styles.subtle}>Acoperire parțială · zonă pilot</Text>
+          )}
+          {shadow.layer?.truncated && (
+            <Text style={styles.subtle}>
+              Apropie harta pentru mai multe detalii
+            </Text>
+          )}
           <View style={styles.legend}>
             <View style={[styles.swatch, { backgroundColor: "#1D2B3D70" }]} />
             <Text style={styles.subtle}>Înălțime OSM</Text>

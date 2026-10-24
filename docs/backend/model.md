@@ -12,7 +12,7 @@ An OSM building is a vertical opaque prism over its footprint. Multipolygons pre
 
 Heights retain provenance in the local dataset:
 
-- `osm_height_tag`: an unambiguous positive numeric `height` in metres, optionally with an ` m` suffix. It is an **OSM tag**, not independently measured by this project.
+- `osm_height_tag`: an unambiguous positive numeric `height` in metres, optionally with an ` m` suffix. Values over 1,000 m fail the pilot sanity check and are not used as tagged heights. This filter is not an audited obstacle-height ceiling. It is an **OSM tag**, not independently measured by this project.
 - `estimated_from_levels`: floor count multiplied by an assumed 2.5–3.5 m/floor, with 0–3 m roof allowance on the upper bound. These are heuristic bounds, not established physical limits or confidence intervals. Both sweeps are tested: disagreement becomes unknown; agreement on obstruction is returned as **estimated** shade with a source warning.
 - `missing`: no parsable height or floor count. No substitute height is invented. An intersecting ray remains unknown unless another modeled building already obstructs it.
 - `unsupported_elevated`: positive `min_height` / `building:min_level` or roof-only geometry cannot be treated as a solid ground-level prism, so the uncertain ray is unknown.
