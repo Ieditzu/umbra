@@ -1,0 +1,7 @@
+/bin/
+/cache/
+/data/
+/coverage.out
+*.graphml
+*.gpkg
+*.geojson
