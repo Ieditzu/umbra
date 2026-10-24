@@ -12,6 +12,39 @@ npm --prefix mobile start -- --clear
 
 On first setup or after dependency updates, run `npm --prefix mobile ci` first. Stop any previous Expo server with **Ctrl+C**, then scan the new QR code with **Expo Go** on your phone.
 
+## Start the backend
+
+Requires **Go 1.24+**. The runnable Go backend is currently on `backend/shade-routing`, not `master`. Run it in a separate worktree to keep the current mobile frontend unchanged.
+
+First setup, from this repository's root:
+
+```bash
+git fetch origin
+git worktree add ../umbra-backend origin/backend/shade-routing
+cd ../umbra-backend/server
+go run ./cmd/umbra prepare
+go run ./cmd/umbra serve --addr 0.0.0.0:8000
+```
+
+`prepare` downloads and caches the Constanța pilot data outside Git. It may take a few minutes and needs internet. Do not repeat `git worktree add` if that worktree already exists.
+
+For subsequent starts, from this repository's root:
+
+```bash
+cd ../umbra-backend/server
+go run ./cmd/umbra serve --addr 0.0.0.0:8000
+```
+
+Keep the backend running in its terminal and start the mobile app in another. Check readiness with:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+In the app, open **Setări → Server** and enter `http://YOUR_COMPUTER_LAN_IP:8000`. Find the computer's addresses with `hostname -I` on Linux and choose its reachable LAN address. Phone and computer must be on the same network. Do not enter `localhost` or `0.0.0.0` as the phone's server address.
+
+This backend provides route comparisons for its limited pilot area. The separate `/v1/shadows` map-overlay endpoint still needs implementation; starting the routing server alone does not enable drawn map shadows.
+
 ## Current implementation
 
 The Android/iOS application lives in [`mobile/`](mobile/). It uses Expo SDK 58, TypeScript and Expo Router.
@@ -26,7 +59,7 @@ Only iOS and Android are enabled. Open the QR code in Expo Go, not as a browser 
 - A typed, validated client contract for comparing fastest, balanced and shade-oriented routes.
 - Segment colors for estimated shade, sun and **unknown** exposure when a calculation service returns real data.
 
-**The routing/shadow API is not operational yet.** Initial geometry modules are checkpointed in `server/`, but there is no running route/overlay service. The frontend does not invent routes or shadows: without a compatible service, native maps, live location and destination search work, but calculated overlays and shaded routes remain unavailable. The native basemap is not the OSM building-shadow model.
+**Backend integration is in progress.** The runnable route-comparison service is on the separate branch described above; `server/` on `master` contains only incomplete initial geometry modules. The map-shadow overlay API is not available yet. The frontend does not invent routes or shadows. The native basemap is not the OSM building-shadow model.
 
 ## Run on your phone
 
