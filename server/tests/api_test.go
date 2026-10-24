@@ -82,3 +82,22 @@ func TestReadinessAndHTTPValidation(t *testing.T) {
 		t.Fatal(w.Code)
 	}
 }
+
+func TestHTTPRejectsInvalidTimezoneAndContentType(t *testing.T) {
+	r, q := routingFixture(t)
+	h := u.NewHandler(r)
+	q.DepartureTimezone = "invalid/zone"
+	b, _ := json.Marshal(q)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("POST", "/v1/routes/compare", bytes.NewReader(b)))
+	if w.Code != 422 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	req := httptest.NewRequest("POST", "/v1/routes/compare", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/jsonp")
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	if w.Code != 415 {
+		t.Fatal(w.Code)
+	}
+}
