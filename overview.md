@@ -1,6 +1,6 @@
-# UMBRA SmartRoute
+# Umbra
 
-UMBRA SmartRoute este o aplicație web care găsește traseul pietonal cu cea mai mică expunere la soare între două puncte, în funcție de data și ora plecării.
+Umbra este o aplicație mobilă React Native pentru Android și iOS care urmărește să găsească trasee pietonale cu expunere mai mică la soare între două puncte, în funcție de data și ora plecării și de ocolul acceptat.
 
 ### Cum funcționează
 - Preia străzile și contururile clădirilor din OpenStreetMap.
@@ -12,9 +12,11 @@ UMBRA SmartRoute este o aplicație web care găsește traseul pietonal cu cea ma
 Reducerea expunerii pietonilor la soare, în special vara, când temperaturile sunt ridicate.
 
 ### Implementare
-Aplicația ar fi realizată în Python, folosind OSMnx pentru rețeaua pietonală, pvlib pentru poziția Soarelui și un algoritm de optimizare a traseelor.
+Interfața mobilă este realizată în React Native, cu Expo și TypeScript. Motorul de calcul este planificat separat, în Python, folosind OSMnx pentru rețeaua pietonală, pvlib pentru poziția Soarelui și un algoritm de optimizare a traseelor.
 
-Prima versiune ar acoperi o zonă restrânsă din Constanța. Înălțimile lipsă ale clădirilor ar fi estimate sau introduse manual.
+Prima implementare mobilă include harta nativă, alegerea punctelor, localizarea la cerere, căutarea adreselor, data/ora plecării și preferința de ocol. Clientul are un contract pentru serviciul de calcul, dar motorul de trasee și umbre nu este încă implementat. Nu se afișează trasee sau rezultate fictive în lipsa lui.
+
+Prima versiune ar acoperi o zonă restrânsă din Constanța. Înălțimile lipsă ale clădirilor ar fi estimate sau introduse manual, cu sursa și incertitudinea marcate. Acoperirea locală a înălțimilor OpenStreetMap trebuie verificată înainte de alegerea zonei de studiu.
 
 ### Partea de cercetare
 Am compara traseele recomandate cu cele mai scurte trasee și am verifica pe teren precizia umbrelor calculate. Principalele rezultate urmărite ar fi reducerea timpului petrecut în soare și creșterea duratei deplasării.

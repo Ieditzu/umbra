@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Umbra",
+    "slug": "umbra",
+    "scheme": "umbra",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "ro.umbra.mobile",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "ro.umbra.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#E9F0E7",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Umbra folosește locația doar pentru a alege punctul de plecare sau pentru căutarea adreselor.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
+        }
+      ],
+      "expo-font"
+    ]
+  }
+}
