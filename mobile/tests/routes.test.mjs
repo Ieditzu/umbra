@@ -223,3 +223,22 @@ test("unconfigured, unavailable and cancelled services do not fabricate routes",
     ),
   );
 });
+
+test("malformed and oversized service bodies are rejected before parsing", async () => {
+  const run = (response) =>
+    compareRoutes(
+      "https://example.com",
+      request(),
+      new AbortController().signal,
+      async () => response,
+    );
+  await assert.rejects(
+    run(new Response("<html>unavailable</html>")),
+    /JSON valid/,
+  );
+  await assert.rejects(run(new Response("x".repeat(5_000_001))), /prea mare/);
+  await assert.rejects(
+    run(new Response("{}", { headers: { "content-length": "5000001" } })),
+    /prea mare/,
+  );
+});
