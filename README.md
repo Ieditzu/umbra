@@ -4,7 +4,7 @@ A React Native mobile app for planning walks with less estimated exposure to dir
 
 ## Current implementation
 
-The Android/iOS application lives in [`mobile/`](mobile/). It uses Expo SDK 57, TypeScript and Expo Router.
+The Android/iOS application lives in [`mobile/`](mobile/). It uses Expo SDK 58, TypeScript and Expo Router.
 
 - A native map initially centered on Constanța.
 - Start/destination selection by map tap, native address search, or foreground device location.
@@ -27,7 +27,7 @@ npm start
 
 Scan the QR code using Expo Go on Android or the Camera app on iOS. Keep the phone and computer on the same network. If local networking fails, try `npx expo start --tunnel` (which can require an additional tunnel package).
 
-SDK 57 was selected for physical-device Expo Go compatibility during the SDK 58 transition. Check your Expo Go version if it reports a mismatch. Native maps require internet; Android address search also requires foreground location permission. Map selection remains available if location permission is denied.
+Use Expo Go for SDK 58. Physical iPhones cannot install an older Expo Go from the App Store. If you previously started the SDK-57 project, stop Metro with Ctrl+C, run `npm ci`, then `npx expo start --clear` and scan the new QR code. Native maps require internet; Android address search also requires foreground location permission. Map selection remains available if location permission is denied.
 
 For an already configured Android emulator, use `npm run android`. iOS simulators require macOS/Xcode. Standalone Android builds need a restricted Google Maps SDK key; Expo Go uses its own configuration. See [mobile setup and API contract](docs/mobile-app.md).
 
