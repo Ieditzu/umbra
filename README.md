@@ -6,6 +6,8 @@ A React Native mobile app for planning walks with less estimated exposure to dir
 
 The Android/iOS application lives in [`mobile/`](mobile/). It uses Expo SDK 58, TypeScript and Expo Router.
 
+Only iOS and Android are enabled. Open the QR code in Expo Go, not as a browser website. A web-bundling error does not mean that a successfully bundled iOS app failed; restart Metro after changing platform configuration.
+
 - A full-screen native map with continuous foreground location, camera following and recentering.
 - A single **Unde mergi?** destination search; long-press the map to choose a destination. There are no A/B input fields or tutorial panels.
 - A time selector and a validated map-shadow overlay client, refreshed by minute and viewport.
