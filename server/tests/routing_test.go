@@ -166,3 +166,32 @@ func TestRoutingDeadlineAndCancellation(t *testing.T) {
 		t.Fatal("deadline ignored")
 	}
 }
+
+func TestMaximumDetourExcludesLongerShadeCandidate(t *testing.T) {
+	r, q := routingFixture(t)
+	p := r.Data.Nodes[0].Point
+	// Increase the shaded alternative to 500 m versus the 100 m baseline.
+	r.Data.Nodes[2].Point.Y = p.Y + 200
+	r.Data.Nodes[3].Point.Y = p.Y + 200
+	positions := map[int64]u.Point{}
+	for _, n := range r.Data.Nodes {
+		positions[n.ID] = n.Point
+	}
+	for i := range r.Data.Edges {
+		e := &r.Data.Edges[i]
+		e.Geometry = []u.Point{positions[e.From], positions[e.To]}
+	}
+	if err := r.Data.Initialize(); err != nil {
+		t.Fatal(err)
+	}
+	q.MaxExtraMinutes = 5
+	v, err := r.Compare(context.Background(), q)
+	if err != nil || len(v.Routes) != 1 {
+		t.Fatalf("500 m walk must not fit 100 s + 300 s: %v %+v", err, v)
+	}
+	q.MaxExtraMinutes = 10
+	v, err = r.Compare(context.Background(), q)
+	if err != nil || len(v.Routes) != 2 {
+		t.Fatalf("500 m walk should fit larger budget: %v %+v", err, v)
+	}
+}

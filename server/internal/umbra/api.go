@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime"
 	"net/http"
 	"strings"
 )
@@ -49,9 +50,12 @@ func NewHandler(router *Router) http.Handler {
 			failure(w, 503, "Calculation capacity is busy. Retry shortly.")
 			return
 		}
-		if ct := r.Header.Get("Content-Type"); ct != "" && !strings.HasPrefix(strings.ToLower(ct), "application/json") {
-			failure(w, 415, "Content-Type must be application/json")
-			return
+		if ct := r.Header.Get("Content-Type"); ct != "" {
+			media, _, err := mime.ParseMediaType(ct)
+			if err != nil || media != "application/json" {
+				failure(w, 415, "Content-Type must be application/json")
+				return
+			}
 		}
 		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 16384))
 		if err != nil {
@@ -97,6 +101,24 @@ func NewHandler(router *Router) http.Handler {
 				failure(w, 503, "Calculation unavailable")
 			}
 			return
+		}
+		// The current mobile client rejects bodies above 5 MB. Keep the fastest
+		// baseline if unusually detailed alternatives would exceed its limit.
+		for {
+			encoded, marshalErr := json.Marshal(result)
+			if marshalErr != nil {
+				failure(w, 503, "Response geometry could not be encoded")
+				return
+			}
+			if len(encoded) < 4_900_000 {
+				break
+			}
+			if len(result.Routes) == 1 {
+				failure(w, 503, "Route geometry exceeds the mobile response budget")
+				return
+			}
+			result.Routes = result.Routes[:len(result.Routes)-1]
+			result.Warnings = append(result.Warnings, "An alternative was omitted to respect the mobile response-size budget.")
 		}
 		writeJSON(w, 200, result)
 	})
