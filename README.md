@@ -2,6 +2,16 @@
 
 A React Native mobile app for planning walks with less estimated exposure to direct sunlight. The first study area is intended to be Constanța, Romania. See [the project overview](overview.md).
 
+## Start
+
+From the repository root:
+
+```bash
+npm --prefix mobile start -- --clear
+```
+
+On first setup or after dependency updates, run `npm --prefix mobile ci` first. Stop any previous Expo server with **Ctrl+C**, then scan the new QR code with **Expo Go** on your phone.
+
 ## Current implementation
 
 The Android/iOS application lives in [`mobile/`](mobile/). It uses Expo SDK 58, TypeScript and Expo Router.
@@ -25,7 +35,7 @@ Use Node.js 22.13+ and npm. Install Expo Go on your phone, then:
 ```bash
 cd mobile
 npm ci
-npm start
+npm start -- --clear
 ```
 
 Scan the QR code using Expo Go on Android or the Camera app on iOS. Keep the phone and computer on the same network. If local networking fails, try `npx expo start --tunnel` (which can require an additional tunnel package).
