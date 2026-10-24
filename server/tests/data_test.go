@@ -107,3 +107,85 @@ func TestPartialDownloadNotAccepted(t *testing.T) {
 		t.Fatal("partial download accepted")
 	}
 }
+
+func TestRestrictedAccessAndFootDirection(t *testing.T) {
+	for _, access := range []string{"private", "permit", "customers", "destination", "unknown-value"} {
+		var raw u.OSMResponse
+		json.Unmarshal(extract(t), &raw)
+		for i := range raw.Elements {
+			if raw.Elements[i].ID == 100 && raw.Elements[i].Type == "way" {
+				raw.Elements[i].Tags["access"] = access
+			}
+		}
+		b, _ := json.Marshal(raw)
+		d, err := u.BuildDataset(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range d.Edges {
+			if e.WayID == 100 {
+				t.Fatalf("restricted %s imported", access)
+			}
+		}
+	}
+	var raw u.OSMResponse
+	json.Unmarshal(extract(t), &raw)
+	for i := range raw.Elements {
+		if raw.Elements[i].ID == 100 && raw.Elements[i].Type == "way" {
+			raw.Elements[i].Tags["oneway:foot"] = "yes"
+			raw.Elements[i].Tags["access"] = "private"
+			raw.Elements[i].Tags["foot"] = "yes"
+		}
+	}
+	b, _ := json.Marshal(raw)
+	d, err := u.BuildDataset(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := 0
+	for _, e := range d.Edges {
+		if e.WayID == 100 {
+			count++
+			if e.From >= e.To {
+				t.Fatal("foot one-way ignored")
+			}
+		}
+	}
+	if count != 2 {
+		t.Fatal("explicit foot access override ignored")
+	}
+}
+func TestNoBuildingShortcut(t *testing.T) {
+	var raw u.OSMResponse
+	json.Unmarshal(extract(t), &raw)
+	raw.Elements = append(raw.Elements, u.OSMElement{Type: "node", ID: 8, Lat: 44.1735, Lon: 28.6355}, u.OSMElement{Type: "node", ID: 9, Lat: 44.1735, Lon: 28.6375}, u.OSMElement{Type: "way", ID: 105, Nodes: []int64{8, 9}, Tags: map[string]string{"highway": "footway"}})
+	b, _ := json.Marshal(raw)
+	d, err := u.BuildDataset(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range d.Edges {
+		if e.WayID == 105 {
+			t.Fatal("path through building interior imported")
+		}
+	}
+}
+func TestMultipolygonOuterFragmentsAndHole(t *testing.T) {
+	var raw u.OSMResponse
+	json.Unmarshal(extract(t), &raw)
+	for i := range raw.Elements {
+		if raw.Elements[i].Type == "way" && raw.Elements[i].ID == 104 {
+			raw.Elements[i].Nodes = []int64{5, 6, 7}
+			raw.Elements[i].Tags = nil
+		}
+	}
+	raw.Elements = append(raw.Elements, u.OSMElement{Type: "way", ID: 106, Nodes: []int64{7, 4, 5}}, u.OSMElement{Type: "node", ID: 10, Lat: 44.1732, Lon: 28.6362}, u.OSMElement{Type: "node", ID: 11, Lat: 44.1732, Lon: 28.6368}, u.OSMElement{Type: "node", ID: 12, Lat: 44.1738, Lon: 28.6368}, u.OSMElement{Type: "node", ID: 13, Lat: 44.1738, Lon: 28.6362}, u.OSMElement{Type: "way", ID: 107, Nodes: []int64{10, 11, 12, 13, 10}}, u.OSMElement{Type: "relation", ID: 200, Tags: map[string]string{"type": "multipolygon", "building": "yes", "height": "10"}, Members: []u.OSMMember{{Type: "way", Ref: 104, Role: "outer"}, {Type: "way", Ref: 106, Role: "outer"}, {Type: "way", Ref: 107, Role: "inner"}}})
+	b, _ := json.Marshal(raw)
+	d, err := u.BuildDataset(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.Buildings) != 1 || len(d.Buildings[0].Geometry[0]) != 2 {
+		t.Fatal("relation rings lost or duplicated", d.Buildings)
+	}
+}

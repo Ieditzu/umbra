@@ -48,24 +48,32 @@ func PilotMetric() Bounds {
 }
 func importQuery() string {
 	b := PilotMetric().Expand(500)
-	a, z := Unproject(Point{b.West, b.South}), Unproject(Point{b.East, b.North})
+	// Bound all four inverse-projected corners: UTM grid north is rotated
+	// relative to geographic north, so two corners alone underfetch the buffer.
+	geo := []Point{}
+	for _, p := range Rect(b)[0] {
+		c := Unproject(p)
+		geo = append(geo, Point{c.Longitude, c.Latitude})
+	}
+	g := bounds(geo).Expand(0.00001) // round the query outward, not inward
+	a, z := Coordinate{g.South, g.West}, Coordinate{g.North, g.East}
 	return fmt.Sprintf(`[out:json][timeout:120];(way["highway"](%f,%f,%f,%f);nwr["building"](%f,%f,%f,%f);nwr["building:part"](%f,%f,%f,%f););(._;>;);out body;`, PilotBBox.South, PilotBBox.West, PilotBBox.North, PilotBBox.East, a.Latitude, a.Longitude, z.Latitude, z.Longitude, a.Latitude, a.Longitude, z.Latitude, z.Longitude)
 }
 
 // Prepare is an explicit operator action; requests served by the API never call it.
 // Identical queries reuse raw cache indefinitely unless refresh is requested.
 func Prepare(ctx context.Context, path, endpoint string, refresh bool, audit *Audit) (*Dataset, error) {
+	query := importQuery()
+	sum := sha256.Sum256([]byte(endpoint + query))
+	key := hex.EncodeToString(sum[:])
 	if !refresh {
-		if d, e := LoadDataset(path); e == nil {
+		if d, e := LoadDataset(path); e == nil && d.Metadata["query_sha256"] == key {
 			if audit != nil {
 				return nil, fmt.Errorf("audit change requires --refresh")
 			}
 			return d, nil
 		}
 	}
-	query := importQuery()
-	sum := sha256.Sum256([]byte(endpoint + query))
-	key := hex.EncodeToString(sum[:])
 	rawPath := filepath.Join(filepath.Dir(path), "overpass-"+key+".json")
 	raw, err := os.ReadFile(rawPath)
 	if refresh || err != nil {
@@ -130,24 +138,24 @@ func atomicBytes(path string, body []byte) error {
 	}
 	return os.Rename(name, path)
 }
-func denied(v string) bool {
-	switch v {
-	case "no", "private", "customers", "destination", "delivery", "use_sidepath", "agricultural", "forestry":
-		return true
-	}
-	return false
+func publicAccess(v string) bool {
+	return v == "" || v == "yes" || v == "designated" || v == "permissive" || v == "official" || v == "public"
+}
+func restrictedAccess(t map[string]string) bool {
+	foot := t["foot"]
+	return !publicAccess(foot) || (!publicAccess(t["access"]) && foot == "")
 }
 func walkingWay(t map[string]string) (bool, bool) {
-	if t["area"] == "yes" || t["indoor"] == "yes" || t["construction"] != "" || t["proposed"] != "" || t["foot:conditional"] != "" || t["access:conditional"] != "" {
+	if t["area"] == "yes" || t["indoor"] == "yes" || t["construction"] != "" || t["proposed"] != "" || t["foot:conditional"] != "" || t["access:conditional"] != "" || t["oneway:foot:conditional"] != "" || t["foot:forward:conditional"] != "" || t["foot:backward:conditional"] != "" {
 		return false, false
 	}
-	foot := t["foot"]
-	if denied(foot) || (denied(t["access"]) && foot != "yes" && foot != "designated" && foot != "permissive") {
+	if restrictedAccess(t) {
 		return false, false
 	}
 	switch t["highway"] {
 	case "footway", "pedestrian", "path", "steps":
-		return true, t["tunnel"] != "yes" && t["bridge"] != "yes" && (t["layer"] == "" || t["layer"] == "0")
+		unknown := func(tag string) bool { return t[tag] != "" && t[tag] != "no" }
+		return true, !unknown("tunnel") && !unknown("bridge") && !unknown("covered") && t["highway"] != "steps" && (t["layer"] == "" || t["layer"] == "0")
 	case "living_street", "residential", "service":
 		if t["sidewalk"] == "separate" {
 			return false, false
@@ -157,7 +165,7 @@ func walkingWay(t map[string]string) (bool, bool) {
 	return false, false
 }
 func blockedNode(t map[string]string) bool {
-	if denied(t["foot"]) || (denied(t["access"]) && t["foot"] != "yes" && t["foot"] != "designated") {
+	if restrictedAccess(t) || t["foot:conditional"] != "" || t["access:conditional"] != "" {
 		return true
 	}
 	if t["barrier"] != "" {
@@ -335,10 +343,10 @@ func BuildDataset(raw []byte) (*Dataset, error) {
 			kept[b.ID] = q
 			edge := Edge{From: a.ID, To: b.ID, WayID: id, Geometry: []Point{p, q}, Highway: w.Tags["highway"], PositionKnown: positionKnown}
 			footDir := w.Tags["oneway:foot"]
-			if footDir != "-1" {
+			if footDir != "-1" && publicAccess(w.Tags["foot:forward"]) {
 				d.Edges = append(d.Edges, edge)
 			}
-			if footDir != "yes" && footDir != "1" && footDir != "true" {
+			if footDir != "yes" && footDir != "1" && footDir != "true" && publicAccess(w.Tags["foot:backward"]) {
 				edge.From, edge.To = edge.To, edge.From
 				edge.Geometry = []Point{q, p}
 				d.Edges = append(d.Edges, edge)
