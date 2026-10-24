@@ -15,7 +15,7 @@ Floor counts can support approximate extrusion, but floor height, roofs and buil
 ## Phone setup
 
 1. In `mobile/`, run `npm ci` and `npm start`.
-2. Open the project using a matching Expo Go version. SDK 57 was deliberately selected according to Expo's physical-device guidance during the SDK 58 transition.
+2. Open the project using Expo Go for SDK 58. The app has been upgraded from SDK 57 to match the current iPhone Expo Go release. If Metro was running before the upgrade, stop it, run `npm ci`, then `npx expo start --clear`. Scan the new QR code rather than reopening an old recent-project entry. Physical iPhones can only install the current Expo Go release from the App Store.
 3. Tap **A** and a map point for the origin; tap **B** and a map point for the destination. The first origin selection automatically switches to destination selection.
 4. Alternatively, use the search icon for an address in Constanța, or the location icon for a one-time current-location lookup. Android's native geocoder requires foreground location permission. Search is only submitted explicitly, not on every keystroke.
 5. Choose **Acum**, another date or another time. The device's time zone and an unambiguous UTC instant are sent to the service.
@@ -61,11 +61,11 @@ The template launcher artwork is provisional. Configure restricted Google Maps c
 
 ### Dependency audit
 
-The initial SDK-57 dependency audit reports nine inherited findings (six high, three moderate), including Expo CLI's `node-forge`/Zod dependencies and Expo Router's URI decoding chain. This is not a clean security audit. Do not use `npm audit fix --force`: its suggested SDK downgrade is incompatible with this app. Keep the development server on a trusted network and resolve or assess these upstream advisories before release. Their exploitability in this app has not been established; the findings remain unresolved.
+The SDK-58 dependency audit reports five inherited high-severity findings through Expo CLI's `node-forge`/Zod and certificate dependencies. The earlier SDK-57 audit had nine findings, including the Router URI decoding chain. This is not a clean security audit. Do not use `npm audit fix --force`: its suggested SDK downgrade is incompatible with this app. Keep the development server on a trusted network and resolve or assess the remaining upstream advisories before release. Their exploitability in this app has not been established; the findings remain unresolved.
 
 ## References
 
 - [Expo project setup and SDK transition](https://docs.expo.dev/get-started/create-a-project/)
-- [SDK 57 native maps](https://docs.expo.dev/versions/v57.0.0/sdk/map-view/)
-- [SDK 57 location and geocoding](https://docs.expo.dev/versions/v57.0.0/sdk/location/)
+- [SDK 58 native maps](https://docs.expo.dev/versions/v58.0.0/sdk/map-view/)
+- [SDK 58 location and geocoding](https://docs.expo.dev/versions/v58.0.0/sdk/location/)
 - [OSM building-height and 3D tagging](https://wiki.openstreetmap.org/wiki/Simple_3D_Buildings)
