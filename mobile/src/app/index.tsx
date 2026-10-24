@@ -113,6 +113,7 @@ export default function PlannerScreen() {
           style={styles.iconButton}
           accessibilityRole="button"
           accessibilityLabel="Deschide preferințele"
+          disabled={!planner.hydrated}
           onPress={() => router.push("/settings")}
         >
           <Ionicons name="options-outline" size={23} color={colors.ink} />
@@ -257,6 +258,7 @@ export default function PlannerScreen() {
             <Pressable
               accessibilityRole="button"
               onPress={() => router.push("/settings")}
+              disabled={!planner.hydrated}
               style={{ paddingVertical: 8 }}
             >
               <Text style={styles.detour}>

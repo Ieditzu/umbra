@@ -61,7 +61,7 @@ The template launcher artwork is provisional. Configure restricted Google Maps c
 
 ### Dependency audit
 
-The initial SDK-57 dependency audit reports nine inherited findings (six high, three moderate), including Expo CLI's `node-forge`/Zod dependencies and Expo Router's URI decoding chain. This is not a clean security audit. Do not use `npm audit fix --force`: its suggested SDK downgrade is incompatible with this app. Keep the development server on a trusted network and resolve or assess these upstream advisories before release. The client does not implement an untrusted web deep-link input flow, server signing or payment handling.
+The initial SDK-57 dependency audit reports nine inherited findings (six high, three moderate), including Expo CLI's `node-forge`/Zod dependencies and Expo Router's URI decoding chain. This is not a clean security audit. Do not use `npm audit fix --force`: its suggested SDK downgrade is incompatible with this app. Keep the development server on a trusted network and resolve or assess these upstream advisories before release. Their exploitability in this app has not been established; the findings remain unresolved.
 
 ## References
 
