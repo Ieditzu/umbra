@@ -1,0 +1,97 @@
+import { isCoordinate } from "./routes.ts";
+import type { Coordinate } from "./routes.ts";
+
+export type Bounds = [number, number, number, number];
+export type ShadowPolygon = {
+  id: string;
+  source: "osm_height" | "levels_estimate" | "unknown";
+  coordinates: Coordinate[];
+  holes: Coordinate[][];
+};
+export type ShadowLayer = {
+  at: string;
+  state: "available" | "low_sun" | "night";
+  polygons: ShadowPolygon[];
+  attribution: string[];
+  warnings: string[];
+  truncated: boolean;
+};
+export function shadowInstant(selected: Date | null, now: number): string {
+  return selected
+    ? selected.toISOString()
+    : new Date(Math.floor(now / 60000) * 60000).toISOString();
+}
+export function parseShadowLayer(raw: unknown, instant: string): ShadowLayer {
+  const data = raw as Record<string, unknown>;
+  if (
+    !data ||
+    data.type !== "FeatureCollection" ||
+    typeof data.at !== "string" ||
+    Date.parse(data.at) !== Date.parse(instant) ||
+    !["available", "night", "low_sun"].includes(data.state as string) ||
+    !Array.isArray(data.features) ||
+    data.features.length > 2000
+  )
+    throw new Error("Strat de umbre invalid.");
+  let totalPoints = 0;
+  const polygons = data.features.map((rawFeature, index) => {
+    const feature = rawFeature as {
+      geometry?: { type?: string; coordinates?: unknown };
+      properties?: { height_source?: string; building_id?: string };
+    };
+    const geometry = feature?.geometry;
+    const source = feature?.properties?.height_source;
+    if (
+      !geometry ||
+      geometry.type !== "Polygon" ||
+      !["osm_height", "levels_estimate", "unknown"].includes(source ?? "") ||
+      !Array.isArray(geometry.coordinates) ||
+      !geometry.coordinates.length
+    )
+      throw new Error("Geometrie de umbre invalidă.");
+    const rings = geometry.coordinates.map((ring: unknown) => {
+      if (!Array.isArray(ring) || ring.length < 4)
+        throw new Error("Contur de umbră invalid.");
+      totalPoints += ring.length;
+      if (totalPoints > 60000)
+        throw new Error("Prea multe puncte în stratul de umbre.");
+      const points = ring.map((point: unknown) => {
+        if (
+          !Array.isArray(point) ||
+          point.length !== 2 ||
+          !isCoordinate({ longitude: point[0], latitude: point[1] })
+        )
+          throw new Error("Coordonate de umbre invalide.");
+        return { longitude: point[0] as number, latitude: point[1] as number };
+      });
+      if (
+        points[0].latitude !== points.at(-1)!.latitude ||
+        points[0].longitude !== points.at(-1)!.longitude
+      )
+        throw new Error("Conturul nu este închis.");
+      return points;
+    });
+    return {
+      id: `${feature.properties?.building_id ?? "building"}-${index}`,
+      source: source as ShadowPolygon["source"],
+      coordinates: rings[0],
+      holes: rings.slice(1),
+    };
+  });
+  if (
+    !Array.isArray(data.attribution) ||
+    !data.attribution.length ||
+    !data.attribution.every((item) => typeof item === "string") ||
+    !Array.isArray(data.warnings) ||
+    !data.warnings.every((item) => typeof item === "string")
+  )
+    throw new Error("Lipsește sursa umbrelor.");
+  return {
+    at: data.at,
+    state: data.state as ShadowLayer["state"],
+    polygons,
+    attribution: data.attribution as string[],
+    warnings: data.warnings as string[],
+    truncated: data.truncated === true,
+  };
+}

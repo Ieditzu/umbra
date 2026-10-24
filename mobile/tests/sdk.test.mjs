@@ -5,6 +5,14 @@ import test from "node:test";
 const json = (path) =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
 
+test("Umbra only enables native platforms and does not start a web target", () => {
+  const config = json("../app.json");
+  const manifest = json("../package.json");
+  assert.deepEqual(config.expo.platforms, ["ios", "android"]);
+  assert.equal(manifest.scripts.web, undefined);
+  assert.equal(manifest.dependencies["react-native-web"], undefined);
+});
+
 test("project and installed runtime match the iPhone Expo Go SDK 58", () => {
   const manifest = json("../package.json");
   const installedExpo = json("../node_modules/expo/package.json");
