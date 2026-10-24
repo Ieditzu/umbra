@@ -2,18 +2,64 @@
 
 A React Native mobile app for planning walks with less estimated exposure to direct sunlight. The first study area is intended to be Constanța, Romania. See [the project overview](overview.md).
 
+## Start
+
+From the repository root:
+
+```bash
+npm --prefix mobile start -- --clear
+```
+
+On first setup or after dependency updates, run `npm --prefix mobile ci` first. Stop any previous Expo server with **Ctrl+C**, then scan the new QR code with **Expo Go** on your phone.
+
+## Start the backend
+
+Requires **Go 1.24+**. The runnable Go backend is currently on `backend/shade-routing`, not `master`. Run it in a separate worktree to keep the current mobile frontend unchanged.
+
+First setup, from this repository's root:
+
+```bash
+git fetch origin
+git worktree add ../umbra-backend origin/backend/shade-routing
+cd ../umbra-backend/server
+go run ./cmd/umbra prepare
+go run ./cmd/umbra serve --addr 0.0.0.0:8000
+```
+
+`prepare` downloads and caches the Constanța pilot data outside Git. It may take a few minutes and needs internet. Do not repeat `git worktree add` if that worktree already exists.
+
+For subsequent starts, from this repository's root:
+
+```bash
+cd ../umbra-backend/server
+go run ./cmd/umbra serve --addr 0.0.0.0:8000
+```
+
+Keep the backend running in its terminal and start the mobile app in another. Check readiness with:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+In the app, open **Setări → Server** and enter `http://YOUR_COMPUTER_LAN_IP:8000`. Find the computer's addresses with `hostname -I` on Linux and choose its reachable LAN address. Phone and computer must be on the same network. Do not enter `localhost` or `0.0.0.0` as the phone's server address.
+
+This backend provides route comparisons for its limited pilot area. The separate `/v1/shadows` map-overlay endpoint still needs implementation; starting the routing server alone does not enable drawn map shadows.
+
 ## Current implementation
 
 The Android/iOS application lives in [`mobile/`](mobile/). It uses Expo SDK 58, TypeScript and Expo Router.
 
-- A native map initially centered on Constanța.
-- Start/destination selection by map tap, native address search, or foreground device location.
+Only iOS and Android are enabled. Open the QR code in Expo Go, not as a browser website. A web-bundling error does not mean that a successfully bundled iOS app failed; restart Metro after changing platform configuration.
+
+- A full-screen native map with continuous foreground location, camera following and recentering.
+- A single **Unde mergi?** destination search; long-press the map to choose a destination. There are no A/B input fields or tutorial panels.
+- A time selector and a validated map-shadow overlay client, refreshed by minute and viewport.
 - Departure date/time and a maximum extra walking-time preference.
 - Local preference storage without saving coordinates or route history.
 - A typed, validated client contract for comparing fastest, balanced and shade-oriented routes.
 - Segment colors for estimated shade, sun and **unknown** exposure when a calculation service returns real data.
 
-**The routing/shadow calculation service is not implemented yet.** The app does not invent routes, shade percentages or weather measurements. Without a configured service, you can test maps, location, address search and planning inputs, but not calculate a shaded route. The native basemap is not the OSM building-shadow model.
+**Backend integration is in progress.** The runnable route-comparison service is on the separate branch described above; `server/` on `master` contains only incomplete initial geometry modules. The map-shadow overlay API is not available yet. The frontend does not invent routes or shadows. The native basemap is not the OSM building-shadow model.
 
 ## Run on your phone
 
@@ -22,7 +68,7 @@ Use Node.js 22.13+ and npm. Install Expo Go on your phone, then:
 ```bash
 cd mobile
 npm ci
-npm start
+npm start -- --clear
 ```
 
 Scan the QR code using Expo Go on Android or the Camera app on iOS. Keep the phone and computer on the same network. If local networking fails, try `npx expo start --tunnel` (which can require an additional tunnel package).

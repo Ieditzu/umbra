@@ -21,7 +21,7 @@ export default function Layout() {
           <Stack.Screen
             name="settings"
             options={{
-              title: "Preferințe",
+              title: "Setări",
               headerBackButtonDisplayMode: "minimal",
               presentation: "modal",
             }}
