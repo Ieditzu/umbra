@@ -18,7 +18,7 @@ import {
 } from "../domain/localMap";
 import { routeCoordinates } from "../domain/routes";
 import type { Bounds } from "../domain/shadows";
-import { calculateBuildings } from "../services/localEngine";
+import { calculateBuildings } from "../services/calculations";
 import { LOCAL_MAP_HTML } from "../generated/localMapHtml";
 import type { RouteMapProps } from "./RouteMap";
 import { colors } from "../theme";
@@ -80,12 +80,16 @@ export function LocalRouteMap(props: RouteMapProps) {
         latitude: values[5],
       })
         .then((value) => {
-          if (!controller.signal.aborted && ticket === buildingTicket.current)
+          if (!controller.signal.aborted && ticket === buildingTicket.current) {
             send({ type: "data", name: "buildings", value });
+            setError((previous) =>
+              previous.startsWith("Clădirile nu au putut") ? "" : previous,
+            );
+          }
         })
         .catch(() => {
           if (!controller.signal.aborted && ticket === buildingTicket.current)
-            setError("Clădirile locale nu au putut fi încărcate.");
+            setError("Clădirile nu au putut fi încărcate de la server.");
         });
     }, 200);
     return () => {

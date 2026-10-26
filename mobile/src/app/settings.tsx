@@ -82,11 +82,12 @@ export default function SettingsScreen() {
         </Pressable>
         {privacy && (
           <Text style={styles.small}>
-            GPS doar în prim-plan. Coordonatele nu sunt salvate. La alegerea
-            unei destinații, traseele și umbrele sunt calculate pe telefon din
-            datele locale pentru Constanța. Căutarea adreselor și harta folosesc
-            Google/Apple sau OpenFreeMap pentru harta OSM de pe iOS. Umbrele
-            sunt estimări geometrice, nu măsurători de temperatură.
+            GPS doar în prim-plan. Coordonatele și destinația sunt trimise
+            serverului de pe PC pentru calcul; nu sunt salvate. Umbrele și
+            clădirile sunt calculate pe server din datele pentru Constanța.
+            Căutarea adreselor și harta folosesc Google/Apple sau OpenFreeMap
+            pentru harta OSM de pe iOS. Umbrele sunt estimări geometrice, nu
+            măsurători de temperatură.
           </Text>
         )}
       </ScrollView>

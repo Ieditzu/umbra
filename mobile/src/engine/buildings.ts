@@ -26,6 +26,7 @@ export async function visibleBuildings(
   view: Bounds,
   signal: AbortSignal,
   focus?: Coordinate,
+  limits = { maxFeatures: 6000, maxVertices: 160000, marginM: 300 },
 ): Promise<BuildingFeatures> {
   const work = task(signal, 10000);
   const [w, s, e, n] = view;
@@ -70,7 +71,7 @@ export async function visibleBuildings(
       project({ latitude: top, longitude: left }),
       project({ latitude: top, longitude: right }),
     ]),
-    300,
+    limits.marginM,
   );
   const center = project(
     focus && isCoordinate(focus)
@@ -99,7 +100,10 @@ export async function visibleBuildings(
     for (let i = 0; i < b.geometry.length; i++) {
       const poly = b.geometry[i],
         count = poly.reduce((n, ring) => n + ring.length, 0);
-      if (vertices + count > 160000 || result.features.length >= 6000) {
+      if (
+        vertices + count > limits.maxVertices ||
+        result.features.length >= limits.maxFeatures
+      ) {
         result.truncated = true;
         return result;
       }

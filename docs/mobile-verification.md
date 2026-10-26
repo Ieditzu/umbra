@@ -1,6 +1,6 @@
-# On-device engine verification
+# Mobile and server verification
 
-Software checks performed on 26 October 2026. These are desktop execution/bundling checks, not measurements of mobile frame rate or shadow accuracy in the street.
+Current runtime uses the PC computation server; earlier sections record the preceding on-device implementation. Software checks performed on 26 October 2026. These are desktop execution/bundling checks, not measurements of mobile frame rate or shadow accuracy in the street.
 
 - TypeScript checking and Expo lint pass.
 - Node tests exercise synthetic geometry/routing cases and the real bundled OSM snapshot with `fetch` disabled. Solar values are checked against the independent SPA reference cases also used by the Go tests, across seasons and the Romanian DST transition.
@@ -69,3 +69,13 @@ All 55 Node tests, TypeScript checking and Expo lint pass for the combined updat
 The zoom update passes all 58 Node tests, TypeScript checking, lint and both Metro/Hermes exports. Regression checks cover partial viewport replacements retaining previous geometry, identical-result updates doing no source work, empty truncated results preserving buildings, bounded cache eviction favoring incoming geometry, camera-center prioritization, and views wider than half a degree retaining local data.
 
 With the 300 m loading margin, the real-data browser preview loaded 4,011 building polygon parts. Five zoom changes (18 → 15 → 17 → 13 → 18) with repeated partial viewport payloads retained all 4,011 parts and the same source, with zero full replacements or redundant diff calls. A subsequent empty truncated payload also retained the geometry. No browser errors were reported. This checks the embedded renderer in Chromium; physical iPhone zoom/gesture stability remains a device check. Detail is still bounded by the documented geometry/cache limits.
+
+## PC computation backend
+
+The current app calls the Node backend through Metro's `/umbra-api` proxy. The combined `npm --prefix mobile start -- --clear` launcher was exercised with a fresh backend, an existing unrelated Metro on port 8081, automatic Expo selection of port 8082, and shutdown of owned server/Metro children without stopping the unrelated process. The served iOS Expo manifest supplied `hostUri: 127.0.0.1:8082` for the loopback request; the app resolver derived the correct proxied API origin. LAN, emulator and tunnel URL discovery also have unit checks; no physical-phone LAN test is claimed.
+
+The mobile suite now passes 63 Node tests, TypeScript checking and Expo lint. Three backend integration groups pass: HTTP schema/body/gzip/cache behavior; allowed proxy paths and an unavailable backend; and real city worker building/shadow/route results including cancellation. Server requests use the same corrected TypeScript polyline attachment model, rather than reverting to the older Go nearest-node path.
+
+A warm desktop request through the running Metro proxy returned 558 building parts in approximately 139 ms and 147 daytime shadow parts in approximately 272 ms for viewport `[28.633,44.172,28.638,44.177]`. These are single loopback samples, not latency distributions, phone-network benchmarks or frame-rate measurements. Server geometry is capped at 2,500 parts / 70,000 vertices; the browser retains up to 5,000 parts / 120,000 vertices. Display coordinates alone are rounded to six decimals; shadow/source-height uncertainty remains unchanged.
+
+Metro/Hermes exports succeed with approximately 6.3 MB iOS bytecode and 2.8 MB Android bytecode, compared with approximately 13 MB / 10 MB before offloading. The app no longer imports/decompresses/indexes the city snapshot or computes routes/shadow clipping. It still parses responses and renders 3D on the phone. Physical-device responsiveness, connectivity transitions and compass accuracy require device checks. No public backend deployment was made.

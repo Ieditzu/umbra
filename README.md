@@ -1,33 +1,56 @@
 # Umbra
 
-A React Native app for planning walks with less estimated direct-sun exposure. **Sun position, building shadows and walking routes run on the phone. No API server or server address is required.** Bundled data cover Constanța, Mamaia and Palazu Mare, Romania. See [the overview](overview.md).
+A React Native walking map for Constanța, Mamaia and Palazu Mare with estimated building shadows and shade-aware routes. **The PC calculates routes, sunlight and building geometry; the phone displays the map and reads GPS/compass.** No server address needs to be entered in the app. See [the overview](overview.md).
 
-## Start
+## Run on your PC and phone
 
-Use Node.js 22.13+ and Expo Go for SDK 58. From the repository root:
+Install Node.js **22.13+** and Expo Go for SDK 58. From the repository root:
 
 ```bash
 npm --prefix mobile ci
 npm --prefix mobile start -- --clear
 ```
 
-Stop any previous Expo server with **Ctrl+C**, then scan the new QR code with Expo Go on Android or the Camera app on iOS. Normally the computer and phone share a network. The computer only serves the development bundle; it does not calculate routes or shadows. Installed native builds do not require a running computer. Expo Go still needs Metro to load/reload the development project.
+This starts **both the calculation server and Expo**. Stop any older Expo process with **Ctrl+C** first. Scan the new QR code with Expo Go on Android or the Camera app on iPhone. Normally the PC and phone must share Wi-Fi. Keep this command running while using the app; **Ctrl+C** stops both processes it started.
 
-Only iOS and Android are enabled; open the app in Expo Go rather than a web browser. If switching from the older SDK-57 project, reinstall dependencies and scan a fresh QR code. For configured emulators, use `npm --prefix mobile run android` or `npm --prefix mobile run ios` (iOS requires macOS/Xcode).
+The app automatically reaches the backend through the same Expo connection, at `/umbra-api`. There is no IP/server field to configure. The backend uses `127.0.0.1:8000` internally; Metro forwards the permitted API paths. If you already started this backend separately, the launcher reuses it and leaves it running on exit. Go is not required for this workflow.
+
+To launch the two processes separately, use **two terminals**, from the repository root:
+
+```bash
+# Terminal 1 — calculation server
+npm --prefix mobile run server
+```
+
+```bash
+# Terminal 2 — Expo
+npm --prefix mobile run metro -- --clear
+```
+
+The server's readiness endpoint is `http://127.0.0.1:8000/health`. The forwarded endpoint is `http://127.0.0.1:8081/umbra-api/health` when Metro uses its default port. It reports `ready: true` after loading the city snapshot. If another program occupies port 8000, stop it or start both processes with a different internal port:
+
+```bash
+UMBRA_COMPUTE_PORT=8001 npm --prefix mobile start -- --clear
+```
+
+For an emulator, use `npm --prefix mobile run android` or `npm --prefix mobile run ios` (the iOS simulator requires macOS/Xcode). Only Android and iOS are app targets; there is no web app.
 
 ## Use
 
-- Allow foreground location. The map follows your live position; panning stops following and the location button resumes it. A blue sector shows the phone compass direction, including while stationary; it hides when direction data are unavailable.
-- Tap **Unde mergi?** or long-press the map to choose a destination. Routes recalculate after useful movement or a minute.
-- Tap **Acum** to select a different date/time. Shadows follow that instant; at night there are no daylight shadow polygons.
-- Use the **3D** button or drag vertically with two fingers to tilt the map. On iOS, **Hartă** renders bundled OSM building outlines using MapLibre, with a free OpenFreeMap basemap: no Google key or paid account. Missing-height buildings have a **display-only 6 m placeholder**, excluded from shadow calculations. **Satelit** uses Apple imagery/Flyover where available. Android keeps its native Google renderer and terrain layer. **Straturi** contains map choices, shadow visibility and height-source notices.
-- **Setări** contains the maximum accepted walking detour. There is no server field.
+- Allow foreground location. The map follows your live position; panning stops following and the location button resumes it. The blue sector shows the phone's compass direction even when stationary; it hides if direction readings are unavailable.
+- Tap **Unde mergi?** or long-press the map to choose a destination. Routes attach to walking segments and refresh after useful movement or a minute.
+- Tap **Acum** to change date/time. At night no daylight shadow polygons are drawn.
+- Tap **3D** or drag vertically with two fingers. iOS **Hartă** uses MapLibre and a free OpenFreeMap basemap; no Google iOS key is needed. **Satelit** uses Apple imagery. Android retains its native Google map and terrain layer.
+- **Straturi** controls map style and shadows. Missing OSM heights get a display-only 6 m building volume, excluded from shadow calculations. OSM omissions and geometry budgets can limit detail.
+- **Setări** contains the maximum walking detour.
 
-Calculations use a compressed real OSM snapshot bundled with the app (approximately 7 MB packaged, 40 MB decoded): 50,071 walking nodes, 111,552 directed edges and 51,428 building outlines. The city extract spans approximately `28.50–28.75° E, 44.075–44.355° N`, including Constanța, Mamaia, Palazu Mare and a margin. It replaces the central-only pilot; this rectangle is not an administrative boundary. Snapshot [metadata and checksums](mobile/assets/data/manifest.json) and [license/provenance](docs/mobile-data.md) are included.
+The city snapshot has 50,071 walking nodes, 111,552 directed edges and 51,428 building outlines. The server reads the existing compressed snapshot from `mobile/assets/data/constanta-city.json`; no separate download/preparation step is needed. It decodes/indexes the data in two Node worker threads. The app no longer loads that dataset or performs route/shadow calculations. Server responses are compressed and bounded; the renderer keeps a limited geometry cache. The GPU still draws 3D on the phone, so this does not establish a device frame-rate guarantee.
 
-The calculation engine works without network access. **Basemap tiles and address search still use OpenFreeMap/Apple/Google services and may need internet.** GPS is used only in the foreground. Coordinates, viewport and selected time are not sent to an Umbra server. Map/search providers have their own data handling. OpenFreeMap receives viewport-dependent tile requests, not Umbra route calculations.
+The PC must stay on and reachable for new routes, buildings and shadows. **There is no automatic on-phone calculation fallback.** Basemap tiles and address search also need their providers. An installed standalone app will need a deployed HTTPS backend configured by the developer with `EXPO_PUBLIC_API_URL`; this implementation is configured for PC testing through Expo.
 
-Unknown heights and incomplete obstruction inventory remain uncertain. Unmodeled areas are not automatically called sunny. Routes are experimental geometric estimates, not temperature/UV measurements or validated route-safety advice. Real-phone performance and shadow accuracy still require device/field checks.
+GPS origin/destination, chosen time and viewport are sent to the PC for calculation. They are not written to disk or request logs; bounded viewport-result caches exist in server memory. Only the detour preference is persisted on the phone. OpenFreeMap/Apple/Google handle their own map/search requests. See [server architecture and privacy](docs/backend/mobile-server.md) and [data provenance](docs/mobile-data.md).
+
+Unknown heights, missing obstructions, trees, weather and terrain remain uncertain. Unmodeled exposure is not counted as shade. These are experimental geometric estimates, not field-validated temperature, UV or route-safety measurements.
 
 ## Checks
 
@@ -36,17 +59,20 @@ cd mobile
 npm run typecheck
 npm run lint
 npm test
+npm run test:server
 npm run export:android
 npm run export:ios
 ```
 
-`npm ci` also regenerates the bundled iOS renderer; after editing `mobile/map-web/map.js`, run `npm --prefix mobile run build:map`.
+Node tests cover solar references, geometry, routing, server discovery and response validation. Backend tests exercise HTTP/proxy behavior and real city calculations in a worker. Exports check JavaScript bundling, not physical-phone performance or compass accuracy. See [software verification](docs/mobile-verification.md).
 
-Tests cover independent solar references, geometry, routing constraints, cancellation and real bundled data with network calls disabled. See the [recorded software verification](docs/mobile-verification.md). Exports verify JavaScript bundling, not on-device rendering; they are not installable APK/IPA files. Standalone Android builds require a restricted Google Maps key and native builds require signing; see [mobile documentation](docs/mobile-app.md).
+`npm ci` rebuilds the embedded iOS renderer automatically. After changing `mobile/map-web/map.js`, run `npm --prefix mobile run build:map`.
 
-## Data preparation and reference backend
+## Reference backend and data preparation
 
-The Go implementation remains an optional research/reference tool; **it is not needed to run the mobile app**. Developers can build a city dataset from a local OSM extract, then package it:
+The Go implementation remains a separate research/reference tool. It is **not** the backend used by `npm start`. Its API lacks the current mobile building-display endpoint and should not replace the Node computation server. See [Go backend documentation](docs/backend/README.md).
+
+To prepare a replacement city dataset from a local OSM extract:
 
 ```bash
 cd server
@@ -55,15 +81,6 @@ cd ../mobile
 node scripts/prepare-city.mjs /absolute/path/to/city/dataset.json
 ```
 
-See [data preparation](docs/mobile-data.md) for downloading a source extract and reproducible cropping. Go 1.24+ and Python/pyosmium are developer tools only. Review changed coverage, height provenance and the generated manifest before committing updated map data. The snapshot is ODbL-1.0; preserve attribution and its license notice. Default Go `prepare` still retains its separate central reference pilot.
-
-To run the optional reference API separately:
-
-```bash
-cd server
-go run ./cmd/umbra serve --addr 127.0.0.1:8000
-```
-
-See [backend documentation](docs/backend/README.md). The mobile app never calls it.
+Review coverage, height provenance and generated metadata before replacing the snapshot. Preserve ODbL attribution. Go 1.24+ and Python/pyosmium are data-preparation tools only.
 
 Historical parking-camera documents remain in `docs/`; the previous README is in [the archive](docs/archive/README.previous.md).

@@ -246,10 +246,10 @@ test("retained building geometry stays bounded while giving the new viewport pri
       name: "buildings",
       value: { type: "FeatureCollection", features: ids.map((id) => ({ id })) },
     });
-  send(Array.from({ length: 10000 }, (_, i) => `old-${i}`));
+  send(Array.from({ length: 5000 }, (_, i) => `old-${i}`));
   send(["new"]);
   const source = map.getSource("umbra-buildings");
-  assert.equal(source.data.features.length, 10000);
+  assert.equal(source.data.features.length, 5000);
   assert.ok(source.data.features.some((f) => f.id === "new"));
   assert.equal(source.replacements, 0);
 });

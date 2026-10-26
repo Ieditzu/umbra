@@ -6,7 +6,7 @@ import type { Coordinate, RouteComparison } from "../domain/routes";
 import { makeRouteRequest } from "../domain/routes";
 import { DEFAULT_SETTINGS, restoreSettings } from "../domain/settings";
 import type { Settings } from "../domain/settings";
-import { calculateRoutes } from "../services/localEngine";
+import { calculateRoutes } from "../services/calculations";
 
 export type Place = { coordinate: Coordinate; label: string };
 export type Selection = "origin" | "destination";

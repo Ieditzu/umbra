@@ -1,3 +1,5 @@
+> Current runtime: the Node server on the PC loads this snapshot; it is no longer imported into the mobile app. The on-device packaging details below describe the shared snapshot and previous runtime. See [PC server setup](backend/mobile-server.md).
+
 # Bundled Constanța city data
 
 `mobile/assets/data/constanta-city.json` holds a real OpenStreetMap-derived database in an openly decodable `umbra-gzip-json-v1` wrapper: base64-encoded gzip, approximately 7 MB packaged and 40 MB decoded. It replaces the small central pilot. It is bundled so calculation needs no server or download. It is not a recording, synthetic fixture or measured shadow map.

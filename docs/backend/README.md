@@ -1,3 +1,5 @@
+> The current mobile app uses the Node computation server. Start both server and Expo with `npm --prefix mobile start -- --clear` from the repository root. See [mobile server instructions](mobile-server.md). The Go commands below are for the separate research/reference implementation.
+
 # Umbra Go backend
 
 This service implements the current Constanța walking/shade pilot. It has no camera or Periscope functionality. Source, tests and tooling live in `server/`; the mobile application is maintained separately and is not modified by this implementation.

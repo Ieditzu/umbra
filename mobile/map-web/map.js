@@ -33,7 +33,7 @@
           (n, ring) => n + ring.length,
           0,
         ) ?? 0;
-      if (retained.size >= 10000 || vertices + count > 240000) continue;
+      if (retained.size >= 5000 || vertices + count > 120000) continue;
       retained.set(f.id, feature);
       vertices += count;
     }

@@ -36,14 +36,17 @@
   "scripts": {
     "postinstall": "node scripts/build-local-map.mjs",
     "build:map": "node scripts/build-local-map.mjs",
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "start": "node scripts/start-dev.mjs",
+    "android": "node scripts/start-dev.mjs --android",
+    "ios": "node scripts/start-dev.mjs --ios",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "export:android": "expo export --platform android",
-    "export:ios": "expo export --platform ios"
+    "export:ios": "expo export --platform ios",
+    "metro": "expo start",
+    "server": "node --experimental-strip-types ../server/mobile-api.mjs",
+    "test:server": "node --experimental-strip-types --test ../server/compute/*.test.mjs"
   },
   "private": true
 }

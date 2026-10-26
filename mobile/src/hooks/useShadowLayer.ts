@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AppState } from "react-native";
-import { calculateShadows } from "../services/localEngine";
-import { OutsideCoverageError } from "../engine/overlay";
+import { calculateShadows } from "../services/calculations";
+import { CalculationError } from "../services/calculationClient";
 import type { Bounds, ShadowLayer } from "../domain/shadows";
 import { visibleShadowLayer } from "../domain/shadows";
 
@@ -63,7 +63,7 @@ export function useShadowLayer(at: string, bounds: Bounds, enabled: boolean) {
             setResult({
               layer: null,
               status:
-                error instanceof OutsideCoverageError
+                error instanceof CalculationError && error.code === "outside"
                   ? "outside"
                   : "unavailable",
               key: requestKey,
