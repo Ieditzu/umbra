@@ -27,3 +27,9 @@ Regulamentul prevede maximum trei elevi, mentor, aport personal și respectarea 
 PDF-ul separă antecedentele, metoda propusă, stadiul implementării și dovezile care lipsesc. Numerele raportate de alte studii sunt atribuite autorilor. Tabelele proprii fără date folosesc ND, definit ca nedeterminat. Anexele oferă planul de lucru, câmpurile registrului și pregătirea susținerii. Aceste elemente susțin rigoarea prezentării; documentul nu reprezintă confirmarea înscrierii ori o promisiune de punctaj.
 
 La completarea fișei oficiale, utilizarea AI în această etapă se poate descrie exact: asistență la căutarea surselor, formularea protocolului, redactarea și paginarea documentului. Activitățile echipei se completează numai după realizarea lor.
+
+## Notă separată solicitată la revizuire
+
+Proiectul UMBRA inițial privea detectarea persoanelor ascunse prin umbre; SmartRoute schimbă substanțial problema de cercetare. În regulamentul consultat nu am identificat o prevedere explicită care să permită înlocuirea temei după înscriere. Acceptarea nu este confirmată; echipa și mentorul trebuie să solicite confirmare scrisă organizatorilor. Această observație administrativă este păstrată separat de lucrarea științifică, conform cerinței de revizuire.
+
+Regulamentul a fost redeschis prin linkul de pe pagina oficială în revizuirea din 24 octombrie 2026. Nu stabilește un număr minim de pagini pentru studiul separat ori durata orală de opt minute propusă în document. Anunțul oficial din 22 octombrie precizează că ediția nu selectează participanți pentru ISEF 2027.
