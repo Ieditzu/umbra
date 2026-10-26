@@ -3,13 +3,15 @@ import { AppState } from "react-native";
 import { calculateShadows } from "../services/localEngine";
 import { OutsideCoverageError } from "../engine/overlay";
 import type { Bounds, ShadowLayer } from "../domain/shadows";
+import { visibleShadowLayer } from "../domain/shadows";
 
 export function useShadowLayer(at: string, bounds: Bounds, enabled: boolean) {
   const [result, setResult] = useState<{
     layer: ShadowLayer | null;
     status: string;
     key: string;
-  }>({ layer: null, status: "idle", key: "" });
+    bounds: Bounds | null;
+  }>({ layer: null, status: "idle", key: "", bounds: null });
   const [foreground, setForeground] = useState(
     AppState.currentState === "active",
   );
@@ -27,11 +29,20 @@ export function useShadowLayer(at: string, bounds: Bounds, enabled: boolean) {
     let active = true;
     let timeout: ReturnType<typeof setTimeout> | undefined;
     const timer = setTimeout(() => {
-      setResult({ layer: null, status: "loading", key: requestKey });
+      setResult((previous) => ({
+        ...previous,
+        status: "loading",
+        key: requestKey,
+      }));
       timeout = setTimeout(() => {
         controller.abort();
         if (active)
-          setResult({ layer: null, status: "unavailable", key: requestKey });
+          setResult({
+            layer: null,
+            status: "unavailable",
+            key: requestKey,
+            bounds: null,
+          });
       }, 15000);
       const updateLayer = async () => {
         try {
@@ -41,7 +52,12 @@ export function useShadowLayer(at: string, bounds: Bounds, enabled: boolean) {
             controller.signal,
           );
           if (!controller.signal.aborted && active)
-            setResult({ layer: result, status: result.state, key: requestKey });
+            setResult({
+              layer: result,
+              status: result.state,
+              key: requestKey,
+              bounds: key.split(",").map(Number) as Bounds,
+            });
         } catch (error) {
           if (!controller.signal.aborted && active)
             setResult({
@@ -51,6 +67,7 @@ export function useShadowLayer(at: string, bounds: Bounds, enabled: boolean) {
                   ? "outside"
                   : "unavailable",
               key: requestKey,
+              bounds: null,
             });
         } finally {
           clearTimeout(timeout);
@@ -65,9 +82,14 @@ export function useShadowLayer(at: string, bounds: Bounds, enabled: boolean) {
       clearTimeout(timeout);
     };
   }, [at, key, requestKey, enabled, foreground]);
-  const valid = enabled && foreground && result.key === requestKey;
   return {
-    layer: valid ? result.layer : null,
+    layer: visibleShadowLayer(
+      result,
+      at,
+      key.split(",").map(Number) as Bounds,
+      enabled,
+      foreground,
+    ),
     status: !enabled
       ? "off"
       : !foreground

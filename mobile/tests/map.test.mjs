@@ -1,10 +1,65 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { freshFix, shouldRefreshRoute } from "../src/domain/live.ts";
-import { parseShadowLayer, shadowInstant } from "../src/domain/shadows.ts";
+import {
+  parseShadowLayer,
+  shadowInstant,
+  visibleShadowLayer,
+} from "../src/domain/shadows.ts";
 
 const point = { latitude: 44.175, longitude: 28.635 };
 const at = "2026-10-24T12:00:00.000Z";
+
+test("viewport refreshes keep overlapping buildings and shadows without showing a different time", () => {
+  const layer = { at };
+  const snapshot = { layer, bounds: [28.63, 44.17, 28.64, 44.18] };
+  assert.equal(
+    visibleShadowLayer(
+      snapshot,
+      at,
+      [28.631, 44.171, 28.641, 44.181],
+      true,
+      true,
+    ),
+    layer,
+  );
+  assert.equal(
+    visibleShadowLayer(snapshot, at, snapshot.bounds, true, true),
+    layer,
+  );
+  assert.equal(
+    visibleShadowLayer(
+      snapshot,
+      "2026-10-24T12:01:00.000Z",
+      snapshot.bounds,
+      true,
+      true,
+    ),
+    null,
+  );
+  assert.equal(
+    visibleShadowLayer(snapshot, at, [28.65, 44.19, 28.66, 44.2], true, true),
+    null,
+  );
+  assert.equal(
+    visibleShadowLayer(snapshot, at, snapshot.bounds, false, true),
+    null,
+  );
+  assert.equal(
+    visibleShadowLayer(snapshot, at, snapshot.bounds, true, false),
+    null,
+  );
+  assert.equal(
+    visibleShadowLayer(
+      { layer: null, bounds: null },
+      at,
+      snapshot.bounds,
+      true,
+      true,
+    ),
+    null,
+  );
+});
 const polygon = [
   [28.635, 44.175],
   [28.636, 44.175],

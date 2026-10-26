@@ -4,10 +4,9 @@ export type MapStyle = "map" | "satellite" | "terrain";
 // Google Maps' terrain basemap has no equivalent MapKit map type.
 export function nativeMapType(
   style: MapStyle,
-  threeD: boolean,
   platform: string,
 ): "standard" | "hybrid" | "hybridFlyover" | "terrain" {
   if (style === "satellite")
-    return platform === "ios" && threeD ? "hybridFlyover" : "hybrid";
+    return platform === "ios" ? "hybridFlyover" : "hybrid";
   return style === "terrain" && platform === "android" ? "terrain" : "standard";
 }

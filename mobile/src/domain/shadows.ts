@@ -17,6 +17,28 @@ export type ShadowLayer = {
   truncated: boolean;
   partialCoverage: boolean;
 };
+
+/** Keep overlapping geometry during a viewport refresh, never for another instant. */
+export function visibleShadowLayer(
+  snapshot: { layer: ShadowLayer | null; bounds: Bounds | null },
+  at: string,
+  bounds: Bounds,
+  enabled: boolean,
+  foreground: boolean,
+): ShadowLayer | null {
+  if (
+    !enabled ||
+    !foreground ||
+    !snapshot.layer ||
+    !snapshot.bounds ||
+    snapshot.layer.at !== at
+  )
+    return null;
+  const [w, s, e, n] = snapshot.bounds;
+  return w < bounds[2] && e > bounds[0] && s < bounds[3] && n > bounds[1]
+    ? snapshot.layer
+    : null;
+}
 export function shadowInstant(selected: Date | null, now: number): string {
   return selected
     ? selected.toISOString()

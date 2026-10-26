@@ -17,6 +17,10 @@ The approximately 7 MB compressed city snapshot (40 MB decoded) is installed wit
 5. Tap **Acum** to select shadow time; current-time shadows refresh each minute. **Straturi** contains map/satellite views, a **Clădiri 3D** switch, shadow visibility and height-source/coverage notices. Both iOS and Android support camera tilt and available native 3D buildings. iOS satellite 3D uses `hybridFlyover`; Android additionally offers native `terrain`. There is no fabricated iOS terrain layer, and 3D imagery depends on provider coverage. Native 3D rendering does not supply height data to the shadow engine.
 6. Set the maximum detour in **Setări**. Only this preference persists. No server field is displayed.
 
+Two-finger vertical dragging tilts the map directly, including on iOS; no prior 3D toggle is required. Native camera readback synchronizes the 3D switch without snapping a manual angle to 55°. Manual map gestures suspend GPS camera-following. Recentring and destination/route framing preserve the chosen pitch. iOS satellite keeps the same Flyover basemap while the angle changes, avoiding a native map-type reload.
+
+During a viewport refresh, overlapping building/shadow geometry for the same instant remains visible until replacement data arrive. Its status remains loading; geometry from a different time or a disjoint viewport is not reused. Hiding the layer, backgrounding, or a calculation failure clears the display. Stable polygon keys and memoized elements avoid remounting the overlay on unrelated screen clicks.
+
 Expo Go needs the development bundle from Metro, but performs the calculations on the device. An installed standalone build needs no computer. Native maps/address search may need internet even though the calculation engine does not.
 
 ## Local calculations

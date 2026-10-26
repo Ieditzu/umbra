@@ -178,6 +178,7 @@ export default function MapScreen() {
         onBounds={setBounds}
         mapStyle={mapStyle}
         threeD={threeD}
+        onThreeDChange={setThreeD}
       />
       <View
         pointerEvents="box-none"
