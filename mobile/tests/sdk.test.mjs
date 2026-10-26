@@ -25,6 +25,7 @@ test("project and installed runtime match the iPhone Expo Go SDK 58", () => {
     "react-dom",
     "react-native",
     "react-native-maps",
+    "react-native-webview",
     "react-native-reanimated",
     "react-native-worklets",
     "@react-native-community/datetimepicker",

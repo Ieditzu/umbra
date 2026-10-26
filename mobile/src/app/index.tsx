@@ -29,6 +29,8 @@ import { usePlanner } from "../state/PlannerProvider";
 import { colors } from "../theme";
 import type { MapStyle } from "../domain/mapDisplay";
 
+const MAP_ACCENT = "#304DC5";
+
 const INITIAL_BOUNDS: Bounds = [
   CONSTANȚA.longitude - 0.02,
   CONSTANȚA.latitude - 0.02,
@@ -191,7 +193,7 @@ export default function MapScreen() {
           style={styles.round}
           onPress={() => router.push("/settings")}
         >
-          <Ionicons name="menu-outline" size={24} color={colors.ink} />
+          <Ionicons name="menu-outline" size={24} color={MAP_ACCENT} />
         </Pressable>
         <View style={styles.wordmark}>
           <Text style={styles.brand}>umbra</Text>
@@ -216,13 +218,18 @@ export default function MapScreen() {
           accessibilityRole="button"
           accessibilityLabel="Stratul de umbre"
           onPress={() => setLayersOpen((value) => !value)}
+          accessibilityState={{ expanded: layersOpen }}
+          style={[styles.round, layersOpen && styles.controlSelected]}
+        >
+          <Ionicons name="layers" size={23} color={MAP_ACCENT} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Caută o destinație"
+          onPress={() => setSearch(true)}
           style={styles.round}
         >
-          <Ionicons
-            name="layers-outline"
-            size={22}
-            color={showShadows ? colors.green : colors.muted}
-          />
+          <Ionicons name="search" size={23} color={MAP_ACCENT} />
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -232,7 +239,7 @@ export default function MapScreen() {
             setRecenter((value) => value + 1);
             if (!live.fix) live.retry();
           }}
-          style={styles.round}
+          style={[styles.round, following && styles.followSelected]}
         >
           {live.status === "locating" ? (
             <ActivityIndicator color={colors.green} />
@@ -240,11 +247,25 @@ export default function MapScreen() {
             <Ionicons
               name={following ? "navigate" : "locate-outline"}
               size={22}
-              color={following ? "#4285F4" : colors.ink}
+              color={following ? colors.white : MAP_ACCENT}
             />
           )}
         </Pressable>
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={threeD ? "Afișează harta 2D" : "Afișează clădirile 3D"}
+        accessibilityState={{ selected: threeD }}
+        onPress={() => setThreeD((value) => !value)}
+        style={[
+          styles.dimensionButton,
+          { bottom: destination ? 295 + insets.bottom : 125 + insets.bottom },
+          threeD && styles.controlSelected,
+        ]}
+      >
+        <Ionicons name="cube" size={24} color={MAP_ACCENT} />
+        <Text style={styles.dimensionText}>{threeD ? "2D" : "3D"}</Text>
+      </Pressable>
       {layersOpen && (
         <ScrollView
           style={[
@@ -309,8 +330,9 @@ export default function MapScreen() {
           </View>
           {threeD && (
             <Text style={styles.subtle}>
-              Detaliile 3D depind de acoperirea{" "}
-              {Platform.OS === "ios" ? "Apple Maps" : "Google Maps"}.
+              {Platform.OS === "ios" && mapStyle === "map"
+                ? "Clădiri OSM. Înălțimile lipsă sunt orientative doar în 3D; nu produc umbre."
+                : `Detaliile 3D depind de acoperirea ${Platform.OS === "ios" ? "Apple Maps" : "Google Maps"}.`}
             </Text>
           )}
           <View style={styles.layerHeader}>
@@ -517,20 +539,40 @@ const styles = StyleSheet.create({
   round: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 17,
     backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: "#ECECF7",
     justifyContent: "center",
     alignItems: "center",
     elevation: 3,
-    boxShadow: "0 2px 10px #142A1818",
+    boxShadow: "0 3px 0 #CCD1E6",
   },
+  controlSelected: { borderColor: "#B9C5F6", backgroundColor: "#F0F3FF" },
+  followSelected: { backgroundColor: MAP_ACCENT, borderColor: "#2944B0" },
+  dimensionButton: {
+    position: "absolute",
+    left: 16,
+    width: 54,
+    minHeight: 62,
+    borderRadius: 17,
+    borderWidth: 2,
+    borderColor: "#ECECF7",
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+    boxShadow: "0 3px 0 #CCD1E6",
+    elevation: 3,
+  },
+  dimensionText: { color: MAP_ACCENT, fontWeight: "700", fontSize: 11 },
   wordmark: { flex: 1, alignItems: "flex-start" },
   brand: {
     fontSize: 25,
     fontWeight: "700",
     letterSpacing: -1.3,
-    color: colors.ink,
-    backgroundColor: "#FFFFFFDA",
+    color: MAP_ACCENT,
+    backgroundColor: "#FFFFFFED",
     paddingHorizontal: 13,
     paddingVertical: 5,
     borderRadius: 16,
@@ -543,12 +585,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     height: 44,
     backgroundColor: colors.white,
-    borderRadius: 24,
+    borderRadius: 17,
+    borderWidth: 2,
+    borderColor: "#ECECF7",
     elevation: 3,
-    boxShadow: "0 2px 10px #142A1818",
+    boxShadow: "0 3px 0 #CCD1E6",
   },
   timeText: { color: colors.ink, fontWeight: "600", fontSize: 13 },
-  mapButtons: { position: "absolute", right: 16, gap: 12 },
+  mapButtons: { position: "absolute", right: 16, gap: 8 },
   bottom: {
     position: "absolute",
     bottom: 0,
@@ -566,7 +610,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     gap: 13,
     elevation: 5,
-    boxShadow: "0 4px 22px #142A1820",
+    borderWidth: 2,
+    borderColor: "#ECECF7",
+    boxShadow: "0 4px 0 #CCD1E6",
   },
   destinationIcon: {
     width: 39,
@@ -574,7 +620,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 13,
-    backgroundColor: colors.greenLight,
+    backgroundColor: "#EDF1FF",
   },
   searchText: {
     flex: 1,
@@ -588,7 +634,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 16,
     elevation: 5,
-    boxShadow: "0 4px 22px #142A1820",
+    borderWidth: 2,
+    borderColor: "#ECECF7",
+    boxShadow: "0 4px 0 #CCD1E6",
   },
   destinationRow: {
     flexDirection: "row",
@@ -651,7 +699,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: 20,
     elevation: 5,
-    boxShadow: "0 4px 22px #142A1820",
+    borderWidth: 2,
+    borderColor: "#ECECF7",
+    boxShadow: "0 4px 0 #CCD1E6",
   },
   layerContent: { padding: 18, gap: 12 },
   mapChoices: { flexDirection: "row", gap: 8 },

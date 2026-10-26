@@ -20,12 +20,12 @@ Only iOS and Android are enabled; open the app in Expo Go rather than a web brow
 - Allow foreground location. The map follows your live position; panning stops following and the location button resumes it.
 - Tap **Unde mergi?** or long-press the map to choose a destination. Routes recalculate after useful movement or a minute.
 - Tap **Acum** to select a different date/time. Shadows follow that instant; at night there are no daylight shadow polygons.
-- Open **Straturi** for map/satellite views and the **Clădiri 3D** switch on both iOS and Android. iOS uses Apple Maps/Flyover where available; Android also offers its native terrain layer. Actual 3D detail depends on provider coverage. The panel also contains shadow visibility, height sources and coverage limitations. Missing-height buildings appear as neutral footprints.
+- Use the **3D** button or drag vertically with two fingers to tilt the map. On iOS, **Hartă** renders bundled OSM building outlines using MapLibre, with a free OpenFreeMap basemap: no Google key or paid account. Missing-height buildings have a **display-only 6 m placeholder**, excluded from shadow calculations. **Satelit** uses Apple imagery/Flyover where available. Android keeps its native Google renderer and terrain layer. **Straturi** contains map choices, shadow visibility and height-source notices.
 - **Setări** contains the maximum accepted walking detour. There is no server field.
 
 Calculations use a compressed real OSM snapshot bundled with the app (approximately 7 MB packaged, 40 MB decoded): 50,071 walking nodes, 111,552 directed edges and 51,428 building outlines. The city extract spans approximately `28.50–28.75° E, 44.075–44.355° N`, including Constanța, Mamaia, Palazu Mare and a margin. It replaces the central-only pilot; this rectangle is not an administrative boundary. Snapshot [metadata and checksums](mobile/assets/data/manifest.json) and [license/provenance](docs/mobile-data.md) are included.
 
-The calculation engine works without network access. **Basemap tiles and address search still use Apple/Google services and may need internet.** GPS is used only in the foreground. Coordinates, viewport and selected time are not sent to an Umbra server. Native map/search providers have their own data handling.
+The calculation engine works without network access. **Basemap tiles and address search still use OpenFreeMap/Apple/Google services and may need internet.** GPS is used only in the foreground. Coordinates, viewport and selected time are not sent to an Umbra server. Map/search providers have their own data handling. OpenFreeMap receives viewport-dependent tile requests, not Umbra route calculations.
 
 Unknown heights and incomplete obstruction inventory remain uncertain. Unmodeled areas are not automatically called sunny. Routes are experimental geometric estimates, not temperature/UV measurements or validated route-safety advice. Real-phone performance and shadow accuracy still require device/field checks.
 
@@ -39,6 +39,8 @@ npm test
 npm run export:android
 npm run export:ios
 ```
+
+`npm ci` also regenerates the bundled iOS renderer; after editing `mobile/map-web/map.js`, run `npm --prefix mobile run build:map`.
 
 Tests cover independent solar references, geometry, routing constraints, cancellation and real bundled data with network calls disabled. See the [recorded software verification](docs/mobile-verification.md). Exports verify JavaScript bundling, not on-device rendering; they are not installable APK/IPA files. Standalone Android builds require a restricted Google Maps key and native builds require signing; see [mobile documentation](docs/mobile-app.md).
 

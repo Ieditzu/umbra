@@ -45,3 +45,13 @@ Metro/Hermes exports for both iOS and Android succeed with the city bundle (appr
 Open the app on a physical iPhone/Android device, allow GPS and choose a destination inside the pilot. Confirm that routes appear with no backend running, change the clock and check the shadow layer, pan rapidly and background/foreground the app. For a standalone build, verify calculations after a fully offline restart; basemap tiles and address search may still be unavailable offline.
 
 Measure warm/cold calculation latency, memory and interaction responsiveness on real phones before claiming performance. Independently measure building heights and shadow edges on site before claiming geometric accuracy. The project has not yet performed these checks in this implementation.
+
+## Free iOS 3D renderer and map styling
+
+The iOS map view now embeds MapLibre GL JS 6.16.0 and its worker in the SDK-58-compatible WebView 14.0.1. Android retains the native renderer. TypeScript and lint pass; all 47 Node tests pass. Added checks cover viewport budgets and center priority, preserved courtyard rings, display-only fallback elevations without mutating calculation heights, rejected bridge messages, GPS accuracy geometry, source continuity across interactions/style reloads, and monotonic computation budgets under wall-clock changes.
+
+The bundled real-data viewport `[28.628, 44.170, 28.645, 44.181]` produced 2,485 building polygon parts. Of these, 608 have tagged/floor-estimated heights; the remaining 1,877 receive a separate 6 m visual placeholder. All 2,485 can be shown as volumes, but placeholders remain unknown in the exposure engine. At `2026-06-21T09:00:00Z`, 721 modeled shadow parts were independently supplied to the renderer. These counts do not measure physical accuracy.
+
+A Chromium WebGL preview at 390 × 844 pixels showed the real Constanța geometry at zoom 16.5 and pitch 55°. Browser checks confirmed the same building source and all 2,485 parts persisted when clearing shadows, setting a destination and recentering; pitch remained 55°. No browser errors were reported. This was a browser preview of the embedded renderer, not a physical iPhone capture or an end-to-end React Native UI test.
+
+Current Metro/Hermes exports succeed for iOS (approximately 13 MB bytecode including the renderer) and Android (approximately 10 MB, native map). These are bundling checks only. Physical WKWebView rendering, two-finger gestures, memory and performance still require phone checks. Most OSM heights remain unknown, and the display fallback cannot establish actual heights or modeled shade.

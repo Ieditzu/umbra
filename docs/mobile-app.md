@@ -6,7 +6,7 @@ The native React Native app uses Expo SDK 58 and Expo Router. `mobile/src/app/` 
 
 **There is no runtime API dependency.** The Go engine in `server/` remains a data-preparation and reference implementation. The unused HTTP adapter remains available for reference contract tests, but no mobile screen imports it. Old saved API URLs are ignored and removed when preferences are saved. Coordinates and results are not persisted by Umbra.
 
-The approximately 7 MB compressed city snapshot (40 MB decoded) is installed with the app, including in release builds. It covers Constanța, Mamaia, Palazu Mare and a margin, replacing the central-only pilot. There is no compulsory first-run network download or automatic data refresh. Its bounds, date, counts, preparation commands and ODbL attribution are in [mobile-data.md](mobile-data.md). Native Apple/Google basemaps and geocoding are separate network services; a visible 3D building in a basemap is not a source of OSM height data.
+The approximately 7 MB compressed city snapshot (40 MB decoded) is installed with the app, including in release builds. It covers Constanța, Mamaia, Palazu Mare and a margin, replacing the central-only pilot. There is no compulsory first-run network download or automatic data refresh. Its bounds, date, counts, preparation commands and ODbL attribution are in [mobile-data.md](mobile-data.md). OpenFreeMap/Apple/Google basemaps and native geocoding are separate network services; a visible 3D building in a basemap is not a source of OSM height data.
 
 ## Phone setup
 
@@ -14,14 +14,26 @@ The approximately 7 MB compressed city snapshot (40 MB decoded) is installed wit
 2. Open the fresh QR code using Expo Go for SDK 58. Physical iPhones require the current Expo Go release. Stop any old Metro server before restarting.
 3. Allow foreground location. The camera follows your live blue dot until you pan; the location button resumes following.
 4. Tap **Unde mergi?** or long-press the map for a destination in the pilot. Native Android geocoding requires foreground location permission.
-5. Tap **Acum** to select shadow time; current-time shadows refresh each minute. **Straturi** contains map/satellite views, a **Clădiri 3D** switch, shadow visibility and height-source/coverage notices. Both iOS and Android support camera tilt and available native 3D buildings. iOS satellite 3D uses `hybridFlyover`; Android additionally offers native `terrain`. There is no fabricated iOS terrain layer, and 3D imagery depends on provider coverage. Native 3D rendering does not supply height data to the shadow engine.
+5. Tap **Acum** to select shadow time; current-time shadows refresh each minute. **Straturi** contains map/satellite views, a **Clădiri 3D** switch, shadow visibility and height-source/coverage notices. The direct **3D** map button also toggles tilt. iOS **Hartă** uses the free local MapLibre renderer described below; iOS satellite uses Apple `hybridFlyover`. Android retains Google Maps with native `terrain`. Neither provider imagery nor display-only building heights supply data to the shadow engine.
 6. Set the maximum detour in **Setări**. Only this preference persists. No server field is displayed.
 
 Two-finger vertical dragging tilts the map directly, including on iOS; no prior 3D toggle is required. Native camera readback synchronizes the 3D switch without snapping a manual angle to 55°. Manual map gestures suspend GPS camera-following. Recentring and destination/route framing preserve the chosen pitch. iOS satellite keeps the same Flyover basemap while the angle changes, avoiding a native map-type reload.
 
 During a viewport refresh, overlapping building/shadow geometry for the same instant remains visible until replacement data arrive. Its status remains loading; geometry from a different time or a disjoint viewport is not reused. Hiding the layer, backgrounding, or a calculation failure clears the display. Stable polygon keys and memoized elements avoid remounting the overlay on unrelated screen clicks.
 
-Expo Go needs the development bundle from Metro, but performs the calculations on the device. An installed standalone build needs no computer. Native maps/address search may need internet even though the calculation engine does not.
+Expo Go needs the development bundle from Metro, but performs the calculations on the device. An installed standalone build needs no computer. Basemap tiles/address search may need internet even though the calculation engine does not.
+
+## Free iOS building display
+
+`RouteMap.ios.tsx` selects `LocalRouteMap` for **Hartă**; satellite stays on `NativeRouteMap`. Android always uses `NativeRouteMap`. The iOS map runs bundled MapLibre GL JS 6.16.0 inside SDK-58's Expo-Go-included WebView 14.0.1. It needs no Google iOS key, paid account or custom native build. The visible design takes the bright map, pale building volumes and compact blue controls as references from [Plimb's public App Store screenshots](https://apps.apple.com/us/app/plimb-cucere%C8%99te-harta/id6788684964), retaining Umbra's routing workflow.
+
+`engine/buildings.ts` extracts full polygons and courtyard holes from the same local snapshot, independently of shadow visibility or time. Up to 6,000 polygon parts / 160,000 vertices are shown, prioritizing the viewport center when limited. Zoom in for denser detail. OSM omissions remain omissions. Heights use the tagged value or lower floor estimate; missing/unsupported heights retain `height: 0` for calculations and receive a separate **display_height: 6** solely for the visual model. These placeholder volumes cannot generate shadows or improve route exposure estimates. They do not represent measured elevations.
+
+The WebView and sources remain mounted on ordinary UI updates; GPS, time, destination and shadow changes update individual sources. The previous building geometry remains until a new viewport result arrives. Two-finger tilt, long-press destination selection, route framing and the GPS accuracy circle are supported. Explicitly switching between satellite and map replaces the renderer.
+
+`map-web/map.js` contains browser behavior. `scripts/build-local-map.mjs` bundles both MapLibre and its worker using esbuild into `src/generated/localMapHtml.ts`; run `npm run build:map` after editing it. `npm ci` regenerates it automatically. The embedded renderer and building snapshot work offline on a plain background; optional base tiles/style/fonts come from [OpenFreeMap](https://openfreemap.org/) and need connectivity. No CDN script is executed. Its tile requests reveal the viewed area to that provider; Umbra does not transmit GPS/time/route requests to a calculation server. Attribution remains visible. The MapLibre license is embedded and copied to `docs/licenses/maplibre-gl.txt`.
+
+The bridge validates coordinates and viewport messages. External navigation is restricted to attribution links. Generation/abort guards discard stale viewport results. Browser checks and platform exports do not establish WKWebView performance on physical iPhones.
 
 ## Local calculations
 
@@ -35,7 +47,7 @@ Routes use directed Dijkstra on the imported public walking graph. Endpoints mus
 
 Pure TypeScript work yields to the event loop after approximately 6 ms between operations, supports AbortSignal, and has computation budgets (18 s routing, 12 s overlays). Individual polygon operations are synchronous and cannot be interrupted internally; vertex caps bound them. This is cooperative scheduling on the JS thread, not a native background worker or a phone-frame-rate guarantee. The UI debounces viewport updates 500 ms, rejects stale results, and cancels on input changes, layer hiding or backgrounding.
 
-GPS runs only in the foreground, with stale fixes hidden. Routes refresh after movement of at least 25 m (minimum 10 s between movement refreshes), input changes or one minute. Umbra sends no coordinates, viewport or timestamps to a calculation server. Native map/search providers handle their own requests.
+GPS runs only in the foreground, with stale fixes hidden. Routes refresh after movement of at least 25 m (minimum 10 s between movement refreshes), input changes or one minute. Umbra sends no coordinates, viewport or timestamps to a calculation server. Map/search providers handle their own requests.
 
 ## Validation and limitations
 
@@ -55,4 +67,7 @@ The SDK-58 dependency audit reports five inherited high-severity findings throug
 
 - [Expo SDK 58](https://docs.expo.dev/versions/v58.0.0/)
 - [polygon-clipping implementation and license](https://github.com/mfogel/polygon-clipping)
+- [Expo SDK 58 WebView](https://docs.expo.dev/versions/v58.0.0/sdk/webview/)
+- [OpenFreeMap](https://openfreemap.org/)
+- [MapLibre GL JS](https://maplibre.org/maplibre-gl-js/docs/)
 - [OSM attribution](https://www.openstreetmap.org/copyright)

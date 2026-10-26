@@ -84,9 +84,9 @@ export default function SettingsScreen() {
           <Text style={styles.small}>
             GPS doar în prim-plan. Coordonatele nu sunt salvate. La alegerea
             unei destinații, traseele și umbrele sunt calculate pe telefon din
-            datele locale ale zonei pilot. Căutarea adreselor și harta folosesc
-            furnizorii nativi Google/Apple. Umbrele sunt estimări geometrice, nu
-            măsurători de temperatură.
+            datele locale pentru Constanța. Căutarea adreselor și harta folosesc
+            Google/Apple sau OpenFreeMap pentru harta OSM de pe iOS. Umbrele
+            sunt estimări geometrice, nu măsurători de temperatură.
           </Text>
         )}
       </ScrollView>

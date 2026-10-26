@@ -7,6 +7,7 @@ import type { PackedDataset } from "../engine/packedData";
 import { compareLocalRoutes } from "../engine/routing";
 import { localShadows } from "../engine/overlay";
 import { task } from "../engine/task";
+import { visibleBuildings } from "../engine/buildings";
 
 let prepared: Promise<Dataset> | undefined;
 function dataset(): Promise<Dataset> {
@@ -31,6 +32,10 @@ export async function calculateRoutes(
 ) {
   const data = await dataset();
   return compareLocalRoutes(data, request, signal);
+}
+
+export async function calculateBuildings(bounds: Bounds, signal: AbortSignal) {
+  return visibleBuildings(await dataset(), bounds, signal);
 }
 
 const overlays = new Map<string, ShadowLayer>();

@@ -11,6 +11,8 @@ node_modules/
 .expo/
 mobile/dist/
 mobile/coverage/
+mobile/map-web/preview.html
+mobile/map-web/preview-data.json
 mobile/.env
 frontend/node_modules/
 frontend/dist/
