@@ -1,15 +1,10 @@
 import { useEffect, useState } from "react";
 import { AppState } from "react-native";
-import { normalizeApiUrl } from "../domain/settings";
-import { parseShadowLayer } from "../domain/shadows";
+import { calculateShadows } from "../services/localEngine";
+import { OutsideCoverageError } from "../engine/overlay";
 import type { Bounds, ShadowLayer } from "../domain/shadows";
 
-export function useShadowLayer(
-  apiUrl: string,
-  at: string,
-  bounds: Bounds,
-  enabled: boolean,
-) {
+export function useShadowLayer(at: string, bounds: Bounds, enabled: boolean) {
   const [result, setResult] = useState<{
     layer: ShadowLayer | null;
     status: string;
@@ -25,9 +20,9 @@ export function useShadowLayer(
     return () => sub.remove();
   }, []);
   const key = bounds.map((value) => value.toFixed(4)).join(",");
-  const requestKey = `${apiUrl}|${at}|${key}`;
+  const requestKey = `${at}|${key}`;
   useEffect(() => {
-    if (!enabled || !apiUrl || !foreground) return;
+    if (!enabled || !foreground) return;
     const controller = new AbortController();
     let active = true;
     let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -38,33 +33,30 @@ export function useShadowLayer(
         if (active)
           setResult({ layer: null, status: "unavailable", key: requestKey });
       }, 15000);
-      const fetchLayer = async () => {
+      const updateLayer = async () => {
         try {
-          const response = await fetch(
-            `${normalizeApiUrl(apiUrl)}/v1/shadows`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ at, bounds: key.split(",").map(Number) }),
-              signal: controller.signal,
-            },
+          const result = await calculateShadows(
+            at,
+            key.split(",").map(Number) as Bounds,
+            controller.signal,
           );
-          if (!response.ok) throw new Error("unavailable");
-          if (Number(response.headers.get("content-length")) > 5000000)
-            throw new Error("oversize");
-          const body = await response.text();
-          if (body.length > 5000000) throw new Error("oversize");
-          const result = parseShadowLayer(JSON.parse(body), at);
           if (!controller.signal.aborted && active)
             setResult({ layer: result, status: result.state, key: requestKey });
-        } catch {
+        } catch (error) {
           if (!controller.signal.aborted && active)
-            setResult({ layer: null, status: "unavailable", key: requestKey });
+            setResult({
+              layer: null,
+              status:
+                error instanceof OutsideCoverageError
+                  ? "outside"
+                  : "unavailable",
+              key: requestKey,
+            });
         } finally {
           clearTimeout(timeout);
         }
       };
-      void fetchLayer();
+      void updateLayer();
     }, 500);
     return () => {
       active = false;
@@ -72,18 +64,16 @@ export function useShadowLayer(
       clearTimeout(timer);
       clearTimeout(timeout);
     };
-  }, [apiUrl, at, key, requestKey, enabled, foreground]);
-  const valid = enabled && foreground && !!apiUrl && result.key === requestKey;
+  }, [at, key, requestKey, enabled, foreground]);
+  const valid = enabled && foreground && result.key === requestKey;
   return {
     layer: valid ? result.layer : null,
     status: !enabled
       ? "off"
-      : !apiUrl
-        ? "unconfigured"
-        : !foreground
-          ? "paused"
-          : result.key === requestKey
-            ? result.status
-            : "loading",
+      : !foreground
+        ? "paused"
+        : result.key === requestKey
+          ? result.status
+          : "loading",
   };
 }

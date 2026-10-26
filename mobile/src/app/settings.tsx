@@ -6,17 +6,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { normalizeApiUrl } from "../domain/settings";
 import { usePlanner } from "../state/PlannerProvider";
 import { colors } from "../theme";
 
 export default function SettingsScreen() {
   const planner = usePlanner();
-  const [url, setUrl] = useState(planner.settings.apiUrl);
   const [extra, setExtra] = useState(planner.settings.maxExtraMinutes);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -27,7 +24,6 @@ export default function SettingsScreen() {
     setError("");
     try {
       await planner.saveSettings({
-        apiUrl: normalizeApiUrl(url),
         maxExtraMinutes: extra,
       });
       router.back();
@@ -59,20 +55,6 @@ export default function SettingsScreen() {
             </Pressable>
           ))}
         </View>
-        <View style={styles.divider} />
-        <Text style={styles.label}>Server</Text>
-        <TextInput
-          accessibilityLabel="Adresa serviciului de trasee"
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
-          placeholder="https://api.exemplu.ro"
-          placeholderTextColor={colors.muted}
-          value={url}
-          onChangeText={setUrl}
-          style={styles.input}
-          maxLength={500}
-        />
         {!!error && (
           <Text style={styles.error} accessibilityRole="alert">
             {error}
@@ -101,10 +83,10 @@ export default function SettingsScreen() {
         {privacy && (
           <Text style={styles.small}>
             GPS doar în prim-plan. Coordonatele nu sunt salvate. La alegerea
-            unei destinații, locația este trimisă serverului pentru actualizarea
-            traseului; zona vizibilă și ora sunt trimise pentru umbre. Căutarea
-            adreselor și harta folosesc furnizorii nativi Google/Apple. Umbrele
-            sunt estimări geometrice, nu măsurători de temperatură.
+            unei destinații, traseele și umbrele sunt calculate pe telefon din
+            datele locale ale zonei pilot. Căutarea adreselor și harta folosesc
+            furnizorii nativi Google/Apple. Umbrele sunt estimări geometrice, nu
+            măsurători de temperatură.
           </Text>
         )}
       </ScrollView>

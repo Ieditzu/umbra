@@ -6,7 +6,7 @@ import type { Coordinate, RouteComparison } from "../domain/routes";
 import { makeRouteRequest } from "../domain/routes";
 import { DEFAULT_SETTINGS, restoreSettings } from "../domain/settings";
 import type { Settings } from "../domain/settings";
-import { compareRoutes } from "../services/routing";
+import { calculateRoutes } from "../services/localEngine";
 
 export type Place = { coordinate: Coordinate; label: string };
 export type Selection = "origin" | "destination";
@@ -93,7 +93,10 @@ function usePlannerState() {
     setDeparture(value);
   }
   async function saveSettings(value: Settings) {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+    await AsyncStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ maxExtraMinutes: value.maxExtraMinutes }),
+    );
     invalidate();
     setSettings(value);
   }
@@ -123,11 +126,7 @@ function usePlannerState() {
         Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Bucharest",
       );
       setLoading(true);
-      const result = await compareRoutes(
-        settings.apiUrl,
-        request,
-        controller.signal,
-      );
+      const result = await calculateRoutes(request, controller.signal);
       if (ticket !== generation.current || controller.signal.aborted) return;
       setComparison(result);
       setSelectedId(

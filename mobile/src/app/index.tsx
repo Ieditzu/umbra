@@ -39,7 +39,7 @@ const shadowStatus: Record<string, string> = {
   low_sun: "Soare la orizont",
   loading: "Se actualizează",
   unavailable: "Temporar indisponibile",
-  unconfigured: "Serviciu neconectat",
+  outside: "În afara zonei pilot",
   paused: "În pauză",
   idle: "În așteptare",
   off: "Oprite",
@@ -97,12 +97,7 @@ export default function MapScreen() {
   }, [live.fix]);
   const departureKey = planner.departure?.toISOString() ?? "now";
   const snapshotAt = shadowInstant(planner.departure, clock);
-  const shadow = useShadowLayer(
-    planner.settings.apiUrl,
-    snapshotAt,
-    bounds,
-    showShadows,
-  );
+  const shadow = useShadowLayer(snapshotAt, bounds, showShadows);
   const route =
     planner.comparison?.routes.find((item) => item.id === planner.selectedId) ??
     null;
@@ -110,14 +105,13 @@ export default function MapScreen() {
   const destinationKey = destination
     ? `${destination.coordinate.latitude},${destination.coordinate.longitude}`
     : "";
-  const routeKey = `${destinationKey}|${departureKey}|${planner.settings.apiUrl}|${planner.settings.maxExtraMinutes}`;
+  const routeKey = `${destinationKey}|${departureKey}|${planner.settings.maxExtraMinutes}`;
   useEffect(() => {
     if (
       !destinationKey ||
       !live.fix ||
       live.fix.accuracy > 100 ||
       !planner.hydrated ||
-      !planner.settings.apiUrl ||
       planner.loading ||
       !foreground ||
       planner.origin?.coordinate.latitude !== live.fix.latitude ||
@@ -135,7 +129,6 @@ export default function MapScreen() {
     planner.origin?.coordinate.latitude,
     planner.origin?.coordinate.longitude,
     planner.hydrated,
-    planner.settings.apiUrl,
     planner.loading,
     foreground,
     routeKey,
@@ -371,22 +364,6 @@ export default function MapScreen() {
                 >
                   {planner.message}
                 </Text>
-              </Pressable>
-            )}
-            {!planner.settings.apiUrl && (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => router.push("/settings")}
-                style={styles.connect}
-              >
-                <Text style={styles.subtle}>
-                  Conectează serviciul de trasee
-                </Text>
-                <Ionicons
-                  name="chevron-forward"
-                  size={16}
-                  color={colors.muted}
-                />
               </Pressable>
             )}
             <ScrollView

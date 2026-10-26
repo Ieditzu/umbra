@@ -12,9 +12,9 @@ Umbra este o aplicație mobilă React Native pentru Android și iOS care urmăre
 Reducerea expunerii pietonilor la soare, în special vara, când temperaturile sunt ridicate.
 
 ### Implementare
-Interfața mobilă este realizată în React Native, cu Expo și TypeScript. Backend-ul este implementat în Go: import OSM explicit și păstrat în cache, graf pietonal, poziția Soarelui prin ecuații NOAA/Meeus și geometrie în metri (EPSG:32635). Valorile solare sunt comparate în teste cu referințe pvlib; pvlib nu este o dependență a serverului.
+Interfața mobilă este realizată în React Native, cu Expo și TypeScript. Poziția Soarelui, umbrele și traseele sunt calculate direct pe telefon, dintr-un snapshot OSM real inclus în aplicație. Nu este necesar un server API sau introducerea unei adrese. Motorul folosește ecuații NOAA/Meeus, geometrie în metri (EPSG:32635) și un graf pietonal. Implementarea Go rămâne unealtă de pregătire a datelor și referință pentru verificări. Valorile solare sunt comparate în teste cu referințe SPA/pvlib; pvlib nu este o dependență mobilă.
 
-Aplicația mobilă afișează harta pe tot ecranul, urmărește locația în prim-plan și cere doar destinația prin „Unde mergi?”. Stratul de umbre folosește ora selectată și zona vizibilă. API-ul oferă comparația traseelor și poligoane de umbre; rezultatele lipsă nu sunt înlocuite cu date fictive. Testele verifică integrarea software, nu demonstrează încă precizia în teren.
+Aplicația mobilă afișează harta pe tot ecranul, urmărește locația în prim-plan și cere doar destinația prin „Unde mergi?”. Stratul de umbre folosește ora selectată și zona vizibilă. Calculele funcționează fără rețea; harta de bază și căutarea adreselor pot necesita internet prin furnizorii nativi. Rezultatele lipsă nu sunt înlocuite cu date fictive. Testele verifică mecanismele software și datele reale incluse, nu demonstrează încă precizia în teren sau performanța pe telefon.
 
 Prima versiune ar acoperi o zonă restrânsă din Constanța. Înălțimile lipsă ale clădirilor ar fi estimate sau introduse manual, cu sursa și incertitudinea marcate. Acoperirea locală a înălțimilor OpenStreetMap trebuie verificată înainte de alegerea zonei de studiu.
 

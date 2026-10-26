@@ -1,0 +1,12 @@
+{
+  "pilot_id": "constanta-central-v1",
+  "osm_base_timestamp": "2026-10-26T09:40:41Z",
+  "imported_at": "2026-10-26T09:41:47Z",
+  "sha256": "b4bf403c5569def1434159693a7391cbd32b89c82ecc66990f236ee501a660c4",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 1023,
+  "directed_edges": 2428,
+  "buildings": 4355,
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}
