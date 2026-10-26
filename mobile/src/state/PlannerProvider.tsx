@@ -1,24 +1,37 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { PropsWithChildren } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 import type { Coordinate, RouteComparison } from "../domain/routes";
 import { makeRouteRequest } from "../domain/routes";
-import { DEFAULT_SETTINGS, restoreSettings } from "../domain/settings";
+import { createPreferenceStore } from "./preferenceStore";
+import type { PreferencePatch } from "./preferenceStore";
 import type { Settings } from "../domain/settings";
 import { calculateRoutes } from "../services/calculations";
 
 export type Place = { coordinate: Coordinate; label: string };
 export type Selection = "origin" | "destination";
-const STORAGE_KEY = "umbra.preferences.v1";
 
 function usePlannerState() {
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [preferences] = useState(() =>
+    createPreferenceStore(AsyncStorage, Platform.OS),
+  );
+  const [settings, setSettings] = useState(preferences.snapshot);
   const [hydrated, setHydrated] = useState(false);
   const [origin, setOrigin] = useState<Place | null>(null);
   const [destination, setDestination] = useState<Place | null>(null);
   const [selection, setSelection] = useState<Selection>("origin");
-  const [departure, setDeparture] = useState<Date | null>(null);
+  const departure = useMemo(
+    () => (settings.departureAt ? new Date(settings.departureAt) : null),
+    [settings.departureAt],
+  );
   const [comparison, setComparison] = useState<RouteComparison | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -32,10 +45,11 @@ function usePlannerState() {
       generation.current++;
       pending.current?.abort();
     }
-    void AsyncStorage.getItem(STORAGE_KEY)
-      .then((raw) => {
-        if (active) setSettings(restoreSettings(raw));
-      })
+    const unsubscribe = preferences.subscribe((value) => {
+      if (active) setSettings(value);
+    });
+    void preferences
+      .load()
       .catch(() => {
         if (active) setMessage("Preferințele salvate nu au putut fi citite.");
       })
@@ -53,8 +67,9 @@ function usePlannerState() {
       active = false;
       cancel();
       subscription.remove();
+      unsubscribe();
     };
-  }, []);
+  }, [preferences]);
 
   function invalidate() {
     generation.current++;
@@ -88,17 +103,20 @@ function usePlannerState() {
     invalidate();
     setDestination(null);
   }
+  function changePreferences(patch: PreferencePatch) {
+    void preferences
+      .update(patch)
+      .catch(() =>
+        setMessage("Preferințele nu au putut fi salvate pe telefon."),
+      );
+  }
   function changeDeparture(value: Date | null) {
     invalidate();
-    setDeparture(value);
+    changePreferences({ departureAt: value?.toISOString() ?? null });
   }
   async function saveSettings(value: Settings) {
-    await AsyncStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ maxExtraMinutes: value.maxExtraMinutes }),
-    );
     invalidate();
-    setSettings(value);
+    await preferences.update({ maxExtraMinutes: value.maxExtraMinutes });
   }
   async function calculate() {
     generation.current++;
@@ -156,6 +174,7 @@ function usePlannerState() {
   }
   return {
     settings,
+    changePreferences,
     hydrated,
     origin,
     destination,

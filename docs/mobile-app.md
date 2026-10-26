@@ -2,7 +2,7 @@
 
 ## Architecture
 
-The native React Native app uses Expo SDK 58 and Expo Router. `mobile/src/app/` contains screens; `components/` contains native UI; `domain/` contains contracts/validation; `engine/` contains the pure TypeScript solar, geometry, exposure, overlay and routing calculations. `services/calculations.ts` calls the PC API; the former `localEngine.ts` adapter remains a desktop reference helper. `state/` holds transient planning state and the persistent detour preference.
+The native React Native app uses Expo SDK 58 and Expo Router. `mobile/src/app/` contains screens; `components/` contains native UI; `domain/` contains contracts/validation; `engine/` contains the pure TypeScript solar, geometry, exposure, overlay and routing calculations. `services/calculations.ts` calls the PC API; the former `localEngine.ts` adapter remains a desktop reference helper. `state/` holds transient planning state and persistent map/time/detour preferences.
 
 **Current default: calculations run on the PC.** `services/calculations.ts` discovers the server through the Expo connection and validates responses. `server/compute/` runs the shared TypeScript engine in Node worker threads using the existing city snapshot. No mobile screen imports the dataset loader or performs routing/clipping locally. The Go engine remains a separate preparation/reference tool. See [mobile computation server](backend/mobile-server.md).
 
@@ -15,13 +15,21 @@ The approximately 7 MB compressed city snapshot (40 MB decoded) stays in the rep
 3. Allow foreground location. The camera follows your live blue dot until you pan; the location button resumes following.
 4. Tap **Unde mergi?** or long-press the map for a destination in the pilot. Native Android geocoding requires foreground location permission.
 5. Tap **Acum** to select shadow time; current-time shadows refresh each minute. **Straturi** contains map/satellite views, a **Clădiri 3D** switch, shadow visibility and height-source/coverage notices. The direct **3D** map button also toggles tilt. iOS **Hartă** uses the free local MapLibre renderer described below; iOS satellite uses Apple `hybridFlyover`. Android retains Google Maps with native `terrain`. Neither provider imagery nor display-only building heights supply data to the shadow engine.
-6. Set the maximum detour in **Setări**. Only this preference persists. No server field is displayed.
+6. Set the maximum detour in **Setări**. Map style, 3D, shadow visibility and selected date/time also persist locally. No server field is displayed.
 
 Two-finger vertical dragging tilts the map directly, including on iOS; no prior 3D toggle is required. Native camera readback synchronizes the 3D switch without snapping a manual angle to 55°. Manual map gestures suspend GPS camera-following. Recentring and destination/route framing preserve the chosen pitch. iOS satellite keeps the same Flyover basemap while the angle changes, avoiding a native map-type reload.
 
 During a viewport refresh, overlapping building/shadow geometry for the same instant remains visible until replacement data arrive. Its status remains loading; geometry from a different time or a disjoint viewport is not reused. Hiding the layer, backgrounding, or a calculation failure clears the display. Stable polygon keys and memoized elements avoid remounting the overlay on unrelated screen clicks.
 
 Expo Go loads its development bundle from Metro and reaches the PC calculation server through the same origin. Keep the PC running. A standalone release needs a deployed HTTPS backend configured at build time; no hosted deployment is included. Basemap/address providers are separate network dependencies.
+
+## Local preferences
+
+`preferenceStore.ts` uses AsyncStorage under the existing `umbra.preferences.v1` key, extending legacy detour-only records. `domain/preferences.ts` validates map style, booleans, permitted detour values and the optional ISO instant; unsupported iOS terrain falls back to map. **Acum** stores null and keeps advancing. An explicitly selected date/time restores that exact instant, including for historical shadow inspection; it does not advance to a new day automatically.
+
+Map controls persist immediately after interaction. The detour screen retains its **Salvează** action. Writes are serialized so older asynchronous saves cannot replace newer changes. User changes during initial reading merge with restored fields. Read/write failures are surfaced and a failed unchanged save can be retried. Merely loading defaults does not write over existing preferences.
+
+The map mounts after preferences are read, and initial camera readback cannot reset restored 3D before tilt applies. The detour screen also derives its initial value from hydrated preferences. GPS, camera coordinates, destination, results, dialogs and obsolete API URLs are excluded from persistence. Only local configuration is stored; the PC backend is not needed to restore it.
 
 ## Free iOS building display
 

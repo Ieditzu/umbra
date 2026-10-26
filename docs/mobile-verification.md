@@ -79,3 +79,9 @@ The mobile suite now passes 63 Node tests, TypeScript checking and Expo lint. Th
 A warm desktop request through the running Metro proxy returned 558 building parts in approximately 139 ms and 147 daytime shadow parts in approximately 272 ms for viewport `[28.633,44.172,28.638,44.177]`. These are single loopback samples, not latency distributions, phone-network benchmarks or frame-rate measurements. Server geometry is capped at 2,500 parts / 70,000 vertices; the browser retains up to 5,000 parts / 120,000 vertices. Display coordinates alone are rounded to six decimals; shadow/source-height uncertainty remains unchanged.
 
 Metro/Hermes exports succeed with approximately 6.3 MB iOS bytecode and 2.8 MB Android bytecode, compared with approximately 13 MB / 10 MB before offloading. The app no longer imports/decompresses/indexes the city snapshot or computes routes/shadow clipping. It still parses responses and renders 3D on the phone. Physical-device responsiveness, connectivity transitions and compass accuracy require device checks. No public backend deployment was made.
+
+## Local preference restoration
+
+Five additional regression tests exercise legacy migration and corrupt data, platform fallback, a fresh store restoring map/3D/shadow/time/detour values, serialization excluding coordinates/URLs, delayed reads merged with early changes, serialized in-flight writes and retry after a storage failure. All 68 mobile tests, TypeScript and lint pass. The map waits for restored preferences and ignores initial zero-pitch readback while applying saved 3D. Physical app-kill/relaunch persistence remains a device check; the tests use the same storage coordinator with an in-memory AsyncStorage-shaped adapter.
+
+Both iOS and Android Metro/Hermes exports also pass for the preference update.

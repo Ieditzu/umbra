@@ -58,9 +58,18 @@ export default function MapScreen() {
   const [search, setSearch] = useState(false);
   const [timeOpen, setTimeOpen] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
-  const [showShadows, setShowShadows] = useState(true);
-  const [mapStyle, setMapStyle] = useState<MapStyle>("map");
-  const [threeD, setThreeD] = useState(false);
+  const { showShadows, mapStyle, threeD } = planner.settings;
+  const setShowShadows = (value: boolean | ((previous: boolean) => boolean)) =>
+    planner.changePreferences((previous) => ({
+      showShadows:
+        typeof value === "function" ? value(previous.showShadows) : value,
+    }));
+  const setThreeD = (value: boolean | ((previous: boolean) => boolean)) =>
+    planner.changePreferences((previous) => ({
+      threeD: typeof value === "function" ? value(previous.threeD) : value,
+    }));
+  const setMapStyle = (value: MapStyle) =>
+    planner.changePreferences({ mapStyle: value });
   const [following, setFollowing] = useState(true);
   const [recenter, setRecenter] = useState(0);
   const [clock, setClock] = useState(() => Date.now());
@@ -170,21 +179,23 @@ export default function MapScreen() {
               : "";
   return (
     <View style={styles.screen}>
-      <RouteMap
-        fix={live.fix}
-        heading={heading}
-        destination={destination}
-        route={route}
-        shadows={shadow.layer}
-        following={following}
-        recenter={recenter}
-        onPan={() => setFollowing(false)}
-        onPick={pick}
-        onBounds={setBounds}
-        mapStyle={mapStyle}
-        threeD={threeD}
-        onThreeDChange={setThreeD}
-      />
+      {planner.hydrated && (
+        <RouteMap
+          fix={live.fix}
+          heading={heading}
+          destination={destination}
+          route={route}
+          shadows={shadow.layer}
+          following={following}
+          recenter={recenter}
+          onPan={() => setFollowing(false)}
+          onPick={pick}
+          onBounds={setBounds}
+          mapStyle={mapStyle}
+          threeD={threeD}
+          onThreeDChange={setThreeD}
+        />
+      )}
       <View
         pointerEvents="box-none"
         style={[styles.top, { top: insets.top + 12 }]}

@@ -47,6 +47,7 @@ export function LocalRouteMap(props: RouteMapProps) {
     AppState.currentState === "active",
   );
   const nativePitch = useRef(false);
+  const pitchInitialized = useRef(false);
   const centered = useRef(-1);
   const framed = useRef("");
   const buildingTicket = useRef(0);
@@ -178,13 +179,20 @@ export function LocalRouteMap(props: RouteMapProps) {
           if (message.type === "ready") {
             setReady(true);
             setError("");
+            send({ type: "tilt", value: current.current.threeD });
           } else if (message.type === "viewport") {
             setView({ bounds: message.bounds, center: message.center });
             current.current.onBounds(message.bounds);
-            nativePitch.current = message.pitch > 2;
-            current.current.onThreeDChange(nativePitch.current);
-          } else if (message.type === "gesture") current.current.onPan();
-          else if (message.type === "pick")
+            const tilted = message.pitch > 2;
+            if (!pitchInitialized.current && tilted !== current.current.threeD)
+              return;
+            pitchInitialized.current = true;
+            nativePitch.current = tilted;
+            current.current.onThreeDChange(tilted);
+          } else if (message.type === "gesture") {
+            pitchInitialized.current = true;
+            current.current.onPan();
+          } else if (message.type === "pick")
             current.current.onPick(message.coordinate);
           else if (message.type === "error")
             setError("Randarea 3D nu a putut porni pe acest dispozitiv.");
@@ -205,6 +213,7 @@ export function LocalRouteMap(props: RouteMapProps) {
         }}
         onContentProcessDidTerminate={() => {
           setReady(false);
+          pitchInitialized.current = false;
           centered.current = -1;
           framed.current = "";
           web.current?.reload();
@@ -222,6 +231,7 @@ export function LocalRouteMap(props: RouteMapProps) {
           onPress={() => {
             setError("");
             setReady(false);
+            pitchInitialized.current = false;
             centered.current = -1;
             framed.current = "";
             web.current?.reload();

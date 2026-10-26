@@ -14,7 +14,8 @@ import { colors } from "../theme";
 
 export default function SettingsScreen() {
   const planner = usePlanner();
-  const [extra, setExtra] = useState(planner.settings.maxExtraMinutes);
+  const [draftExtra, setExtra] = useState<number | null>(null);
+  const extra = draftExtra ?? planner.settings.maxExtraMinutes;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [privacy, setPrivacy] = useState(false);

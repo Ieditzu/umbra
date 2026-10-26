@@ -223,6 +223,11 @@ export function RouteMap({
             },
             { duration: 450 },
           );
+        } else if (threeD) {
+          map.current?.animateCamera(
+            { pitch: 55, zoom: 16, altitude: 900 },
+            { duration: 450 },
+          );
         }
       }}
       onRegionChangeComplete={bounds}
