@@ -14,7 +14,7 @@ The approximately 2 MB pilot snapshot is installed with the app, including in re
 2. Open the fresh QR code using Expo Go for SDK 58. Physical iPhones require the current Expo Go release. Stop any old Metro server before restarting.
 3. Allow foreground location. The camera follows your live blue dot until you pan; the location button resumes following.
 4. Tap **Unde mergi?** or long-press the map for a destination in the pilot. Native Android geocoding requires foreground location permission.
-5. Tap **Acum** to select shadow time; current-time shadows refresh each minute. The layer button shows visibility, source legend and coverage notices.
+5. Tap **Acum** to select shadow time; current-time shadows refresh each minute. **Straturi** contains map/satellite views, a **Clădiri 3D** switch, shadow visibility and height-source/coverage notices. Both iOS and Android support camera tilt and available native 3D buildings. iOS satellite 3D uses `hybridFlyover`; Android additionally offers native `terrain`. There is no fabricated iOS terrain layer, and 3D imagery depends on provider coverage. Native 3D rendering does not supply height data to the shadow engine.
 6. Set the maximum detour in **Setări**. Only this preference persists. No server field is displayed.
 
 Expo Go needs the development bundle from Metro, but performs the calculations on the device. An installed standalone build needs no computer. Native maps/address search may need internet even though the calculation engine does not.

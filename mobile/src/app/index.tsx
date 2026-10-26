@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   AppState,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,6 +27,7 @@ import { useLiveLocation } from "../hooks/useLiveLocation";
 import { useShadowLayer } from "../hooks/useShadowLayer";
 import { usePlanner } from "../state/PlannerProvider";
 import { colors } from "../theme";
+import type { MapStyle } from "../domain/mapDisplay";
 
 const INITIAL_BOUNDS: Bounds = [
   CONSTANȚA.longitude - 0.02,
@@ -39,7 +41,7 @@ const shadowStatus: Record<string, string> = {
   low_sun: "Soare la orizont",
   loading: "Se actualizează",
   unavailable: "Temporar indisponibile",
-  outside: "În afara zonei pilot",
+  outside: "În afara acoperirii Constanța",
   paused: "În pauză",
   idle: "În așteptare",
   off: "Oprite",
@@ -53,6 +55,8 @@ export default function MapScreen() {
   const [timeOpen, setTimeOpen] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
   const [showShadows, setShowShadows] = useState(true);
+  const [mapStyle, setMapStyle] = useState<MapStyle>("map");
+  const [threeD, setThreeD] = useState(false);
   const [following, setFollowing] = useState(true);
   const [recenter, setRecenter] = useState(0);
   const [clock, setClock] = useState(() => Date.now());
@@ -172,6 +176,8 @@ export default function MapScreen() {
         onPan={() => setFollowing(false)}
         onPick={pick}
         onBounds={setBounds}
+        mapStyle={mapStyle}
+        threeD={threeD}
       />
       <View
         pointerEvents="box-none"
@@ -239,7 +245,73 @@ export default function MapScreen() {
         </Pressable>
       </View>
       {layersOpen && (
-        <View style={[styles.layerPanel, { top: insets.top + 75 }]}>
+        <ScrollView
+          style={[
+            styles.layerPanel,
+            { top: insets.top + 75, maxHeight: "65%" },
+          ]}
+          contentContainerStyle={styles.layerContent}
+        >
+          <Text style={styles.panelTitle}>Straturi</Text>
+          <View style={styles.mapChoices}>
+            {(
+              [
+                "map",
+                "satellite",
+                ...(Platform.OS === "android" ? ["terrain"] : []),
+              ] as MapStyle[]
+            ).map((value) => (
+              <Pressable
+                key={value}
+                accessibilityRole="button"
+                accessibilityState={{ selected: mapStyle === value }}
+                onPress={() => setMapStyle(value)}
+                style={[
+                  styles.mapChoice,
+                  mapStyle === value && styles.mapChoiceSelected,
+                ]}
+              >
+                <Ionicons
+                  name={
+                    value === "satellite"
+                      ? "globe-outline"
+                      : value === "terrain"
+                        ? "trail-sign-outline"
+                        : "map-outline"
+                  }
+                  size={20}
+                  color={colors.ink}
+                />
+                <Text style={styles.subtle}>
+                  {value === "map"
+                    ? "Hartă"
+                    : value === "satellite"
+                      ? "Satelit"
+                      : "Teren"}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <View style={styles.layerHeader}>
+            <Text style={styles.panelTitle}>Clădiri 3D</Text>
+            <Pressable
+              accessibilityRole="switch"
+              accessibilityLabel="Clădiri 3D"
+              accessibilityState={{ checked: threeD }}
+              onPress={() => setThreeD((value) => !value)}
+              style={[styles.toggle, threeD && styles.toggleOn]}
+            >
+              <View
+                style={[styles.toggleDot, threeD && { alignSelf: "flex-end" }]}
+              />
+            </Pressable>
+          </View>
+          {threeD && (
+            <Text style={styles.subtle}>
+              Detaliile 3D depind de acoperirea{" "}
+              {Platform.OS === "ios" ? "Apple Maps" : "Google Maps"}.
+            </Text>
+          )}
           <View style={styles.layerHeader}>
             <Text style={styles.panelTitle}>Umbre</Text>
             <Pressable
@@ -261,7 +333,7 @@ export default function MapScreen() {
             {shadowStatus[shadow.status] ?? "Indisponibile"}
           </Text>
           {shadow.layer?.partialCoverage && (
-            <Text style={styles.subtle}>Acoperire parțială · zonă pilot</Text>
+            <Text style={styles.subtle}>Acoperire parțială · Constanța</Text>
           )}
           {shadow.layer?.truncated && (
             <Text style={styles.subtle}>
@@ -290,7 +362,7 @@ export default function MapScreen() {
               {shadow.layer.attribution.join(" · ")}
             </Text>
           )}
-        </View>
+        </ScrollView>
       )}
       <View
         style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, 16) }]}
@@ -576,11 +648,25 @@ const styles = StyleSheet.create({
     right: 16,
     width: 255,
     backgroundColor: colors.white,
-    padding: 18,
     borderRadius: 20,
     elevation: 5,
     boxShadow: "0 4px 22px #142A1820",
-    gap: 10,
+  },
+  layerContent: { padding: 18, gap: 12 },
+  mapChoices: { flexDirection: "row", gap: 8 },
+  mapChoice: {
+    flex: 1,
+    minHeight: 64,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 12,
+  },
+  mapChoiceSelected: {
+    borderColor: colors.green,
+    backgroundColor: colors.greenLight,
   },
   layerHeader: {
     flexDirection: "row",

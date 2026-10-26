@@ -20,7 +20,7 @@ Only iOS and Android are enabled; open the app in Expo Go rather than a web brow
 - Allow foreground location. The map follows your live position; panning stops following and the location button resumes it.
 - Tap **Unde mergi?** or long-press the map to choose a destination. Routes recalculate after useful movement or a minute.
 - Tap **Acum** to select a different date/time. Shadows follow that instant; at night there are no daylight shadow polygons.
-- Open the layer button for shadow visibility, source legend and coverage limitations. Missing-height buildings appear as neutral footprints.
+- Open **Straturi** for map/satellite views and the **Clădiri 3D** switch on both iOS and Android. iOS uses Apple Maps/Flyover where available; Android also offers its native terrain layer. Actual 3D detail depends on provider coverage. The panel also contains shadow visibility, height sources and coverage limitations. Missing-height buildings appear as neutral footprints.
 - **Setări** contains the maximum accepted walking detour. There is no server field.
 
 Calculations use an approximately 2 MB real OSM snapshot bundled with the app: 1,023 walking nodes, 2,428 directed edges and 4,355 buffered building outlines, imported on 26 October 2026. Routing is limited to the pilot near `28.630–28.640° E, 44.170–44.180° N`; this is not whole-city coverage. Snapshot [metadata and checksum](mobile/assets/data/manifest.json) and [license/provenance](docs/mobile-data.md) are included.

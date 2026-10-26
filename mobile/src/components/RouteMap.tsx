@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Platform, StyleSheet, View } from "react-native";
 import MapView, { Circle, Marker, Polygon, Polyline } from "react-native-maps";
 import type { Region } from "react-native-maps";
 import { CONSTANȚA, routeCoordinates } from "../domain/routes";
@@ -8,6 +8,8 @@ import type { Bounds, ShadowLayer } from "../domain/shadows";
 import type { LocationFix } from "../domain/live";
 import type { Place } from "../state/PlannerProvider";
 import { colors } from "../theme";
+import { nativeMapType } from "../domain/mapDisplay";
+import type { MapStyle } from "../domain/mapDisplay";
 
 export function RouteMap({
   fix,
@@ -19,6 +21,8 @@ export function RouteMap({
   onPan,
   onPick,
   onBounds,
+  mapStyle,
+  threeD,
 }: {
   fix: LocationFix | null;
   destination: Place | null;
@@ -29,13 +33,26 @@ export function RouteMap({
   onPan: () => void;
   onPick: (point: Coordinate) => void;
   onBounds: (bounds: Bounds) => void;
+  mapStyle: MapStyle;
+  threeD: boolean;
 }) {
   const map = useRef<MapView>(null);
   const fitted = useRef("");
   const ready = useRef(false);
+  const [mapReady, setMapReady] = useState(false);
   const positioned = useRef(false);
   const centered = useRef(recenter);
   const currentFix = useRef(fix);
+  useEffect(() => {
+    if (!mapReady) return;
+    map.current?.animateCamera(
+      {
+        pitch: threeD ? 55 : 0,
+        ...(threeD ? { zoom: 16, altitude: 900 } : {}),
+      },
+      { duration: 450 },
+    );
+  }, [threeD, mapReady]);
   useEffect(() => {
     currentFix.current = fix;
   }, [fix]);
@@ -63,14 +80,14 @@ export function RouteMap({
       if (!positioned.current || centered.current !== recenter) {
         positioned.current = true;
         centered.current = recenter;
-        map.current?.animateToRegion(
+        map.current?.animateCamera(
           {
-            latitude: fix.latitude,
-            longitude: fix.longitude,
-            latitudeDelta: 0.008,
-            longitudeDelta: 0.008,
+            center: { latitude: fix.latitude, longitude: fix.longitude },
+            zoom: 16,
+            altitude: 900,
+            pitch: threeD ? 55 : 0,
           },
-          650,
+          { duration: 650 },
         );
       } else
         map.current?.animateCamera(
@@ -78,7 +95,7 @@ export function RouteMap({
           { duration: 650 },
         );
     }
-  }, [fix, following, recenter]);
+  }, [fix, following, recenter, threeD]);
   useEffect(() => {
     const key =
       route && destination
@@ -108,6 +125,7 @@ export function RouteMap({
       initialRegion={CONSTANȚA}
       onMapReady={() => {
         ready.current = true;
+        setMapReady(true);
         const point = currentFix.current;
         if (point) {
           positioned.current = true;
@@ -125,7 +143,9 @@ export function RouteMap({
       onRegionChangeComplete={bounds}
       onPanDrag={onPan}
       onLongPress={(event) => onPick(event.nativeEvent.coordinate)}
+      mapType={nativeMapType(mapStyle, threeD, Platform.OS)}
       showsBuildings
+      pitchEnabled={threeD}
       showsCompass={false}
       showsScale={false}
       showsMyLocationButton={false}
