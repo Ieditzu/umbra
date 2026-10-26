@@ -6,7 +6,7 @@ import type { Coordinate, RouteComparison } from "../domain/routes";
 import { makeRouteRequest } from "../domain/routes";
 import { DEFAULT_SETTINGS, restoreSettings } from "../domain/settings";
 import type { Settings } from "../domain/settings";
-import { compareRoutes } from "../services/routing";
+import { calculateRoutes } from "../services/localEngine";
 
 export type Place = { coordinate: Coordinate; label: string };
 export type Selection = "origin" | "destination";
@@ -80,17 +80,33 @@ function usePlannerState() {
     setOrigin(destination);
     setDestination(origin);
   }
+  function updateOrigin(place: Place | null) {
+    setOrigin(place);
+    if (!place) invalidate();
+  }
+  function clearDestination() {
+    invalidate();
+    setDestination(null);
+  }
   function changeDeparture(value: Date | null) {
     invalidate();
     setDeparture(value);
   }
   async function saveSettings(value: Settings) {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+    await AsyncStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ maxExtraMinutes: value.maxExtraMinutes }),
+    );
     invalidate();
     setSettings(value);
   }
   async function calculate() {
-    invalidate();
+    generation.current++;
+    pending.current?.abort();
+    setMessage("");
+    const preferredKind =
+      comparison?.routes.find((route) => route.id === selectedId)?.kind ??
+      "balanced";
     const controller = new AbortController();
     pending.current = controller;
     const ticket = generation.current;
@@ -110,16 +126,12 @@ function usePlannerState() {
         Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Bucharest",
       );
       setLoading(true);
-      const result = await compareRoutes(
-        settings.apiUrl,
-        request,
-        controller.signal,
-      );
+      const result = await calculateRoutes(request, controller.signal);
       if (ticket !== generation.current || controller.signal.aborted) return;
       setComparison(result);
       setSelectedId(
         (
-          result.routes.find((route) => route.kind === "balanced") ??
+          result.routes.find((route) => route.kind === preferredKind) ??
           result.routes[0]
         ).id,
       );
@@ -158,6 +170,8 @@ function usePlannerState() {
     message,
     setMessage,
     choosePlace,
+    updateOrigin,
+    clearDestination,
     swap,
     saveSettings,
     calculate,

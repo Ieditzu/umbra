@@ -171,12 +171,11 @@ test("server URLs exclude credentials and insecure public endpoints", () => {
 test("invalid saved settings fall back safely", () => {
   for (const value of [null, "bad json", "{}", '{"apiUrl":"file:///tmp/data"}'])
     assert.deepEqual(restoreSettings(value), {
-      apiUrl: "",
       maxExtraMinutes: 5,
     });
   assert.deepEqual(
     restoreSettings('{"apiUrl":"https://example.com","maxExtraMinutes":15}'),
-    { apiUrl: "https://example.com", maxExtraMinutes: 15 },
+    { maxExtraMinutes: 15 },
   );
 });
 

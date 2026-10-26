@@ -1,5 +1,5 @@
-export type Settings = { apiUrl: string; maxExtraMinutes: number };
-export const DEFAULT_SETTINGS: Settings = { apiUrl: "", maxExtraMinutes: 5 };
+export type Settings = { maxExtraMinutes: number };
+export const DEFAULT_SETTINGS: Settings = { maxExtraMinutes: 5 };
 
 export function normalizeApiUrl(value: string): string {
   if (!value.trim()) return "";
@@ -45,10 +45,8 @@ export function normalizeApiUrl(value: string): string {
 export function restoreSettings(raw: string | null): Settings {
   try {
     const data = JSON.parse(raw ?? "null");
-    if (!data || typeof data.apiUrl !== "string")
-      return { ...DEFAULT_SETTINGS };
+    if (!data) return { ...DEFAULT_SETTINGS };
     return {
-      apiUrl: normalizeApiUrl(data.apiUrl),
       maxExtraMinutes: [0, 5, 10, 15].includes(data.maxExtraMinutes)
         ? data.maxExtraMinutes
         : 5,

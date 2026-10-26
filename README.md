@@ -1,35 +1,33 @@
 # Umbra
 
-A React Native mobile app for planning walks with less estimated exposure to direct sunlight. The first study area is intended to be Constanța, Romania. See [the project overview](overview.md).
+A React Native app for planning walks with less estimated direct-sun exposure. **Sun position, building shadows and walking routes run on the phone. No API server or server address is required.** Bundled data cover Constanța, Mamaia and Palazu Mare, Romania. See [the overview](overview.md).
 
-## Current implementation
+## Start
 
-The Android/iOS application lives in [`mobile/`](mobile/). It uses Expo SDK 58, TypeScript and Expo Router.
-
-- A native map initially centered on Constanța.
-- Start/destination selection by map tap, native address search, or foreground device location.
-- Departure date/time and a maximum extra walking-time preference.
-- Local preference storage without saving coordinates or route history.
-- A typed, validated client contract for comparing fastest, balanced and shade-oriented routes.
-- Segment colors for estimated shade, sun and **unknown** exposure when a calculation service returns real data.
-
-**The routing/shadow calculation service is not implemented yet.** The app does not invent routes, shade percentages or weather measurements. Without a configured service, you can test maps, location, address search and planning inputs, but not calculate a shaded route. The native basemap is not the OSM building-shadow model.
-
-## Run on your phone
-
-Use Node.js 22.13+ and npm. Install Expo Go on your phone, then:
+Use Node.js 22.13+ and Expo Go for SDK 58. From the repository root:
 
 ```bash
-cd mobile
-npm ci
-npm start
+npm --prefix mobile ci
+npm --prefix mobile start -- --clear
 ```
 
-Scan the QR code using Expo Go on Android or the Camera app on iOS. Keep the phone and computer on the same network. If local networking fails, try `npx expo start --tunnel` (which can require an additional tunnel package).
+Stop any previous Expo server with **Ctrl+C**, then scan the new QR code with Expo Go on Android or the Camera app on iOS. Normally the computer and phone share a network. The computer only serves the development bundle; it does not calculate routes or shadows. Installed native builds do not require a running computer. Expo Go still needs Metro to load/reload the development project.
 
-Use Expo Go for SDK 58. Physical iPhones cannot install an older Expo Go from the App Store. If you previously started the SDK-57 project, stop Metro with Ctrl+C, run `npm ci`, then `npx expo start --clear` and scan the new QR code. Native maps require internet; Android address search also requires foreground location permission. Map selection remains available if location permission is denied.
+Only iOS and Android are enabled; open the app in Expo Go rather than a web browser. If switching from the older SDK-57 project, reinstall dependencies and scan a fresh QR code. For configured emulators, use `npm --prefix mobile run android` or `npm --prefix mobile run ios` (iOS requires macOS/Xcode).
 
-For an already configured Android emulator, use `npm run android`. iOS simulators require macOS/Xcode. Standalone Android builds need a restricted Google Maps SDK key; Expo Go uses its own configuration. See [mobile setup and API contract](docs/mobile-app.md).
+## Use
+
+- Allow foreground location. The map follows your live position; panning stops following and the location button resumes it.
+- Tap **Unde mergi?** or long-press the map to choose a destination. Routes recalculate after useful movement or a minute.
+- Tap **Acum** to select a different date/time. Shadows follow that instant; at night there are no daylight shadow polygons.
+- Open **Straturi** for map/satellite views and the **Clădiri 3D** switch on both iOS and Android. iOS uses Apple Maps/Flyover where available; Android also offers its native terrain layer. Actual 3D detail depends on provider coverage. The panel also contains shadow visibility, height sources and coverage limitations. Missing-height buildings appear as neutral footprints.
+- **Setări** contains the maximum accepted walking detour. There is no server field.
+
+Calculations use a compressed real OSM snapshot bundled with the app (approximately 7 MB packaged, 40 MB decoded): 50,071 walking nodes, 111,552 directed edges and 51,428 building outlines. The city extract spans approximately `28.50–28.75° E, 44.075–44.355° N`, including Constanța, Mamaia, Palazu Mare and a margin. It replaces the central-only pilot; this rectangle is not an administrative boundary. Snapshot [metadata and checksums](mobile/assets/data/manifest.json) and [license/provenance](docs/mobile-data.md) are included.
+
+The calculation engine works without network access. **Basemap tiles and address search still use Apple/Google services and may need internet.** GPS is used only in the foreground. Coordinates, viewport and selected time are not sent to an Umbra server. Native map/search providers have their own data handling.
+
+Unknown heights and incomplete obstruction inventory remain uncertain. Unmodeled areas are not automatically called sunny. Routes are experimental geometric estimates, not temperature/UV measurements or validated route-safety advice. Real-phone performance and shadow accuracy still require device/field checks.
 
 ## Checks
 
@@ -42,10 +40,28 @@ npm run export:android
 npm run export:ios
 ```
 
-Exports verify JavaScript bundling; they are not installable APK/IPA files or proof of on-device behavior. Domain tests use clearly synthetic fixtures, not measured routing results.
+Tests cover independent solar references, geometry, routing constraints, cancellation and real bundled data with network calls disabled. See the [recorded software verification](docs/mobile-verification.md). Exports verify JavaScript bundling, not on-device rendering; they are not installable APK/IPA files. Standalone Android builds require a restricted Google Maps key and native builds require signing; see [mobile documentation](docs/mobile-app.md).
 
-## Next implementation milestone
+## Data preparation and reference backend
 
-Build the calculation service: a verified pedestrian network, building footprints/heights, time-dependent shadow geometry and route optimization under a detour limit. Independently validate shadows and walking paths in the pilot area. Missing heights must remain uncertain or explicitly estimated. A shaded route is not a temperature, UV-dose or medical-safety guarantee.
+The Go implementation remains an optional research/reference tool; **it is not needed to run the mobile app**. Developers can build a city dataset from a local OSM extract, then package it:
 
-The previous parking-camera implementation was removed. Its documents remain historical material in `docs/`; the former root README is preserved at [`docs/archive/README.previous.md`](docs/archive/README.previous.md).
+```bash
+cd server
+go run ./cmd/umbra prepare --city --extract /absolute/path/to/city-osm.json --data /absolute/path/to/city/dataset.json
+cd ../mobile
+node scripts/prepare-city.mjs /absolute/path/to/city/dataset.json
+```
+
+See [data preparation](docs/mobile-data.md) for downloading a source extract and reproducible cropping. Go 1.24+ and Python/pyosmium are developer tools only. Review changed coverage, height provenance and the generated manifest before committing updated map data. The snapshot is ODbL-1.0; preserve attribution and its license notice. Default Go `prepare` still retains its separate central reference pilot.
+
+To run the optional reference API separately:
+
+```bash
+cd server
+go run ./cmd/umbra serve --addr 127.0.0.1:8000
+```
+
+See [backend documentation](docs/backend/README.md). The mobile app never calls it.
+
+Historical parking-camera documents remain in `docs/`; the previous README is in [the archive](docs/archive/README.previous.md).
