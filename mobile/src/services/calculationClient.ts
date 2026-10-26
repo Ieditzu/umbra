@@ -30,15 +30,40 @@ export async function requestCalculation(
     pending.abort();
   }, timeoutMs);
   try {
-    const response = await fetcher(`${base}${path}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(payload),
-      signal: pending.signal,
-    });
+    const fetchResponse = async (): Promise<Response> => {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const response = await fetcher(`${base}${path}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify(payload),
+            signal: pending.signal,
+          });
+          if (response.status !== 503 || attempt === 1) return response;
+          await response.text();
+        } catch (error) {
+          if (attempt === 1 || pending.signal.aborted) throw error;
+        }
+        await new Promise<void>((resolve, reject) => {
+          const abort = () => {
+            clearTimeout(retryTimer);
+            pending.signal.removeEventListener("abort", abort);
+            reject(new Error("aborted"));
+          };
+          const retryTimer = setTimeout(() => {
+            pending.signal.removeEventListener("abort", abort);
+            resolve();
+          }, 600);
+          pending.signal.addEventListener("abort", abort, { once: true });
+          if (pending.signal.aborted) abort();
+        });
+      }
+      throw new Error("Server unavailable");
+    };
+    const response = await fetchResponse();
     const length = Number(response.headers.get("content-length"));
     if (length > 8_000_000)
       throw new CalculationError("Răspunsul serverului este prea mare.");

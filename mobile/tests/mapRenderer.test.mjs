@@ -87,6 +87,9 @@ function renderer() {
     getCanvas() {
       return { addEventListener() {} };
     }
+    jumpTo(options) {
+      this.easeTo(options);
+    }
     easeTo(options) {
       if (options.pitch !== undefined) this.pitch = options.pitch;
       if (options.zoom !== undefined) this.zoom = options.zoom;
@@ -278,4 +281,60 @@ test("server Sun rotates building light in geographic coordinates and survives a
     JSON.stringify(map.light.position),
     JSON.stringify([1.5, 110, 60]),
   );
+});
+
+test("a jump between distant cities replaces the spatial index without resetting camera tilt", () => {
+  const { bridge, map } = renderer();
+  const feature = (id, x, y) => ({
+    id,
+    type: "Feature",
+    properties: { height: 0, display_height: 6 },
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [x, y],
+          [x + 0.001, y],
+          [x, y + 0.001],
+          [x, y],
+        ],
+      ],
+    },
+  });
+  bridge.receive({
+    type: "data",
+    name: "buildings",
+    value: {
+      type: "FeatureCollection",
+      features: [feature("ct", 28.63, 44.17)],
+    },
+  });
+  bridge.receive({ type: "tilt", value: true });
+  const source = map.getSource("umbra-buildings");
+  bridge.receive({
+    type: "data",
+    name: "buildings",
+    value: {
+      type: "FeatureCollection",
+      features: [feature("buc", 26.1, 44.43)],
+    },
+  });
+  assert.equal(source.data.features.length, 1);
+  assert.equal(source.data.features[0].id, "buc");
+  assert.equal(source.replacements, 1);
+  assert.equal(map.getPitch(), 55);
+});
+
+test("a refreshed renderer restores its previous camera rather than jumping back to Constanta", () => {
+  const { bridge, map, instances } = renderer();
+  bridge.receive({
+    type: "camera",
+    center: { longitude: 26.102, latitude: 44.435 },
+    zoom: 17,
+    pitch: 65,
+    bearing: 20,
+  });
+  assert.equal(map.getPitch(), 65);
+  assert.equal(map.getZoom(), 17);
+  assert.equal(instances.length, 1);
 });

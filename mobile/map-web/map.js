@@ -21,6 +21,20 @@
   function putBuildings(value) {
     // A rejected wide-view calculation must never erase already loaded geometry.
     if (!value.features.length && value.truncated) return;
+    const oldPoint =
+      saved.buildings.features[0]?.geometry?.coordinates?.[0]?.[0];
+    const newPoint = value.features[0]?.geometry?.coordinates?.[0]?.[0];
+    if (
+      oldPoint &&
+      newPoint &&
+      (Math.abs(oldPoint[0] - newPoint[0]) > 0.25 ||
+        Math.abs(oldPoint[1] - newPoint[1]) > 0.25)
+    ) {
+      // City jumps need a fresh tile index; keep incremental updates for local zoom/pan.
+      saved.buildings = value;
+      map.getSource("umbra-buildings")?.setData(value);
+      return;
+    }
     const previous = new Map(saved.buildings.features.map((f) => [f.id, f]));
     const retained = new Map();
     let vertices = 0;
@@ -337,6 +351,14 @@
         switch (message.type) {
           case "data":
             put(message.name, message.value);
+            break;
+          case "camera":
+            map.jumpTo({
+              center: [message.center.longitude, message.center.latitude],
+              zoom: message.zoom,
+              pitch: message.pitch,
+              bearing: message.bearing,
+            });
             break;
           case "tilt":
             if (map.getPitch() > 2 !== message.value)

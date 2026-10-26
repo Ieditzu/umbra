@@ -18,12 +18,16 @@ import {
 } from "../domain/localMap";
 import { distanceBetween, routeCoordinates } from "../domain/routes";
 import type { Bounds } from "../domain/shadows";
+import type { MapMessage } from "../domain/localMap";
 import { calculateBuildings } from "../services/calculations";
-import { LOCAL_MAP_HTML } from "../generated/localMapHtml";
+import { LOCAL_MAP_HTML, LOCAL_MAP_VERSION } from "../generated/localMapHtml";
 import type { RouteMapProps } from "./RouteMap";
 import { colors } from "../theme";
 
-const source = { html: LOCAL_MAP_HTML, baseUrl: "https://umbra.local/" };
+const source = {
+  html: LOCAL_MAP_HTML,
+  baseUrl: `https://umbra.local/${LOCAL_MAP_VERSION}/`,
+};
 const initialBounds: Bounds = [28.63, 44.165, 28.65, 44.185];
 const allowedLink = (url: string) =>
   /^https:\/\/(www\.)?(openstreetmap\.org|openmaptiles\.org|openfreemap\.org|maplibre\.org)(\/|$)/.test(
@@ -48,6 +52,9 @@ export function LocalRouteMap(props: RouteMapProps) {
   );
   const nativePitch = useRef(false);
   const pitchInitialized = useRef(false);
+  const lastCamera = useRef<Extract<MapMessage, { type: "viewport" }> | null>(
+    null,
+  );
   const centered = useRef(-1);
   const framed = useRef("");
   const buildingTicket = useRef(0);
@@ -167,6 +174,7 @@ export function LocalRouteMap(props: RouteMapProps) {
   return (
     <View style={StyleSheet.absoluteFill}>
       <WebView<object>
+        key={LOCAL_MAP_VERSION}
         ref={web}
         source={source}
         style={styles.web}
@@ -177,6 +185,13 @@ export function LocalRouteMap(props: RouteMapProps) {
         bounces={false}
         overScrollMode="never"
         textZoom={100}
+        onLoadStart={() => {
+          setReady(false);
+          pitchInitialized.current = false;
+          nativePitch.current = false;
+          centered.current = -1;
+          framed.current = "";
+        }}
         applicationNameForUserAgent="Umbra/0.1"
         allowsInlineMediaPlayback
         onMessage={(event) => {
@@ -185,8 +200,20 @@ export function LocalRouteMap(props: RouteMapProps) {
           if (message.type === "ready") {
             setReady(true);
             setError("");
+            const previous = lastCamera.current;
+            if (previous)
+              send({
+                ...previous,
+                type: "camera",
+                pitch: current.current.threeD
+                  ? previous.pitch > 2
+                    ? previous.pitch
+                    : 55
+                  : 0,
+              });
             send({ type: "tilt", value: current.current.threeD });
           } else if (message.type === "viewport") {
+            lastCamera.current = message;
             setView({ bounds: message.bounds, center: message.center });
             current.current.onBounds(message.bounds, message.center);
             const tilted = message.pitch > 2;

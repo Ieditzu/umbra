@@ -197,3 +197,36 @@ test("stalled network requests time out and caller cancellation reaches the fetc
   controller.abort();
   await assert.rejects(pending, (error) => error.code === "cancelled");
 });
+
+test("a request interrupted by backend reload is retried once and an old backend gets a restart instruction", async () => {
+  let attempts = 0;
+  const value = await requestCalculation(
+    "http://localhost",
+    "/v1/buildings",
+    {},
+    new AbortController().signal,
+    async () => {
+      if (++attempts === 1) throw new TypeError("connection closed");
+      return new Response(JSON.stringify({ ready: true }));
+    },
+  );
+  assert.equal(value.ready, true);
+  assert.equal(attempts, 2);
+  await assert.rejects(
+    requestCalculation(
+      "http://localhost",
+      "/v1/shadows",
+      {},
+      new AbortController().signal,
+      async () =>
+        new Response(
+          JSON.stringify({
+            detail: "Câmpuri de cerere necunoscute.",
+            code: "invalid",
+          }),
+          { status: 422 },
+        ),
+    ),
+    (e) => e.code === "restart_required",
+  );
+});
