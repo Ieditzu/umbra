@@ -5,6 +5,8 @@ import type { Region } from "react-native-maps";
 import { CONSTANȚA, routeCoordinates } from "../domain/routes";
 import type { Coordinate, WalkingRoute } from "../domain/routes";
 import type { Bounds, ShadowLayer } from "../domain/shadows";
+import { headingCone } from "../domain/heading";
+import type { DeviceHeading } from "../domain/heading";
 import type { LocationFix } from "../domain/live";
 import type { Place } from "../state/PlannerProvider";
 import { colors } from "../theme";
@@ -34,6 +36,7 @@ function shadowElements(shadows: ShadowLayer | null) {
 
 export function RouteMap({
   fix,
+  heading,
   destination,
   route,
   shadows,
@@ -47,6 +50,7 @@ export function RouteMap({
   onThreeDChange,
 }: {
   fix: LocationFix | null;
+  heading: DeviceHeading | null;
   destination: Place | null;
   route: WalkingRoute | null;
   shadows: ShadowLayer | null;
@@ -263,6 +267,15 @@ export function RouteMap({
             strokeColor="#4285F42C"
             strokeWidth={1}
           />
+          {heading && (
+            <Polygon
+              coordinates={headingCone(fix, heading.degrees)}
+              fillColor="#4285F445"
+              strokeColor="#4285F47A"
+              strokeWidth={1}
+              zIndex={7}
+            />
+          )}
           <Marker
             coordinate={fix}
             anchor={{ x: 0.5, y: 0.5 }}

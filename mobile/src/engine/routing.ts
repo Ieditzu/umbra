@@ -7,21 +7,14 @@ import type {
 import { isCoordinate, parseComparison } from "../domain/routes.ts";
 import { ATTRIBUTION } from "./data.ts";
 import type { Dataset } from "./data.ts";
-import {
-  bounds,
-  contains,
-  distance,
-  firstInteriorDistance,
-  lerp,
-  project,
-  unproject,
-} from "./geometry.ts";
+import { contains, distance, lerp, project, unproject } from "./geometry.ts";
 import type { Point } from "./geometry.ts";
 import { exposureAt } from "./exposure.ts";
 import type { ExposureResult } from "./exposure.ts";
 import { solarPosition } from "./solar.ts";
 import { task } from "./task.ts";
 import type { Task } from "./task.ts";
+import { attachToWalkingGraph } from "./snapping.ts";
 
 type Entry = { node: number; cost: number; sequence: number };
 class Heap {
@@ -99,30 +92,6 @@ function validate(data: Dataset, q: RouteRequest, now: number): number {
     throw new Error("Fus orar invalid.");
   }
   return at;
-}
-function snap(data: Dataset, p: Point): { id: number; distance: number } {
-  let id: number | null = null,
-    nearest = Infinity;
-  for (const node of data.nodes) {
-    const d = distance(p, node.point);
-    if (d < nearest) {
-      id = node.id;
-      nearest = d;
-    }
-  }
-  if (id === null || nearest > 75)
-    throw new Error(
-      "Nu există o potecă sau stradă cartografiată la mai puțin de 75 m. Alege un punct mai apropiat.",
-    );
-  const q = data.positions.get(id)!;
-  if (nearest > 0.05)
-    for (const b of data.index.query(bounds([p, q])))
-      for (const poly of b.geometry)
-        if (firstInteriorDistance(p, q, poly) !== null)
-          throw new Error(
-            "Accesul la strada cea mai apropiată traversează o clădire. Alege un punct pe stradă.",
-          );
-  return { id, distance: nearest };
 }
 
 async function shortest(
@@ -271,8 +240,14 @@ export async function compareLocalRoutes(
   work.check();
   const classify =
     options.classify ?? ((p, at, known) => exposureAt(data, p, at, known));
-  const from = snap(data, project(q.origin)),
-    to = snap(data, project(q.destination));
+  const attached = await attachToWalkingGraph(
+    data,
+    project(q.origin),
+    project(q.destination),
+    work,
+  );
+  data = attached.data;
+  const { from, to } = attached;
   if (from.id === to.id)
     throw new Error("Punctele alese ajung la același nod pietonal.");
   const fastest = await shortest(
@@ -394,7 +369,12 @@ export async function compareLocalRoutes(
         "Model geometric experimental pe teren plan; fără validare în teren. Arborii, norii, vremea și obstacolele necartografiate nu sunt deduse.",
         "Calcul local: poziția Soarelui este reevaluată la momentele parcurgerii, cu eșantioane de cel mult 10 m și 10 s. Căutarea de alternative este limitată și nu garantează optimul global.",
         "Înălțimile din numărul etajelor sunt ipoteze de 2,5–3,5 m/etaj plus până la 3 m pentru acoperiș. Expunerea necunoscută nu este numărată ca umbră; absența unei umbre nu dovedește soare direct.",
-        `Acces la nodurile existente: ${from.distance.toFixed(1)} m și ${to.distance.toFixed(1)} m; porțiunile din afara rețelei nu sunt incluse în durată. Verifică accesul și trecerile pe teren.`,
+        `Acces la rețeaua pietonală: ${from.distance.toFixed(1)} m și ${to.distance.toFixed(1)} m; porțiunile din afara rețelei nu sunt incluse în durată. Verifică accesul și trecerile pe teren.`,
+        ...(from.insideBuilding || to.insideBuilding
+          ? [
+              "Un punct este în conturul unei clădiri. Legătura până la stradă nu reprezintă o intrare verificată și nu este inclusă în traseu.",
+            ]
+          : []),
         `Date locale ${data.pilot_id}, OSM ${data.metadata.osm_base_timestamp}. Inventarul obstacolelor nu este verificat complet.`,
         ...(selected.length === 1
           ? [

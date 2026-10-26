@@ -55,3 +55,11 @@ The bundled real-data viewport `[28.628, 44.170, 28.645, 44.181]` produced 2,485
 A Chromium WebGL preview at 390 × 844 pixels showed the real Constanța geometry at zoom 16.5 and pitch 55°. Browser checks confirmed the same building source and all 2,485 parts persisted when clearing shadows, setting a destination and recentering; pitch remained 55°. No browser errors were reported. This was a browser preview of the embedded renderer, not a physical iPhone capture or an end-to-end React Native UI test.
 
 Current Metro/Hermes exports succeed for iOS (approximately 13 MB bytecode including the renderer) and Android (approximately 10 MB, native map). These are bundling checks only. Physical WKWebView rendering, two-finger gestures, memory and performance still require phone checks. Most OSM heights remain unknown, and the display fallback cannot establish actual heights or modeled shade.
+
+## Compass direction and endpoint attachment
+
+The additional checks cover compass quality, true/magnetic heading selection, smoothing through north, stale readings, cardinal-direction sector geometry and renderer source continuity. A browser preview showed the heading sector pointing east from the location dot; the preview injects synthetic sensor values and does not validate a phone magnetometer.
+
+Routing regression cases now cover two interior points on a long street in either direction, a bent polyline, preserved one-way restrictions, unchanged shared graph state, a nearby accessible segment beyond a blocked connector, an address inside its own building with an unverified-entry warning, and endpoints more than 75 m from the graph. The earlier disconnected/building-blocked fixtures were adjusted so they remain disconnected/blocked under segment attachment, rather than only under the previous nearest-node implementation. These tests do not verify pedestrian access on site.
+
+All 55 Node tests, TypeScript checking and Expo lint pass for the combined update. Both iOS and Android Metro/Hermes exports succeed. Physical compass alignment and field access remain unverified.

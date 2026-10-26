@@ -17,7 +17,7 @@ Only iOS and Android are enabled; open the app in Expo Go rather than a web brow
 
 ## Use
 
-- Allow foreground location. The map follows your live position; panning stops following and the location button resumes it.
+- Allow foreground location. The map follows your live position; panning stops following and the location button resumes it. A blue sector shows the phone compass direction, including while stationary; it hides when direction data are unavailable.
 - Tap **Unde mergi?** or long-press the map to choose a destination. Routes recalculate after useful movement or a minute.
 - Tap **Acum** to select a different date/time. Shadows follow that instant; at night there are no daylight shadow polygons.
 - Use the **3D** button or drag vertically with two fingers to tilt the map. On iOS, **Hartă** renders bundled OSM building outlines using MapLibre, with a free OpenFreeMap basemap: no Google key or paid account. Missing-height buildings have a **display-only 6 m placeholder**, excluded from shadow calculations. **Satelit** uses Apple imagery/Flyover where available. Android keeps its native Google renderer and terrain layer. **Straturi** contains map choices, shadow visibility and height-source notices.

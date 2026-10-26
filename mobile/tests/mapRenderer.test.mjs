@@ -169,3 +169,20 @@ test("user gestures emit interaction messages and a flat view remains controllab
   bridge.receive({ type: "tilt", value: false });
   assert.equal(map.getPitch(), 0);
 });
+
+test("compass updates do not rotate recenter or recreate the map", () => {
+  const { bridge, map, instances } = renderer();
+  bridge.receive({ type: "tilt", value: true });
+  const heading = {
+    type: "FeatureCollection",
+    features: [{ id: "direction" }],
+  };
+  bridge.receive({ type: "data", name: "heading", value: heading });
+  assert.equal(map.getSource("umbra-heading").data, heading);
+  assert.equal(map.getPitch(), 55);
+  assert.equal(instances.length, 1);
+  map.sources = {};
+  map.layers = {};
+  map.emit("style.load");
+  assert.equal(map.getSource("umbra-heading").data, heading);
+});

@@ -14,6 +14,7 @@ import {
   routeFeatures,
   shadowFeatures,
   locationFeatures,
+  headingFeatures,
 } from "../domain/localMap";
 import { routeCoordinates } from "../domain/routes";
 import type { Bounds } from "../domain/shadows";
@@ -108,6 +109,14 @@ export function LocalRouteMap(props: RouteMapProps) {
       send({ type: "follow", coordinate: fix, recenter });
     }
   }, [ready, props.fix, props.following, props.recenter, foreground, send]);
+  useEffect(() => {
+    if (ready)
+      send({
+        type: "data",
+        name: "heading",
+        value: headingFeatures(props.fix, props.heading),
+      });
+  }, [ready, props.fix, props.heading, send]);
   useEffect(() => {
     if (ready) send({ type: "destination", place: props.destination });
   }, [ready, props.destination, send]);

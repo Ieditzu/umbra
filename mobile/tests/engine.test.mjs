@@ -427,7 +427,9 @@ test("local route search returns fastest and a useful shade detour within budget
 
 test("offline routing rejects disconnected graphs, building-crossing snaps and stale requests", async () => {
   let raw = synthetic();
-  raw.edges = raw.edges.filter((e) => e.to !== 2);
+  raw.edges = raw.edges.filter(
+    (e) => (e.from === 1 && e.to === 3) || (e.from === 4 && e.to === 2),
+  );
   await assert.rejects(
     compareLocalRoutes(await initialize(raw), request(), signal(), { now: at }),
     /conectat/,
@@ -447,6 +449,7 @@ test("offline routing rejects disconnected graphs, building-crossing snaps and s
       ],
     },
   ];
+  raw.edges = [raw.edges[0]];
   const data = await initialize(raw),
     q = request();
   q.origin = unproject({ x: p.x, y: p.y + 20 });

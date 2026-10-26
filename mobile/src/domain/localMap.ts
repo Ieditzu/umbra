@@ -1,3 +1,5 @@
+import { headingCone } from "./heading.ts";
+import type { DeviceHeading } from "./heading.ts";
 import { isCoordinate } from "./routes.ts";
 import type { Coordinate, WalkingRoute } from "./routes.ts";
 import type { Bounds, ShadowLayer } from "./shadows.ts";
@@ -120,5 +122,30 @@ export function routeFeatures(route: WalkingRoute | null) {
       },
       properties: { exposure: s.exposure },
     })),
+  };
+}
+
+export function headingFeatures(
+  fix: Coordinate | null,
+  heading: DeviceHeading | null,
+) {
+  if (!fix || !heading) return empty();
+  return {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            headingCone(fix, heading.degrees).map((p) => [
+              p.longitude,
+              p.latitude,
+            ]),
+          ],
+        },
+      },
+    ],
   };
 }

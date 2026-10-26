@@ -11,6 +11,7 @@
     shadows: empty(),
     route: empty(),
     location: empty(),
+    heading: empty(),
   };
   let map,
     destination,
@@ -111,6 +112,13 @@
         source: "umbra-location",
         filter: ["==", ["geometry-type"], "Polygon"],
         paint: { "fill-color": "#4285f4", "fill-opacity": 0.08 },
+      });
+    if (!map.getLayer("umbra-heading"))
+      map.addLayer({
+        id: "umbra-heading",
+        type: "fill",
+        source: "umbra-heading",
+        paint: { "fill-color": "#4285f4", "fill-opacity": 0.27 },
       });
     if (!map.getLayer("umbra-location"))
       map.addLayer({

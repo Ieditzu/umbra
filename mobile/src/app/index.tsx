@@ -23,6 +23,7 @@ import { shouldRefreshRoute } from "../domain/live";
 import type { RouteAttempt } from "../domain/live";
 import type { Bounds } from "../domain/shadows";
 import { shadowInstant } from "../domain/shadows";
+import { useDeviceHeading } from "../hooks/useDeviceHeading";
 import { useLiveLocation } from "../hooks/useLiveLocation";
 import { useShadowLayer } from "../hooks/useShadowLayer";
 import { usePlanner } from "../state/PlannerProvider";
@@ -52,6 +53,7 @@ const shadowStatus: Record<string, string> = {
 export default function MapScreen() {
   const planner = usePlanner();
   const live = useLiveLocation();
+  const heading = useDeviceHeading(live.fix !== null);
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState(false);
   const [timeOpen, setTimeOpen] = useState(false);
@@ -170,6 +172,7 @@ export default function MapScreen() {
     <View style={styles.screen}>
       <RouteMap
         fix={live.fix}
+        heading={heading}
         destination={destination}
         route={route}
         shadows={shadow.layer}
@@ -254,7 +257,9 @@ export default function MapScreen() {
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={threeD ? "Afișează harta 2D" : "Afișează clădirile 3D"}
+        accessibilityLabel={
+          threeD ? "Afișează harta 2D" : "Afișează clădirile 3D"
+        }
         accessibilityState={{ selected: threeD }}
         onPress={() => setThreeD((value) => !value)}
         style={[
