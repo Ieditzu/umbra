@@ -84,3 +84,10 @@ The SDK-58 dependency audit reports five inherited high-severity findings throug
 ## Romania map layers
 
 Building and shadow requests outside the bundled city use bounded OpenFreeMap regions prepared on the PC; see [regional backend details](backend/mobile-server.md). Search no longer appends Constanța, so cities such as București can be located. A far-away destination frames that city rather than the midpoint of a cross-country origin/destination pair. The current route graph remains the prepared Constanța graph. The persistent **Umbre orientative** toggle controls visual render-height/fallback shadows; it does not change route exposure. The layer panel shows the server's Sun elevation/azimuth at the camera location. Native maps and iOS MapLibre render the estimated category more lightly; iOS extrusion lighting uses the same Sun direction.
+
+
+## Route start and renderer lifecycle
+
+The selected route exposes **Pornește traseul**. Starting enables camera-follow and recenters GPS, replacing the alternatives with a compact progress panel and **Oprește**. Foreground fixes project onto the route polyline to estimate remaining route distance/time; off-route or missing GPS states are shown. Arrival also requires proximity to the actual destination, rather than only the snapped graph endpoint. Destination changes stop the session. Navigation state and GPS are transient; saved map preferences remain independent. This is route following; maneuver instructions and voice guidance are not implemented. Existing routing coverage is unchanged.
+
+The embedded HTML exports a content hash used as the WebView key/base URL. Renderer updates mount a fresh page; `onLoadStart` resets readiness before resending data, and the last camera is restored. City jumps beyond 0.25° refresh the source index/cache instead of combining distant city data. Nearby viewport updates retain the incremental cache. One bounded retry after a connection failure/503 helps bridge backend reloads; cancellation and the overall request deadline still apply. These changes require a complete Expo Go reload after upgrading; physical iPhone confirmation remains necessary.

@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -17,7 +17,13 @@ import { DeparturePicker } from "../components/DeparturePicker";
 import { PlaceSearch } from "../components/PlaceSearch";
 import { RouteCard } from "../components/RouteCard";
 import { RouteMap } from "../components/RouteMap";
-import { CONSTANȚA, isCoordinate } from "../domain/routes";
+import {
+  CONSTANȚA,
+  distanceBetween,
+  distanceLabel,
+  minutes,
+  isCoordinate,
+} from "../domain/routes";
 import type { Coordinate } from "../domain/routes";
 import { shouldRefreshRoute } from "../domain/live";
 import type { RouteAttempt } from "../domain/live";
@@ -29,6 +35,7 @@ import { useShadowLayer } from "../hooks/useShadowLayer";
 import { usePlanner } from "../state/PlannerProvider";
 import { colors } from "../theme";
 import type { MapStyle } from "../domain/mapDisplay";
+import { routeProgress } from "../domain/navigation";
 
 const MAP_ACCENT = "#304DC5";
 
@@ -57,6 +64,7 @@ export default function MapScreen() {
   const heading = useDeviceHeading(live.fix !== null);
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState(false);
+  const [navigation, setNavigation] = useState<string | null>(null);
   const [timeOpen, setTimeOpen] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
   const { showShadows, estimatedShadows, mapStyle, threeD } = planner.settings;
@@ -133,6 +141,18 @@ export default function MapScreen() {
   const destinationKey = destination
     ? `${destination.coordinate.latitude},${destination.coordinate.longitude}`
     : "";
+  const navigating = !!destinationKey && navigation === destinationKey;
+  const progress = useMemo(
+    () => (route && live.fix ? routeProgress(route, live.fix) : null),
+    [route, live.fix],
+  );
+  const arrived = !!(
+    navigating &&
+    live.fix &&
+    live.fix.accuracy <= 35 &&
+    destination &&
+    distanceBetween(live.fix, destination.coordinate) <= 20
+  );
   const routeKey = `${destinationKey}|${departureKey}|${planner.settings.maxExtraMinutes}`;
   useEffect(() => {
     if (
@@ -164,6 +184,7 @@ export default function MapScreen() {
 
   function pick(point: Coordinate) {
     if (!isCoordinate(point)) return;
+    setNavigation(null);
     planner.choosePlace("destination", {
       coordinate: point,
       label: "Loc ales pe hartă",
@@ -492,6 +513,7 @@ export default function MapScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Elimină destinația"
                 onPress={() => {
+                  setNavigation(null);
                   planner.clearDestination();
                   lastAttempt.current = null;
                 }}
@@ -523,22 +545,81 @@ export default function MapScreen() {
                 </Text>
               </Pressable>
             )}
-            <ScrollView
-              style={styles.routeList}
-              showsVerticalScrollIndicator={false}
-            >
-              {planner.comparison?.routes.map((item) => (
-                <RouteCard
-                  key={item.id}
-                  route={item}
-                  selected={item.id === planner.selectedId}
+            {navigating ? (
+              <View style={styles.navigationSummary}>
+                <Ionicons
+                  name={arrived ? "checkmark-circle" : "navigate"}
+                  size={25}
+                  color={MAP_ACCENT}
+                />
+                <View style={{ flex: 1, gap: 3 }}>
+                  <Text style={styles.panelTitle}>
+                    {arrived ? "Ai ajuns" : "Pe traseu"}
+                  </Text>
+                  <Text style={styles.subtle}>
+                    {!live.fix
+                      ? "Se așteaptă GPS-ul"
+                      : !progress
+                        ? "Se actualizează traseul"
+                        : progress.distanceFromRoute >
+                            Math.max(50, live.fix.accuracy)
+                          ? "În afara traseului"
+                          : `${minutes(progress.remainingSeconds)} · ${distanceLabel(progress.remainingMetres)} pe traseu`}
+                  </Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Oprește urmărirea traseului"
+                  style={styles.stopRoute}
                   onPress={() => {
-                    planner.setSelectedId(item.id);
+                    setNavigation(null);
                     setFollowing(false);
                   }}
-                />
-              ))}
-            </ScrollView>
+                >
+                  <Text style={styles.stopRouteText}>Oprește</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <ScrollView
+                  style={styles.routeList}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {planner.comparison?.routes.map((item) => (
+                    <RouteCard
+                      key={item.id}
+                      route={item}
+                      selected={item.id === planner.selectedId}
+                      onPress={() => {
+                        planner.setSelectedId(item.id);
+                        setFollowing(false);
+                      }}
+                    />
+                  ))}
+                </ScrollView>
+                {route && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Pornește traseul"
+                    disabled={planner.loading}
+                    style={[
+                      styles.startRoute,
+                      planner.loading && { opacity: 0.5 },
+                    ]}
+                    onPress={() => {
+                      setNavigation(destinationKey);
+                      setFollowing(true);
+                      setRecenter((value) => value + 1);
+                      setLayersOpen(false);
+                      if (!live.fix) live.retry();
+                    }}
+                  >
+                    <Ionicons name="navigate" size={19} color={colors.white} />
+                    <Text style={styles.startRouteText}>Pornește traseul</Text>
+                  </Pressable>
+                )}
+              </>
+            )}
           </View>
         )}
       </View>
@@ -578,6 +659,7 @@ export default function MapScreen() {
           target="destination"
           onClose={() => setSearch(false)}
           onChoose={(place) => {
+            setNavigation(null);
             planner.choosePlace("destination", place);
             setFollowing(false);
             setSearch(false);
@@ -731,7 +813,32 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     paddingVertical: 8,
   },
-  routeList: { maxHeight: 220, marginTop: 8 },
+  routeList: { maxHeight: 180, marginTop: 8 },
+  startRoute: {
+    minHeight: 48,
+    borderRadius: 15,
+    backgroundColor: MAP_ACCENT,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 3,
+  },
+  startRouteText: { color: colors.white, fontSize: 16, fontWeight: "700" },
+  navigationSummary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 15,
+  },
+  stopRoute: {
+    minHeight: 44,
+    paddingHorizontal: 12,
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: "#FBEFEC",
+  },
+  stopRouteText: { color: colors.error, fontWeight: "600" },
   inline: {
     flexDirection: "row",
     alignItems: "center",

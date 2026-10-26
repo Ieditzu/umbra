@@ -95,3 +95,10 @@ Live OpenFreeMap checks loaded nine tiles each. The București central window `[
 A Cluj check decoded 16,382 regional polygon components and displayed 912 parts plus 696 illustrative shadow parts in `[23.587,46.768,23.596,46.773]`. Tile-derived heights remain unknown evidence and are used only as labeled display assumptions. Night still yields no daylight polygons.
 
 The Constanța live failure was reproduced: the older running backend returned HTTP 422 `Câmpuri de cerere necunoscute` when receiving the newly added fields. The new backend accepts them; the client now distinguishes a required server restart from generic unavailability. The combined launcher's source watcher was observed restarting its backend while Metro stayed running on port 8093. A current loopback Constanța test returned HTTP 200 with 168 map shadow parts in `[28.633,44.172,28.638,44.177]`.
+
+
+## City refresh and route start
+
+The app now has 74 passing mobile tests. Added cases cover route progress and endpoint clamping, far-city source replacement without losing tilt, camera restoration, a single retry after backend interruption, and an explicit restart instruction for old-server unknown-field responses. TypeScript/lint and both exports pass. The București HTTP response was also passed through the exact app building validator: 1,546 features, 1,546 unique IDs and valid geometry.
+
+The original browser city-switch check showed 269 rendered extrusion features in the camera after adding București geometry to a previously loaded Constanța source, with the 5,000-part cache cap. This did not reproduce the physical iPhone report. The renderer lifecycle was hardened to reset readiness on page load and use a content-version key, and distant-city changes now rebuild the index. Actual iPhone visibility after reload is still a user/device check. The new route button and compact panel passed bundling/type checks; physical navigation interaction has not been measured.
