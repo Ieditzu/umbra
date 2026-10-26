@@ -15,6 +15,7 @@ export type ShadowLayer = {
   attribution: string[];
   warnings: string[];
   truncated: boolean;
+  partialCoverage: boolean;
 };
 export function shadowInstant(selected: Date | null, now: number): string {
   return selected
@@ -93,5 +94,6 @@ export function parseShadowLayer(raw: unknown, instant: string): ShadowLayer {
     attribution: data.attribution as string[],
     warnings: data.warnings as string[],
     truncated: data.truncated === true,
+    partialCoverage: data.partial_coverage === true,
   };
 }
