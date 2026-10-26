@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -42,12 +43,21 @@ type OSMResponse struct {
 }
 
 func PilotMetric() Bounds {
-	a := Project(Coordinate{PilotBBox.South, PilotBBox.West})
-	b := Project(Coordinate{PilotBBox.North, PilotBBox.East})
-	return Bounds{a.X, a.Y, b.X, b.Y}
+	return metricArea(PilotBBox)
+}
+
+// CityArea includes Constanta, Mamaia and Palazu Mare with an explicit margin.
+// It is an extract rectangle, not a claim about administrative boundaries.
+var CityArea = Bounds{28.50, 44.075, 28.75, 44.355}
+
+func metricArea(area Bounds) Bounds {
+	return bounds([]Point{Project(Coordinate{area.South, area.West}), Project(Coordinate{area.South, area.East}), Project(Coordinate{area.North, area.West}), Project(Coordinate{area.North, area.East})})
 }
 func importQuery() string {
-	b := PilotMetric().Expand(500)
+	return areaQuery(PilotBBox)
+}
+func areaQuery(area Bounds) string {
+	b := metricArea(area).Expand(500)
 	// Bound all four inverse-projected corners: UTM grid north is rotated
 	// relative to geographic north, so two corners alone underfetch the buffer.
 	geo := []Point{}
@@ -57,13 +67,16 @@ func importQuery() string {
 	}
 	g := bounds(geo).Expand(0.00001) // round the query outward, not inward
 	a, z := Coordinate{g.South, g.West}, Coordinate{g.North, g.East}
-	return fmt.Sprintf(`[out:json][timeout:120];(way["highway"](%f,%f,%f,%f);nwr["building"](%f,%f,%f,%f);nwr["building:part"](%f,%f,%f,%f););(._;>;);out body;`, PilotBBox.South, PilotBBox.West, PilotBBox.North, PilotBBox.East, a.Latitude, a.Longitude, z.Latitude, z.Longitude, a.Latitude, a.Longitude, z.Latitude, z.Longitude)
+	return fmt.Sprintf(`[out:json][timeout:120];(way["highway"](%f,%f,%f,%f);nwr["building"](%f,%f,%f,%f);nwr["building:part"](%f,%f,%f,%f););(._;>;);out body;`, area.South, area.West, area.North, area.East, a.Latitude, a.Longitude, z.Latitude, z.Longitude, a.Latitude, a.Longitude, z.Latitude, z.Longitude)
 }
 
 // Prepare is an explicit operator action; requests served by the API never call it.
 // Identical queries reuse raw cache indefinitely unless refresh is requested.
 func Prepare(ctx context.Context, path, endpoint string, refresh bool, audit *Audit) (*Dataset, error) {
-	query := importQuery()
+	return PrepareArea(ctx, path, endpoint, refresh, audit, PilotBBox, PilotID)
+}
+func PrepareArea(ctx context.Context, path, endpoint string, refresh bool, audit *Audit, area Bounds, id string) (*Dataset, error) {
+	query := areaQuery(area)
 	sum := sha256.Sum256([]byte(endpoint + query))
 	key := hex.EncodeToString(sum[:])
 	if !refresh {
@@ -92,12 +105,12 @@ func Prepare(ctx context.Context, path, endpoint string, refresh bool, audit *Au
 		if res.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("Overpass returned %d; retry-after=%q; no automatic retries", res.StatusCode, res.Header.Get("Retry-After"))
 		}
-		raw, e = io.ReadAll(io.LimitReader(res.Body, 40_000_001))
+		raw, e = io.ReadAll(io.LimitReader(res.Body, 150_000_001))
 		if e != nil {
 			return nil, e
 		}
-		if len(raw) > 40_000_000 {
-			return nil, fmt.Errorf("pilot extract exceeds 40 MB limit")
+		if len(raw) > 150_000_000 {
+			return nil, fmt.Errorf("OSM extract exceeds 150 MB limit")
 		}
 		var check OSMResponse
 		if e = json.Unmarshal(raw, &check); e != nil || check.Remark != "" || len(check.Elements) == 0 {
@@ -110,7 +123,7 @@ func Prepare(ctx context.Context, path, endpoint string, refresh bool, audit *Au
 			return nil, e
 		}
 	}
-	d, err := BuildDataset(raw)
+	d, err := BuildDatasetArea(raw, area, id)
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +191,9 @@ func blockedNode(t map[string]string) bool {
 	return false
 }
 func BuildDataset(raw []byte) (*Dataset, error) {
+	return BuildDatasetArea(raw, PilotBBox, PilotID)
+}
+func BuildDatasetArea(raw []byte, area Bounds, id string) (*Dataset, error) {
 	var osm OSMResponse
 	if err := json.Unmarshal(raw, &osm); err != nil {
 		return nil, err
@@ -198,7 +214,7 @@ func BuildDataset(raw []byte) (*Dataset, error) {
 			relations = append(relations, e)
 		}
 	}
-	d := &Dataset{Version: 1, CRS: "EPSG:32635", PilotID: PilotID, Pilot: PilotMetric(), Imported: PilotMetric().Expand(500), Metadata: map[string]string{"imported_at": time.Now().UTC().Format(time.RFC3339), "osm_base_timestamp": osm.OSM3S.Timestamp, "data_license": "ODbL-1.0", "attribution": Attribution, "field_validated": "false", "building_inventory": "not_verified_complete"}}
+	d := &Dataset{Version: 1, CRS: "EPSG:32635", PilotID: id, Pilot: metricArea(area), Imported: metricArea(area).Expand(500), Metadata: map[string]string{"imported_at": time.Now().UTC().Format(time.RFC3339), "osm_base_timestamp": osm.OSM3S.Timestamp, "data_license": "ODbL-1.0", "attribution": Attribution, "field_validated": "false", "building_inventory": "not_verified_complete"}}
 	geometry := func(ids []int64) ([]Point, bool) {
 		out := []Point{}
 		for _, id := range ids {
@@ -301,6 +317,33 @@ func BuildDataset(raw []byte) (*Dataset, error) {
 		d.Buildings[i].Box = bounds(all)
 	}
 	kept := map[int64]Point{}
+	// Preparation can cover a whole city. Index footprints instead of testing
+	// every road segment against every building in the extract.
+	grid := map[[2]int][]int{}
+	for i, building := range d.Buildings {
+		b := building.Box
+		for x := int(math.Floor(math.Max(b.West, d.Imported.West) / 100)); x <= int(math.Floor(math.Min(b.East, d.Imported.East)/100)); x++ {
+			for y := int(math.Floor(math.Max(b.South, d.Imported.South) / 100)); y <= int(math.Floor(math.Min(b.North, d.Imported.North)/100)); y++ {
+				cell := [2]int{x, y}
+				grid[cell] = append(grid[cell], i)
+			}
+		}
+	}
+	candidates := func(box Bounds) []int {
+		seen := map[int]bool{}
+		out := []int{}
+		for x := int(math.Floor(box.West / 100)); x <= int(math.Floor(box.East/100)); x++ {
+			for y := int(math.Floor(box.South / 100)); y <= int(math.Floor(box.North/100)); y++ {
+				for _, i := range grid[[2]int{x, y}] {
+					if !seen[i] {
+						seen[i] = true
+						out = append(out, i)
+					}
+				}
+			}
+		}
+		return out
+	}
 	excluded := 0
 	for _, id := range ids {
 		w := ways[id]
@@ -321,7 +364,8 @@ func BuildDataset(raw []byte) (*Dataset, error) {
 			}
 			blocked := false
 			box := bounds([]Point{p, q})
-			for _, building := range d.Buildings {
+			for _, bi := range candidates(box) {
+				building := d.Buildings[bi]
 				if !box.Intersects(building.Box) {
 					continue
 				}

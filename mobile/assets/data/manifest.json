@@ -1,12 +1,31 @@
 {
-  "pilot_id": "constanta-central-v1",
-  "osm_base_timestamp": "2026-10-26T09:40:41Z",
-  "imported_at": "2026-10-26T09:41:47Z",
-  "sha256": "b4bf403c5569def1434159693a7391cbd32b89c82ecc66990f236ee501a660c4",
+  "pilot_id": "constanta-city-v1",
+  "osm_base_timestamp": "2026-10-25T21:21:21Z",
+  "imported_at": "2026-10-26T10:15:04Z",
+  "sha256": "36aec14d2618936956c385c3948c11224f459223f8a32ed73adfe51da47576c5",
   "license": "ODbL-1.0",
   "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
-  "nodes": 1023,
-  "directed_edges": 2428,
-  "buildings": 4355,
+  "nodes": 50071,
+  "directed_edges": 111552,
+  "buildings": 51428,
+  "bytes": 7025718,
+  "raw_bytes": 40404655,
+  "raw_sha256": "70e1cd0dec985feebcd011fcd99dfbf70d6e8d8a502e102f57b37caef7c61ba9",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    28.5,
+    44.075,
+    28.75,
+    44.355
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261025.osm.pbf",
+  "source_pbf_sha256": "0f76246712c5078f950c18a04d9b4dc06142026e5d943cabb9a8999d3f3bb3a0",
+  "height_sources": {
+    "missing": 45159,
+    "estimated_from_levels": 5913,
+    "unsupported_elevated": 85,
+    "osm_height_tag": 271
+  },
   "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
 }

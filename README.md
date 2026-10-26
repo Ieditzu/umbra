@@ -1,6 +1,6 @@
 # Umbra
 
-A React Native app for planning walks with less estimated direct-sun exposure. **Sun position, building shadows and walking routes run on the phone. No API server or server address is required.** The current study area is a small pilot in central Constanța, Romania. See [the overview](overview.md).
+A React Native app for planning walks with less estimated direct-sun exposure. **Sun position, building shadows and walking routes run on the phone. No API server or server address is required.** Bundled data cover Constanța, Mamaia and Palazu Mare, Romania. See [the overview](overview.md).
 
 ## Start
 
@@ -23,7 +23,7 @@ Only iOS and Android are enabled; open the app in Expo Go rather than a web brow
 - Open **Straturi** for map/satellite views and the **Clădiri 3D** switch on both iOS and Android. iOS uses Apple Maps/Flyover where available; Android also offers its native terrain layer. Actual 3D detail depends on provider coverage. The panel also contains shadow visibility, height sources and coverage limitations. Missing-height buildings appear as neutral footprints.
 - **Setări** contains the maximum accepted walking detour. There is no server field.
 
-Calculations use an approximately 2 MB real OSM snapshot bundled with the app: 1,023 walking nodes, 2,428 directed edges and 4,355 buffered building outlines, imported on 26 October 2026. Routing is limited to the pilot near `28.630–28.640° E, 44.170–44.180° N`; this is not whole-city coverage. Snapshot [metadata and checksum](mobile/assets/data/manifest.json) and [license/provenance](docs/mobile-data.md) are included.
+Calculations use a compressed real OSM snapshot bundled with the app (approximately 7 MB packaged, 40 MB decoded): 50,071 walking nodes, 111,552 directed edges and 51,428 building outlines. The city extract spans approximately `28.50–28.75° E, 44.075–44.355° N`, including Constanța, Mamaia, Palazu Mare and a margin. It replaces the central-only pilot; this rectangle is not an administrative boundary. Snapshot [metadata and checksums](mobile/assets/data/manifest.json) and [license/provenance](docs/mobile-data.md) are included.
 
 The calculation engine works without network access. **Basemap tiles and address search still use Apple/Google services and may need internet.** GPS is used only in the foreground. Coordinates, viewport and selected time are not sent to an Umbra server. Native map/search providers have their own data handling.
 
@@ -44,16 +44,16 @@ Tests cover independent solar references, geometry, routing constraints, cancell
 
 ## Data preparation and reference backend
 
-The Go implementation remains an optional research/reference tool; **it is not needed to run the mobile app**. Developers can update the bundled OSM snapshot with Go 1.24+:
+The Go implementation remains an optional research/reference tool; **it is not needed to run the mobile app**. Developers can build a city dataset from a local OSM extract, then package it:
 
 ```bash
 cd server
-go run ./cmd/umbra prepare
+go run ./cmd/umbra prepare --city --extract /absolute/path/to/city-osm.json --data /absolute/path/to/city/dataset.json
 cd ../mobile
-node scripts/prepare-pilot.mjs /absolute/path/to/prepared/dataset.json
+node scripts/prepare-city.mjs /absolute/path/to/city/dataset.json
 ```
 
-`prepare` prints the cache path. It reuses an existing snapshot; use `prepare --refresh` only for an intentional update. Review changed coverage, height provenance and the generated manifest before committing updated map data. The snapshot is ODbL-1.0; preserve attribution and its license notice.
+See [data preparation](docs/mobile-data.md) for downloading a source extract and reproducible cropping. Go 1.24+ and Python/pyosmium are developer tools only. Review changed coverage, height provenance and the generated manifest before committing updated map data. The snapshot is ODbL-1.0; preserve attribution and its license notice. Default Go `prepare` still retains its separate central reference pilot.
 
 To run the optional reference API separately:
 

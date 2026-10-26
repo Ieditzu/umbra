@@ -6,7 +6,7 @@ The native React Native app uses Expo SDK 58 and Expo Router. `mobile/src/app/` 
 
 **There is no runtime API dependency.** The Go engine in `server/` remains a data-preparation and reference implementation. The unused HTTP adapter remains available for reference contract tests, but no mobile screen imports it. Old saved API URLs are ignored and removed when preferences are saved. Coordinates and results are not persisted by Umbra.
 
-The approximately 2 MB pilot snapshot is installed with the app, including in release builds. There is no compulsory first-run network download or automatic data refresh. Its bounds, date, counts, reproducible preparation command and ODbL attribution are documented in [mobile-data.md](mobile-data.md). Native Apple/Google basemaps and geocoding are separate network services; a visible 3D building in a basemap is not a source of OSM height data.
+The approximately 7 MB compressed city snapshot (40 MB decoded) is installed with the app, including in release builds. It covers Constanța, Mamaia, Palazu Mare and a margin, replacing the central-only pilot. There is no compulsory first-run network download or automatic data refresh. Its bounds, date, counts, preparation commands and ODbL attribution are in [mobile-data.md](mobile-data.md). Native Apple/Google basemaps and geocoding are separate network services; a visible 3D building in a basemap is not a source of OSM height data.
 
 ## Phone setup
 
@@ -21,7 +21,7 @@ Expo Go needs the development bundle from Metro, but performs the calculations o
 
 ## Local calculations
 
-`initializeDataset` validates schema/CRS, connected edge endpoints, finite geometry and closed building rings, recomputes lengths and height provenance, and creates a 100 m building index. Geometry is in WGS84 / UTM zone 35N metres, including solar grid convergence.
+`unpackDataset` decodes the bundled gzip/base64 wrapper in short cooperative slices using pure-JavaScript `fflate`, with declared-size limits and streaming UTF-8 decoding. This avoids compiling 40 MB of object literals into the native bundle. `initializeDataset` validates schema/CRS, connected edge endpoints, finite geometry and closed rings, recomputes lengths/heights and creates a 100 m building index. Geometry is in WGS84 / UTM zone 35N metres, including solar grid convergence. The dataset is loaded once per app session. Overlay generation uses nearby indexed footprints and prioritizes modeled shadows over neutral outlines at the feature budget. Routing candidate searches prune edges that cannot fit the accepted detour using an admissible geometric lower bound; long ray queries visit only touched grid cells.
 
 `solarPosition` uses NOAA/Meeus equations at the actual UTC instant, tested against independent SPA reference values across seasons and DST. Overlay polygons sweep complete building prisms away from the Sun, preserving concavities and courtyards with the pure-JavaScript `polygon-clipping` library. The building footprint is subtracted, then geometry is clipped to the viewport and pilot. Limits are 2,000 polygons, 60,000 output vertices, 1,024 input vertices and 64 rings per polygon. Omitted operations and truncation remain explicit warnings.
 

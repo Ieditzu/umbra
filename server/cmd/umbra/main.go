@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -25,6 +26,8 @@ func main() {
 	path := flags.String("data", umbra.DefaultDataPath(), "prepared dataset path outside Git")
 	endpoint := flags.String("overpass", umbra.DefaultOverpass, "read-only Overpass interpreter endpoint")
 	refresh := flags.Bool("refresh", false, "explicitly fetch a fresh extract")
+	city := flags.Bool("city", false, "prepare the wider Constanta city extract instead of the central research pilot; use a separate --data path")
+	extract := flags.String("extract", "", "optional local OSM JSON extract instead of an Overpass download")
 	auditPath := flags.String("audit", "", "optional reviewed obstruction inventory JSON in EPSG:32635")
 	addrDefault := os.Getenv("UMBRA_ADDR")
 	if addrDefault == "" {
@@ -34,6 +37,9 @@ func main() {
 	flags.Parse(os.Args[2:])
 	switch os.Args[1] {
 	case "prepare":
+		if *city && *path == umbra.DefaultDataPath() {
+			log.Fatal("--city requires an explicit separate --data path")
+		}
 		var audit *umbra.Audit
 		if *auditPath != "" {
 			b, e := os.ReadFile(*auditPath)
@@ -47,7 +53,39 @@ func main() {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 160*time.Second)
 		defer cancel()
-		d, e := umbra.Prepare(ctx, *path, *endpoint, *refresh, audit)
+		var d *umbra.Dataset
+		var e error
+		if *extract != "" {
+			b, err := os.ReadFile(*extract)
+			if err != nil {
+				log.Fatal(err)
+			}
+			area, id := umbra.PilotBBox, umbra.PilotID
+			if *city {
+				area, id = umbra.CityArea, "constanta-city-v1"
+			}
+			d, e = umbra.BuildDatasetArea(b, area, id)
+			if e == nil {
+				d.Audit = audit
+				d.Metadata["import_source"] = "local OSM JSON extract"
+				d.Metadata["source_sha256"] = fmt.Sprintf("%x", sha256.Sum256(b))
+				var provenance struct {
+					Source struct {
+						URL  string `json:"url"`
+						File string `json:"file"`
+						SHA  string `json:"sha256"`
+					} `json:"source"`
+				}
+				if err := json.Unmarshal(b, &provenance); err == nil {
+					d.Metadata["source_url"], d.Metadata["source_file"], d.Metadata["source_pbf_sha256"] = provenance.Source.URL, provenance.Source.File, provenance.Source.SHA
+				}
+				e = umbra.SaveDataset(*path, d)
+			}
+		} else if *city {
+			d, e = umbra.PrepareArea(ctx, *path, *endpoint, *refresh, audit, umbra.CityArea, "constanta-city-v1")
+		} else {
+			d, e = umbra.Prepare(ctx, *path, *endpoint, *refresh, audit)
+		}
 		if e != nil {
 			log.Fatal(e)
 		}

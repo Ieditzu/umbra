@@ -1,7 +1,9 @@
 import type { RouteRequest } from "../domain/routes";
 import type { Bounds, ShadowLayer } from "../domain/shadows";
 import { initializeDataset } from "../engine/data";
-import type { Dataset, RawDataset } from "../engine/data";
+import type { Dataset } from "../engine/data";
+import { unpackDataset } from "../engine/packedData";
+import type { PackedDataset } from "../engine/packedData";
 import { compareLocalRoutes } from "../engine/routing";
 import { localShadows } from "../engine/overlay";
 import { task } from "../engine/task";
@@ -10,15 +12,15 @@ let prepared: Promise<Dataset> | undefined;
 function dataset(): Promise<Dataset> {
   if (!prepared) {
     // Static bundled map data is installed with the app, not fetched using GPS.
-    const raw =
-      require("../../assets/data/constanta-central.json") as RawDataset;
-    prepared = initializeDataset(
-      raw,
-      task(new AbortController().signal, 20000),
-    ).catch((error) => {
-      prepared = undefined;
-      throw error;
-    });
+    const packed =
+      require("../../assets/data/constanta-city.json") as PackedDataset;
+    const work = task(new AbortController().signal, 20000);
+    prepared = unpackDataset(packed, work)
+      .then((raw) => initializeDataset(raw, work))
+      .catch((error) => {
+        prepared = undefined;
+        throw error;
+      });
   }
   return prepared;
 }

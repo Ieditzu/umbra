@@ -75,7 +75,7 @@ function validate(data: Dataset, q: RouteRequest, now: number): number {
     apart = distance(a, b);
   if (!contains(data.pilot_m, a) || !contains(data.pilot_m, b))
     throw new Error(
-      "Traseele locale acoperă momentan zona pilot din centrul Constanței.",
+      "Traseele locale acoperă Constanța, Mamaia și Palazu Mare. Punctele alese sunt în afara datelor incluse.",
     );
   if (apart < 25 || apart > 20000)
     throw new Error("Alege puncte aflate între 25 m și 20 km distanță.");
@@ -324,9 +324,21 @@ export async function compareLocalRoutes(
         data,
         from.id,
         to.id,
-        (i) =>
-          data.edges[i].length *
-          (1 + lambda * score(i) + diversity * (usage.get(i) ?? 0)),
+        (i) => {
+          const edge = data.edges[i];
+          // An admissible lower bound avoids evaluating shadows across the whole
+          // city for a short walk. It cannot remove a path within the detour limit.
+          const minimumMetres =
+            (fastest.distances.get(edge.from) ?? Infinity) +
+            edge.length +
+            distance(data.positions.get(edge.to)!, data.positions.get(to.id)!);
+          if (minimumMetres > limit * q.walking_speed_mps + 1e-6)
+            return Infinity;
+          return (
+            edge.length *
+            (1 + lambda * score(i) + diversity * (usage.get(i) ?? 0))
+          );
+        },
         false,
         work,
       );

@@ -21,6 +21,7 @@ import { classifyAt } from "../src/engine/exposure.ts";
 import { castShadow, localShadows } from "../src/engine/overlay.ts";
 import { compareLocalRoutes } from "../src/engine/routing.ts";
 import { task } from "../src/engine/task.ts";
+import { unpackDataset } from "../src/engine/packedData.ts";
 import { parseShadowLayer } from "../src/domain/shadows.ts";
 
 const centre = { latitude: 44.1733, longitude: 28.6383 },
@@ -128,6 +129,74 @@ test("height provenance never supplies a default for missing or unsupported buil
     source: "estimated_from_levels",
   });
   assert.equal(buildingHeight({ height: "10 m" }).source, "osm_height_tag");
+});
+
+test("city ray index includes every intersected footprint across grid boundaries", async () => {
+  const raw = synthetic();
+  raw.buildings = Array.from({ length: 100 }, (_, i) => {
+    const x = p.x - 900 + (i % 10) * 180,
+      y = p.y - 900 + Math.floor(i / 10) * 180;
+    return {
+      id: `grid-${i}`,
+      tags: { height: "20" },
+      geometry: [rect({ west: x, south: y, east: x + 40, north: y + 60 })],
+    };
+  });
+  const data = await initialize(raw);
+  for (let i = 0; i < 40; i++) {
+    const angle = (i * Math.PI) / 20;
+    const a = {
+      x: p.x - Math.cos(angle) * 990,
+      y: p.y - Math.sin(angle) * 990,
+    };
+    const b = {
+      x: p.x + Math.cos(angle) * 990,
+      y: p.y + Math.sin(angle) * 990,
+    };
+    const indexed = new Set(
+      data.index.ray(a, b).map((building) => building.id),
+    );
+    for (const building of data.buildings)
+      if (
+        building.geometry.some(
+          (poly) => firstInteriorDistance(a, b, poly) !== null,
+        )
+      )
+        assert.ok(indexed.has(building.id), building.id);
+  }
+});
+
+test("city ray length still reaches tall buildings whose low-sun shadows exceed 500 metres", async () => {
+  const raw = synthetic();
+  raw.imported_m = {
+    west: p.x - 5000,
+    east: p.x + 5000,
+    south: p.y - 5000,
+    north: p.y + 5000,
+  };
+  raw.buildings = [
+    {
+      id: "synthetic-tall-building",
+      tags: { height: "300" },
+      geometry: [
+        rect({
+          west: p.x - 100,
+          east: p.x + 100,
+          south: p.y + 1000,
+          north: p.y + 1100,
+        }),
+      ],
+    },
+  ];
+  const data = await initialize(raw);
+  assert.equal(
+    classifyAt(data, p, { elevation: 10, azimuth: 0 }, true).exposure,
+    "shade",
+  );
+  assert.equal(
+    classifyAt(data, p, { elevation: 45, azimuth: 0 }, true).exposure,
+    "unknown",
+  );
 });
 
 test("ray intersections preserve courtyards and ignore tangent boundary contact", () => {
@@ -393,7 +462,7 @@ test("offline routing rejects disconnected graphs, building-crossing snaps and s
   outside.destination = { latitude: 45, longitude: 29 };
   await assert.rejects(
     compareLocalRoutes(data, outside, signal(), { now: at }),
-    /pilot/,
+    /afara/,
   );
 });
 
@@ -418,9 +487,9 @@ test("cancellation and computation budgets interrupt local calculations", async 
   await assert.rejects(initialize(raw));
 });
 
-test("bundled real OSM pilot works offline without any fetch calls", async () => {
+test("bundled real OSM city works offline across neighbourhoods without any fetch calls", async () => {
   const source = await readFile(
-    new URL("../assets/data/constanta-central.json", import.meta.url),
+    new URL("../assets/data/constanta-city.json", import.meta.url),
     "utf8",
   );
   const manifest = JSON.parse(
@@ -438,7 +507,13 @@ test("bundled real OSM pilot works offline without any fetch calls", async () =>
     throw new Error("Unexpected network call");
   };
   try {
-    const data = await initialize(JSON.parse(source));
+    const raw = await unpackDataset(JSON.parse(source), task(signal()));
+    assert.equal(
+      createHash("sha256").update(JSON.stringify(raw)).digest("hex"),
+      manifest.raw_sha256,
+    );
+    const data = await initialize(raw);
+    assert.equal(data.pilot_id, "constanta-city-v1");
     assert.equal(data.nodes.length, manifest.nodes);
     const start = data.nodes[0],
       queue = [start.id],
@@ -472,7 +547,35 @@ test("bundled real OSM pilot works offline without any fetch calls", async () =>
       signal(),
     );
     assert.ok(layer.polygons.length > 100);
-    assert.ok(layer.partialCoverage);
+    assert.equal(layer.partialCoverage, false);
+    for (const [name, latitude, longitude] of [
+      ["Inel II", 44.181, 28.609],
+      ["Tomis Nord", 44.207, 28.626],
+      ["Mamaia", 44.25, 28.621],
+      ["Palazu Mare", 44.232, 28.607],
+      ["Poarta 6", 44.132, 28.615],
+    ]) {
+      const local = await localShadows(
+        data,
+        layer.at,
+        [
+          longitude - 0.004,
+          latitude - 0.004,
+          longitude + 0.004,
+          latitude + 0.004,
+        ],
+        signal(),
+      );
+      assert.equal(local.state, "available", name);
+      assert.equal(local.partialCoverage, false, name);
+      assert.ok(
+        local.polygons.length > 0,
+        `${name}: no mapped footprints or shadows`,
+      );
+      console.log(
+        `${name}: ${local.polygons.filter((p) => p.source !== "unknown").length} shadow parts; ${local.polygons.length} total parts.`,
+      );
+    }
     // Exercise the same geometry validator as the reference API implementation.
     parseShadowLayer(
       {

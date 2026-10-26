@@ -40,14 +40,17 @@ export function RouteMap({
   const fitted = useRef("");
   const ready = useRef(false);
   const [mapReady, setMapReady] = useState(false);
+  const appliedThreeD = useRef(threeD);
   const positioned = useRef(false);
   const centered = useRef(recenter);
   const currentFix = useRef(fix);
   useEffect(() => {
-    if (!mapReady) return;
+    if (!mapReady || appliedThreeD.current === threeD) return;
+    appliedThreeD.current = threeD;
     map.current?.animateCamera(
       {
         pitch: threeD ? 55 : 0,
+        ...(!threeD ? { heading: 0 } : {}),
         ...(threeD ? { zoom: 16, altitude: 900 } : {}),
       },
       { duration: 450 },
@@ -125,18 +128,19 @@ export function RouteMap({
       initialRegion={CONSTANȚA}
       onMapReady={() => {
         ready.current = true;
+        appliedThreeD.current = threeD;
         setMapReady(true);
         const point = currentFix.current;
         if (point) {
           positioned.current = true;
-          map.current?.animateToRegion(
+          map.current?.animateCamera(
             {
-              latitude: point.latitude,
-              longitude: point.longitude,
-              latitudeDelta: 0.008,
-              longitudeDelta: 0.008,
+              center: { latitude: point.latitude, longitude: point.longitude },
+              zoom: 16,
+              altitude: 900,
+              pitch: threeD ? 55 : 0,
             },
-            450,
+            { duration: 450 },
           );
         }
       }}
@@ -151,7 +155,7 @@ export function RouteMap({
       showsMyLocationButton={false}
       toolbarEnabled={false}
       loadingEnabled
-      rotateEnabled={false}
+      rotateEnabled={threeD}
     >
       {shadows?.polygons.map((polygon) => (
         <Polygon

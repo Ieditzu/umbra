@@ -111,9 +111,9 @@ export async function localShadows(
     s >= n ||
     e - w > 0.5 ||
     n - s > 0.5 ||
-    (e - w) * (n - s) > 0.04
+    (e - w) * (n - s) > 0.25
   )
-    throw new Error("Apropie harta de zona pilot din Constanța.");
+    throw new Error("Apropie harta de Constanța.");
   work.check();
   const original = clipPoly([
     [
@@ -126,7 +126,9 @@ export async function localShadows(
   ]);
   const clip = clipping.intersection(original, clipPoly(rect(data.pilot_m)));
   if (!clip.length || area(clip) < 0.01)
-    throw new OutsideCoverageError("Zona vizibilă este în afara pilotului.");
+    throw new OutsideCoverageError(
+      "Zona vizibilă este în afara acoperirii Constanța.",
+    );
   const partialCoverage = area(clip) + 0.1 < area([original]);
   const sun = solarPosition(
     at,
@@ -153,7 +155,7 @@ export async function localShadows(
   };
   if (partialCoverage)
     result.warnings.push(
-      "Harta depășește zona pilot; sunt afișate doar datele acoperite.",
+      "Harta depășește acoperirea Constanța; sunt afișate doar datele incluse.",
     );
   if (result.state !== "available") return result;
   const viewBox = bounds(
@@ -161,7 +163,15 @@ export async function localShadows(
   );
   let vertices = 0,
     skipped = 0;
-  outer: for (const b of data.buildings) {
+  const nearby = data.index.query(
+    expand(viewBox, data.maxHeight / Math.tan(rad(sun.elevation))),
+  );
+  // At city zoom, keep actual shadow geometry ahead of missing-height outlines.
+  // The existing feature budget must not be consumed entirely by neutral buildings.
+  nearby.sort(
+    (a, b) => Number(a.height.low_m === 0) - Number(b.height.low_m === 0),
+  );
+  outer: for (const b of nearby) {
     await work.checkpoint();
     const source: ShadowPolygon["source"] =
       b.height.source === "osm_height_tag"

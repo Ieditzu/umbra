@@ -17,7 +17,11 @@ go build -o bin/umbra ./cmd/umbra
 ./bin/umbra serve --addr 0.0.0.0:8000
 ```
 
-`prepare` imports a read-only Overpass extract for the explicit pilot `constanta-central-v1`. The geographic request boundary is approximately west 28.630 south 44.170 east 28.640 north 44.180. Internally the exact routing boundary is the EPSG:32635 rectangle formed by projecting the southwest and northeast corners. `/health` identifies the active pilot. This does **not** cover all of Constanța.
+By default, `prepare` retains the central reference pilot `constanta-central-v1` (approximately west 28.630 south 44.170 east 28.640 north 44.180). Exact routing boundaries now bound all four projected corners in EPSG:32635. `/health` identifies the loaded dataset. The mobile app uses a separate wider city dataset and calculates on-device without this API.
+
+For the wider city rectangle covering Constanța, Mamaia and Palazu Mare (west 28.50 south 44.075 east 28.75 north 44.355), use `prepare --city --data /separate/cache/city/dataset.json`. A separate output path prevents replacing the central reference cache. This is an extract rectangle with a margin, not an administrative-boundary polygon. Both datasets retain a 500 m building buffer and the same pedestrian-access filters. Large-city preparation indexes building footprints so it does not scan every building for every road segment.
+
+An offline OSM JSON extract can be supplied with `--extract /path/city-osm.json`. For reproducible PBF cropping and bundling, see [mobile data preparation](../mobile-data.md). This avoids repeated public Overpass requests when preparing a larger region. Source snapshot times and checksums remain in the normalized metadata. Overpass downloads are bounded to 150 MB and still have explicit timeouts with no automatic retries.
 
 Buildings are fetched with a 500 m buffer. The normalized dataset and original OSM response are stored in the OS user cache, normally `~/.cache/umbra-server/constanta-central-v1/`, outside Git. An identical preparation reuses the normalized cache; if that is missing it reuses the raw query cache. Refresh is explicit:
 

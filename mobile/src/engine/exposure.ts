@@ -1,4 +1,4 @@
-import { bounds, firstInteriorDistance, rad, unproject } from "./geometry.ts";
+import { firstInteriorDistance, rad, unproject } from "./geometry.ts";
 import type { Point } from "./geometry.ts";
 import type { Dataset } from "./data.ts";
 import type { Exposure } from "../domain/routes.ts";
@@ -17,15 +17,13 @@ export function classifyAt(
   if (!positionKnown)
     return { exposure: "unknown", reason: "road_or_grade_position" };
   const v = solarDirection(p, sun.azimuth),
-    length =
-      Math.hypot(
-        data.imported_m.east - data.imported_m.west,
-        data.imported_m.north - data.imported_m.south,
-      ) * 2;
-  const end = { x: p.x + v.x * length, y: p.y + v.y * length },
-    slope = Math.tan(rad(sun.elevation));
+    slope = Math.tan(rad(sun.elevation)),
+    length = Math.max(500, data.maxHeight / slope + 1);
+  const end = { x: p.x + v.x * length, y: p.y + v.y * length };
   let uncertain = false;
-  for (const building of data.index.query(bounds([p, end])))
+  // No known prism beyond this length can reach the ground point. Missing heights
+  // beyond the corridor still leave exposure unknown because no inventory audit exists.
+  for (const building of data.index.ray(p, end))
     for (const poly of building.geometry) {
       const entry = firstInteriorDistance(p, end, poly);
       if (entry === null) continue;

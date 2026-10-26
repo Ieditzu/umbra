@@ -2,7 +2,7 @@
 
 ## Pilot and cache
 
-The explicit pilot is a small central Constanța area around 28.630–28.640 E and 44.170–44.180 N. Routing uses its metric rectangle (see README). Buildings are imported with a 500 m metric buffer whose four corners are conservatively bounded in the geographic Overpass query. Ways use source OSM node IDs; no arbitrary geometric connections are inserted.
+The default reference pilot is a small central Constanța area around 28.630–28.640 E and 44.170–44.180 N. The separate `--city` extract covers Constanța, Mamaia and Palazu Mare within 28.50–28.75 E and 44.075–44.355 N, including a margin. Routing uses the selected area's metric rectangle (see README); bounds include all four projected corners. Buildings have a 500 m metric buffer. Ways use source OSM node IDs; no arbitrary geometric connections are inserted. The optional `--extract` import accepts a local reference-complete OSM JSON crop, with snapshot/source checksums recorded; it does not make an Overpass request.
 
 `umbra prepare` downloads public OSM elements via the read-only Overpass interpreter, not the editing API, raster map tiles, or Nominatim. It stores the raw query response plus the normalized metric JSON dataset outside Git. The dataset records:
 

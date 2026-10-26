@@ -1,34 +1,47 @@
-# Bundled mobile pilot data
+# Bundled Constanța city data
 
-`mobile/assets/data/constanta-central.json` is a real OpenStreetMap-derived database, **not a recording, prediction fixture or measured shadow map**. It is bundled so Expo Go and installed apps calculate locally without a server. Its size is approximately 2 MB. It is intentionally tracked; do not replace it with synthetic geometry to make the demo look better.
+`mobile/assets/data/constanta-city.json` holds a real OpenStreetMap-derived database in an openly decodable `umbra-gzip-json-v1` wrapper: base64-encoded gzip, approximately 7 MB packaged and 40 MB decoded. It replaces the small central pilot. It is bundled so calculation needs no server or download. It is not a recording, synthetic fixture or measured shadow map.
 
-The snapshot covers walking paths in the central-Constanța pilot (approximately longitude 28.630–28.640 and latitude 44.170–44.180) and building outlines in a 500 m buffer. Routing and rendered geometry stay within the projected pilot boundary. The geographic bounding rectangle is approximate because UTM north is rotated relative to true north.
+The city extract covers approximately 28.50–28.75 E and 44.075–44.355 N: Constanța, Mamaia, Palazu Mare and a margin. This is a rectangle, not an administrative-boundary polygon. Its metric bounds include all four projected corners in UTM 35N; buildings have a 500 m buffer. Paths can still be disconnected and OSM coverage incomplete.
 
-The manifest beside the dataset records the OSM base timestamp, import time, SHA-256 checksum and counts: 1,023 nodes, 2,428 directed edges and 4,355 building outlines. The 26 October 2026 snapshot contains 3 explicit height tags, 827 floor-count estimates, 3,516 missing heights and 9 unsupported elevated footprints in the buffered area. These are data-availability counts, not accuracy measurements. Most heights remain unavailable.
+The source snapshot is `2026-10-25T21:21:21Z`, from Geofabrik's Romania extract. The manifest records packed/raw SHA-256 checksums, source PBF checksum and import metadata. Counts: 50,071 walking nodes, 111,552 directed edges and 51,428 building outlines. Of the buildings, 271 have explicit height tags, 5,913 use floor-count estimates, 45,159 lack heights and 85 are unsupported elevated footprints. These are availability counts, not accuracy measurements. Missing heights never receive invented shadows.
 
-## License and attribution
+## License and editable source
 
-Database source: **© OpenStreetMap contributors**. The source and derived database are licensed under **Open Database License 1.0 (ODbL-1.0)**. This database license is separate from the repository's software license.
+Database: **© OpenStreetMap contributors**, licensed under **Open Database License 1.0 (ODbL-1.0)**, separately from the software license.
 
-- [OSM copyright, attribution and data access](https://www.openstreetmap.org/copyright)
-- [ODbL 1.0 license text](https://opendatacommons.org/licenses/odbl/1-0/)
+- [OSM attribution and copyright](https://www.openstreetmap.org/copyright)
+- [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/)
+- [Geofabrik Romania source](https://download.geofabrik.de/europe/romania.html)
 
-Preserve attribution when distributing the app, produced maps and exported data. The database is supplied in the editable JSON form used by the app; any distributed adapted database remains subject to the ODbL's applicable share-alike obligations. No independent completeness or field-validation claim accompanies the data. The app displays attribution in its existing map layer/results panels.
+Preserve attribution and applicable share-alike obligations when redistributing an adapted database. The app's layer/results panels display OSM attribution. The source representation is standard gzip/JSON, recoverable without proprietary tools:
+
+```python
+import base64, gzip, json
+from pathlib import Path
+packet = json.loads(Path("mobile/assets/data/constanta-city.json").read_text())
+Path("/tmp/constanta-editable.json").write_bytes(gzip.decompress(base64.b64decode(packet["payload"])))
+```
 
 ## Reproduce or update
 
-Using Go 1.24+ for developer preparation only:
+Only developers need Go 1.24+, Python 3.12 and pyosmium. Keep downloaded PBF/raw extracts outside Git. The source used here was `romania-261025.osm.pbf` from Geofabrik (about 316 MiB); its SHA-256 is in the manifest. Review the source date before intentionally updating.
+
+From the repository root, replacing `/path/cache` with a local cache directory:
 
 ```bash
+uv run --python 3.12 --with osmium==4.3.0 python scripts/extract-city.py /path/cache/romania-261025.osm.pbf /path/cache/city-osm.json
 cd server
-go run ./cmd/umbra prepare
+go run ./cmd/umbra prepare --city --extract /path/cache/city-osm.json --data /path/cache/city/dataset.json
 cd ../mobile
-node scripts/prepare-pilot.mjs /absolute/cache/path/from/prepare/dataset.json
+node scripts/prepare-city.mjs /path/cache/city/dataset.json
 npm test
 ```
 
-Preparation uses a read-only Overpass query. The exact endpoint, OSM snapshot time and query SHA-256 remain in the dataset metadata. A cached snapshot is reused unless the developer explicitly passes `prepare --refresh`. The packaging script rounds metric values to millimetres without removing geometry, changing access filters or inventing heights, and writes a manifest/checksum. Inspect the data and rerun mobile and reference tests before publishing an update. Release users do not need Go or Overpass access.
+The crop retains original node/way/relation IDs, complete selected way references, multipolygon inner rings and access/barrier tags. The Go importer retains the existing walking-access filters and excludes building-crossing links. It now indexes footprints during city preparation. A separate `--data` path protects the central reference cache. Public Overpass remains an optional preparation source; repeated failing queries are not needed to run the app.
 
-## Geometry dependency
+The packaging script rounds metric coordinates to millimetres, retains geometry and height provenance, removes unused descriptive building tags, and applies deterministic gzip/base64 packaging. It writes both packed/raw checksums and source/height counts. No heights or graph links are invented. Inspect changes and rerun software checks before publishing a new snapshot.
 
-Local polygon boolean operations use `polygon-clipping` under its [MIT license](polygon-clipping-LICENSE.md). Preserve this notice in redistribution. It has no custom native module and works with the existing Expo Go runtime. The Go reference tool separately retains its `simplefeatures` notice in `docs/backend/`.
+## Dependency notices
+
+Local geometry uses `polygon-clipping` under its [MIT license](polygon-clipping-LICENSE.md). Streaming decompression uses `fflate` under its [MIT license](fflate-LICENSE.md). Neither needs a custom native module. Preserve these notices in redistribution. The Go reference tool separately retains the `simplefeatures` notice in `docs/backend/`.
