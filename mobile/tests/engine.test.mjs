@@ -210,6 +210,68 @@ test("swept shadow goes away from the sun and excludes the building itself", () 
   assert.throws(() => castShadow(poly, 10, { elevation: 1, azimuth: 0 }));
 });
 
+test("shadow sweeps preserve courtyard gaps and concave building notches", () => {
+  const outer = rect({
+    west: p.x - 20,
+    south: p.y - 20,
+    east: p.x + 20,
+    north: p.y + 20,
+  })[0];
+  const hole = rect({
+    west: p.x - 15,
+    south: p.y - 15,
+    east: p.x + 15,
+    north: p.y + 15,
+  })[0];
+  const shapes = castShadow([outer, hole], 10, {
+    elevation: 45,
+    azimuth: 180,
+  }).map((shape) => shape.map((ring) => ring.map(([x, y]) => ({ x, y }))));
+  assert.ok(
+    shapes.some((shape) => polygonContains(shape, { x: p.x, y: p.y - 10 })),
+  );
+  assert.ok(!shapes.some((shape) => polygonContains(shape, p)));
+  const concave = [
+    [
+      [-20, -20],
+      [20, -20],
+      [20, -10],
+      [-10, -10],
+      [-10, 20],
+      [-20, 20],
+      [-20, -20],
+    ].map(([x, y]) => ({ x: p.x + x, y: p.y + y })),
+  ];
+  const notches = castShadow(concave, 10, { elevation: 45, azimuth: 0 }).map(
+    (shape) => shape.map((ring) => ring.map(([x, y]) => ({ x, y }))),
+  );
+  assert.ok(!notches.some((shape) => polygonContains(shape, p)));
+});
+
+test("running overlay work yields to timers and stops when the viewport is cancelled", async () => {
+  const raw = synthetic();
+  raw.buildings = Array.from({ length: 400 }, (_, i) => ({
+    ...roof(),
+    id: `synthetic-${i}`,
+  }));
+  const data = await initialize(raw),
+    controller = new AbortController();
+  let timerRan = false;
+  const timer = setTimeout(() => {
+    timerRan = true;
+    controller.abort();
+  }, 0);
+  try {
+    await assert.rejects(
+      localShadows(data, new Date(at).toISOString(), around, controller.signal),
+      /oprit/,
+    );
+    assert.ok(timerRan);
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
 test("local overlays change with time and preserve neutral missing-height footprints", async () => {
   const raw = synthetic();
   raw.buildings = [

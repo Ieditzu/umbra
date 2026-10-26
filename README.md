@@ -40,7 +40,7 @@ npm run export:android
 npm run export:ios
 ```
 
-Tests cover independent solar references, geometry, routing constraints, cancellation and real bundled data with network calls disabled. Exports verify JavaScript bundling, not on-device rendering; they are not installable APK/IPA files. Standalone Android builds require a restricted Google Maps key and native builds require signing; see [mobile documentation](docs/mobile-app.md).
+Tests cover independent solar references, geometry, routing constraints, cancellation and real bundled data with network calls disabled. See the [recorded software verification](docs/mobile-verification.md). Exports verify JavaScript bundling, not on-device rendering; they are not installable APK/IPA files. Standalone Android builds require a restricted Google Maps key and native builds require signing; see [mobile documentation](docs/mobile-app.md).
 
 ## Data preparation and reference backend
 
