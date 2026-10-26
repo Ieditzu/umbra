@@ -18,7 +18,42 @@
     readySent = false,
     pressTimer,
     pressPoint;
+  function putBuildings(value) {
+    // A rejected wide-view calculation must never erase already loaded geometry.
+    if (!value.features.length && value.truncated) return;
+    const previous = new Map(saved.buildings.features.map((f) => [f.id, f]));
+    const retained = new Map();
+    let vertices = 0;
+    // New viewport wins under pressure; nearby cached parts survive zoom changes.
+    for (const f of [...value.features, ...saved.buildings.features]) {
+      if (retained.has(f.id)) continue;
+      const feature = previous.get(f.id) ?? f;
+      const count =
+        feature.geometry?.coordinates?.reduce(
+          (n, ring) => n + ring.length,
+          0,
+        ) ?? 0;
+      if (retained.size >= 10000 || vertices + count > 240000) continue;
+      retained.set(f.id, feature);
+      vertices += count;
+    }
+    const add = [...retained.values()].filter((f) => !previous.has(f.id));
+    const remove = [...previous.keys()].filter((id) => !retained.has(id));
+    if (!add.length && !remove.length) return;
+    saved.buildings = {
+      type: "FeatureCollection",
+      features: [...retained.values()],
+    };
+    const source = map.getSource("umbra-buildings");
+    if (source) {
+      // Stable IDs let MapLibre keep untouched geometry instead of rebuilding it all.
+      source.updateData({ add, remove }).catch(() => {
+        source.setData(saved.buildings);
+      });
+    }
+  }
   function put(name, value) {
+    if (name === "buildings") return putBuildings(value);
     saved[name] = value;
     const source = map.getSource(`umbra-${name}`);
     if (source) source.setData(value);
@@ -255,10 +290,14 @@
         );
         for (const layer of style.layers) {
           const id = layer.id.toLowerCase();
-          if (layer.type === "background") layer.paint = { ...layer.paint, "background-color": "#f5f4ed" };
-          if (layer.type === "fill" && /water/.test(id)) layer.paint = { ...layer.paint, "fill-color": "#c7e8f0" };
-          if (layer.type === "fill" && /park|grass|wood/.test(id)) layer.paint = { ...layer.paint, "fill-color": "#dcebcf" };
-          if (layer.type === "fill" && /building/.test(id)) layer.paint = { ...layer.paint, "fill-color": "#e8e8e2" };
+          if (layer.type === "background")
+            layer.paint = { ...layer.paint, "background-color": "#f5f4ed" };
+          if (layer.type === "fill" && /water/.test(id))
+            layer.paint = { ...layer.paint, "fill-color": "#c7e8f0" };
+          if (layer.type === "fill" && /park|grass|wood/.test(id))
+            layer.paint = { ...layer.paint, "fill-color": "#dcebcf" };
+          if (layer.type === "fill" && /building/.test(id))
+            layer.paint = { ...layer.paint, "fill-color": "#e8e8e2" };
         }
         map.setStyle(style);
       } catch {

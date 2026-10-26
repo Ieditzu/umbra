@@ -1,4 +1,4 @@
-import type { RouteRequest } from "../domain/routes";
+import type { Coordinate, RouteRequest } from "../domain/routes";
 import type { Bounds, ShadowLayer } from "../domain/shadows";
 import { initializeDataset } from "../engine/data";
 import type { Dataset } from "../engine/data";
@@ -34,8 +34,12 @@ export async function calculateRoutes(
   return compareLocalRoutes(data, request, signal);
 }
 
-export async function calculateBuildings(bounds: Bounds, signal: AbortSignal) {
-  return visibleBuildings(await dataset(), bounds, signal);
+export async function calculateBuildings(
+  bounds: Bounds,
+  signal: AbortSignal,
+  focus?: Coordinate,
+) {
+  return visibleBuildings(await dataset(), bounds, signal, focus);
 }
 
 const overlays = new Map<string, ShadowLayer>();

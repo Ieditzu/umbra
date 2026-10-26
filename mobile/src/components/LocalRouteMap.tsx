@@ -39,7 +39,10 @@ export function LocalRouteMap(props: RouteMapProps) {
   }, [props]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
-  const [view, setView] = useState<Bounds>(initialBounds);
+  const [view, setView] = useState({
+    bounds: initialBounds,
+    center: { latitude: 44.175, longitude: 28.64 },
+  });
   const [foreground, setForeground] = useState(
     AppState.currentState === "active",
   );
@@ -47,7 +50,13 @@ export function LocalRouteMap(props: RouteMapProps) {
   const centered = useRef(-1);
   const framed = useRef("");
   const buildingTicket = useRef(0);
-  const boundsKey = view.map((n) => n.toFixed(4)).join(",");
+  const boundsKey = [
+    ...view.bounds,
+    view.center.longitude,
+    view.center.latitude,
+  ]
+    .map((n) => n.toFixed(5))
+    .join(",");
   const send = useCallback((message: unknown) => {
     // JSON serialization is data, never an interpolated destination label or code.
     web.current?.injectJavaScript(
@@ -64,11 +73,12 @@ export function LocalRouteMap(props: RouteMapProps) {
     if (!ready || !foreground) return;
     const controller = new AbortController(),
       ticket = ++buildingTicket.current;
+    const values = boundsKey.split(",").map(Number);
     const timer = setTimeout(() => {
-      void calculateBuildings(
-        boundsKey.split(",").map(Number) as Bounds,
-        controller.signal,
-      )
+      void calculateBuildings(values.slice(0, 4) as Bounds, controller.signal, {
+        longitude: values[4],
+        latitude: values[5],
+      })
         .then((value) => {
           if (!controller.signal.aborted && ticket === buildingTicket.current)
             send({ type: "data", name: "buildings", value });
@@ -165,7 +175,7 @@ export function LocalRouteMap(props: RouteMapProps) {
             setReady(true);
             setError("");
           } else if (message.type === "viewport") {
-            setView(message.bounds);
+            setView({ bounds: message.bounds, center: message.center });
             current.current.onBounds(message.bounds);
             nativePitch.current = message.pitch > 2;
             current.current.onThreeDChange(nativePitch.current);

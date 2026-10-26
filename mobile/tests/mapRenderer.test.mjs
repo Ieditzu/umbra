@@ -31,8 +31,24 @@ function renderer() {
     addSource(id, source) {
       this.sources[id] = {
         data: source.data,
+        replacements: 0,
+        updates: 0,
         setData(value) {
+          this.replacements++;
           this.data = value;
+        },
+        updateData(diff) {
+          this.updates++;
+          const features = new globalThis.Map(
+            this.data.features.map((f) => [f.id, f]),
+          );
+          for (const id of diff.remove ?? []) features.delete(id);
+          for (const f of diff.add ?? []) features.set(f.id, f);
+          this.data = {
+            type: "FeatureCollection",
+            features: [...features.values()],
+          };
+          return Promise.resolve();
         },
       };
     }
@@ -144,13 +160,19 @@ test("data updates and taps preserve building meshes and chosen pitch without re
     coordinate: { latitude: 44.176, longitude: 28.641 },
   });
   assert.equal(map.getPitch(), 55);
-  assert.equal(map.getSource("umbra-buildings").data, buildings);
+  assert.equal(
+    map.getSource("umbra-buildings").data.features[0].id,
+    "synthetic-building",
+  );
   assert.equal(instances.length, 1);
   // A basemap style load must restore cached local geometry too.
   map.sources = {};
   map.layers = {};
   map.emit("style.load");
-  assert.equal(map.getSource("umbra-buildings").data, buildings);
+  assert.equal(
+    map.getSource("umbra-buildings").data.features[0].id,
+    "synthetic-building",
+  );
   bridge.receive({
     type: "frame",
     coordinates: [
@@ -185,4 +207,49 @@ test("compass updates do not rotate recenter or recreate the map", () => {
   map.layers = {};
   map.emit("style.load");
   assert.equal(map.getSource("umbra-heading").data, heading);
+});
+
+test("zoom viewport replacements retain loaded buildings and skip identical source rebuilds", () => {
+  const { bridge, map } = renderer();
+  const send = (ids, truncated = false) =>
+    bridge.receive({
+      type: "data",
+      name: "buildings",
+      value: {
+        type: "FeatureCollection",
+        features: ids.map((id) => ({ id })),
+        truncated,
+      },
+    });
+  send(["a", "b"]);
+  const source = map.getSource("umbra-buildings");
+  send(["a", "c"]);
+  assert.equal(source.data.features.length, 3);
+  assert.ok(source.data.features.some((f) => f.id === "b"));
+  const updates = source.updates;
+  send(["a", "c"]);
+  send([], true);
+  assert.equal(source.updates, updates);
+  assert.equal(source.replacements, 0);
+  assert.equal(map.getSource("umbra-buildings"), source);
+  map.sources = {};
+  map.layers = {};
+  map.emit("style.load");
+  assert.equal(map.getSource("umbra-buildings").data.features.length, 3);
+});
+
+test("retained building geometry stays bounded while giving the new viewport priority", () => {
+  const { bridge, map } = renderer();
+  const send = (ids) =>
+    bridge.receive({
+      type: "data",
+      name: "buildings",
+      value: { type: "FeatureCollection", features: ids.map((id) => ({ id })) },
+    });
+  send(Array.from({ length: 10000 }, (_, i) => `old-${i}`));
+  send(["new"]);
+  const source = map.getSource("umbra-buildings");
+  assert.equal(source.data.features.length, 10000);
+  assert.ok(source.data.features.some((f) => f.id === "new"));
+  assert.equal(source.replacements, 0);
 });

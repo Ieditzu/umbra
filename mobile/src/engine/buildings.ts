@@ -1,4 +1,6 @@
 import type { Bounds } from "../domain/shadows.ts";
+import { isCoordinate } from "../domain/routes.ts";
+import type { Coordinate } from "../domain/routes.ts";
 import type { Dataset } from "./data.ts";
 import { bounds, expand, project, unproject } from "./geometry.ts";
 import { task } from "./task.ts";
@@ -8,7 +10,11 @@ export type BuildingFeatures = {
   features: {
     type: "Feature";
     id: string;
-    properties: { height: number; height_source: string; display_height: number };
+    properties: {
+      height: number;
+      height_source: string;
+      display_height: number;
+    };
     geometry: { type: "Polygon"; coordinates: [number, number][][] };
   }[];
   truncated: boolean;
@@ -19,6 +25,7 @@ export async function visibleBuildings(
   data: Dataset,
   view: Bounds,
   signal: AbortSignal,
+  focus?: Coordinate,
 ): Promise<BuildingFeatures> {
   const work = task(signal, 10000);
   const [w, s, e, n] = view;
@@ -30,27 +37,57 @@ export async function visibleBuildings(
     w < -180 ||
     e > 180 ||
     s < -80 ||
-    n > 84 ||
-    e - w > 0.5 ||
-    n - s > 0.5
+    n > 84
   )
     return { type: "FeatureCollection", features: [], truncated: true };
+  // Clip wide/horizon views before projecting: zooming out must not clear the city.
+  const area = data.imported_m;
+  const corners = [
+    unproject({ x: area.west, y: area.south }),
+    unproject({ x: area.west, y: area.north }),
+    unproject({ x: area.east, y: area.south }),
+    unproject({ x: area.east, y: area.north }),
+  ];
+  const left = Math.max(
+    w,
+    Math.min(...corners.map((p) => p.longitude)) - 0.005,
+  );
+  const right = Math.min(
+    e,
+    Math.max(...corners.map((p) => p.longitude)) + 0.005,
+  );
+  const bottom = Math.max(
+    s,
+    Math.min(...corners.map((p) => p.latitude)) - 0.005,
+  );
+  const top = Math.min(n, Math.max(...corners.map((p) => p.latitude)) + 0.005);
+  if (left >= right || bottom >= top)
+    return { type: "FeatureCollection", features: [], truncated: false };
   const box = expand(
     bounds([
-      project({ latitude: s, longitude: w }),
-      project({ latitude: s, longitude: e }),
-      project({ latitude: n, longitude: w }),
-      project({ latitude: n, longitude: e }),
+      project({ latitude: bottom, longitude: left }),
+      project({ latitude: bottom, longitude: right }),
+      project({ latitude: top, longitude: left }),
+      project({ latitude: top, longitude: right }),
     ]),
-    100,
+    300,
   );
-  const center = project({ latitude: (s + n) / 2, longitude: (w + e) / 2 });
+  const center = project(
+    focus && isCoordinate(focus)
+      ? focus
+      : {
+          latitude: (bottom + top) / 2,
+          longitude: (left + right) / 2,
+        },
+  );
   // A wide tilted viewport must not spend its entire budget on distant tall blocks.
   const distance = (b: Dataset["buildings"][number]) => {
     const p = b.geometry[0][0][0];
     return (p.x - center.x) ** 2 + (p.y - center.y) ** 2;
   };
-  const nearby = data.index.query(box).sort((a, b) => distance(a) - distance(b));
+  const nearby = data.index
+    .query(box)
+    .sort((a, b) => distance(a) - distance(b));
   const result: BuildingFeatures = {
     type: "FeatureCollection",
     features: [],

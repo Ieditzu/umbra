@@ -63,3 +63,9 @@ The additional checks cover compass quality, true/magnetic heading selection, sm
 Routing regression cases now cover two interior points on a long street in either direction, a bent polyline, preserved one-way restrictions, unchanged shared graph state, a nearby accessible segment beyond a blocked connector, an address inside its own building with an unverified-entry warning, and endpoints more than 75 m from the graph. The earlier disconnected/building-blocked fixtures were adjusted so they remain disconnected/blocked under segment attachment, rather than only under the previous nearest-node implementation. These tests do not verify pedestrian access on site.
 
 All 55 Node tests, TypeScript checking and Expo lint pass for the combined update. Both iOS and Android Metro/Hermes exports succeed. Physical compass alignment and field access remain unverified.
+
+## Building continuity during zoom
+
+The zoom update passes all 58 Node tests, TypeScript checking, lint and both Metro/Hermes exports. Regression checks cover partial viewport replacements retaining previous geometry, identical-result updates doing no source work, empty truncated results preserving buildings, bounded cache eviction favoring incoming geometry, camera-center prioritization, and views wider than half a degree retaining local data.
+
+With the 300 m loading margin, the real-data browser preview loaded 4,011 building polygon parts. Five zoom changes (18 → 15 → 17 → 13 → 18) with repeated partial viewport payloads retained all 4,011 parts and the same source, with zero full replacements or redundant diff calls. A subsequent empty truncated payload also retained the geometry. No browser errors were reported. This checks the embedded renderer in Chromium; physical iPhone zoom/gesture stability remains a device check. Detail is still bounded by the documented geometry/cache limits.

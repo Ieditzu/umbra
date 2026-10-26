@@ -109,6 +109,26 @@ test("3D geometry is bounded independently of city size", async () => {
   assert.equal(result.truncated, true);
   assert.ok(!result.features.some((f) => f.id === "synthetic-0-0"));
   assert.ok(result.features.some((f) => f.id === "synthetic-6000-0"));
+  const focused = await visibleBuildings(
+    await initializeDataset(raw, task(signal())),
+    view,
+    signal(),
+    { ...coordinate, longitude: coordinate.longitude + 0.003 },
+  );
+  assert.ok(focused.features.some((f) => f.id === "synthetic-0-0"));
+});
+
+test("zooming out beyond half a degree does not erase the local city geometry", async () => {
+  const data = await initializeDataset(rawData(), task(signal()));
+  const result = await visibleBuildings(
+    data,
+    [28, 43, 29, 45],
+    signal(),
+    coordinate,
+  );
+  assert.equal(result.features.length, 4);
+  const outside = await visibleBuildings(data, [27, 43, 27.1, 43.1], signal());
+  assert.equal(outside.features.length, 0);
 });
 
 test("embedded renderer messages reject invalid coordinates and unexpected operations", () => {
