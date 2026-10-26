@@ -16,7 +16,7 @@ import {
   locationFeatures,
   headingFeatures,
 } from "../domain/localMap";
-import { routeCoordinates } from "../domain/routes";
+import { distanceBetween, routeCoordinates } from "../domain/routes";
 import type { Bounds } from "../domain/shadows";
 import { calculateBuildings } from "../services/calculations";
 import { LOCAL_MAP_HTML } from "../generated/localMapHtml";
@@ -151,7 +151,13 @@ export function LocalRouteMap(props: RouteMapProps) {
     framed.current = key;
     const points = props.route
       ? routeCoordinates(props.route)
-      : [current.current.fix, destination].filter((p) => p !== null);
+      : [
+          current.current.fix &&
+          distanceBetween(current.current.fix, destination) <= 20000
+            ? current.current.fix
+            : null,
+          destination,
+        ].filter((p) => p !== null);
     send({
       type: "frame",
       coordinates: points.map((p) => [p.longitude, p.latitude]),
@@ -182,7 +188,7 @@ export function LocalRouteMap(props: RouteMapProps) {
             send({ type: "tilt", value: current.current.threeD });
           } else if (message.type === "viewport") {
             setView({ bounds: message.bounds, center: message.center });
-            current.current.onBounds(message.bounds);
+            current.current.onBounds(message.bounds, message.center);
             const tilted = message.pitch > 2;
             if (!pitchInitialized.current && tilted !== current.current.threeD)
               return;

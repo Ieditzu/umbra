@@ -57,6 +57,15 @@
     saved[name] = value;
     const source = map.getSource(`umbra-${name}`);
     if (source) source.setData(value);
+    if (name === "shadows" && value.sun) applySun();
+  }
+  function applySun() {
+    const sun = saved.shadows.sun;
+    map.setLight({
+      anchor: "map",
+      position: sun ? [1.5, sun.azimuth, 90 - sun.elevation] : [1.5, 210, 45],
+      intensity: sun && sun.elevation < 0 ? 0.08 : 0.32,
+    });
   }
   function viewport() {
     const box = map.getBounds(),
@@ -83,7 +92,24 @@
           id: "umbra-shadows",
           type: "fill",
           source: "umbra-shadows",
-          paint: { "fill-color": "#182b3c", "fill-opacity": 0.34 },
+          paint: {
+            "fill-color": [
+              "match",
+              ["get", "source"],
+              "display_estimate",
+              "#456d88",
+              "#182b3c",
+            ],
+            "fill-opacity": [
+              "match",
+              ["get", "source"],
+              "display_estimate",
+              0.18,
+              "levels_estimate",
+              0.26,
+              0.34,
+            ],
+          },
         },
         before,
       );
@@ -168,7 +194,7 @@
           "circle-stroke-color": "#fff",
         },
       });
-    map.setLight({ anchor: "map", position: [1.5, 210, 45], intensity: 0.32 });
+    applySun();
     if (!readySent) {
       readySent = true;
       send({ type: "ready" });

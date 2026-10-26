@@ -39,9 +39,16 @@ export async function calculateShadows(
   at: string,
   bounds: Bounds,
   signal: AbortSignal,
+  includeEstimates = true,
+  focus?: Coordinate,
 ) {
   return parseShadowLayer(
-    await requestCalculation(base(), "/v1/shadows", { at, bounds }, signal),
+    await requestCalculation(
+      base(),
+      "/v1/shadows",
+      { at, bounds, focus, include_estimates: includeEstimates },
+      signal,
+    ),
     at,
   );
 }

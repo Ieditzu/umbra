@@ -70,7 +70,18 @@ export async function requestCalculation(
         "Serverul de calcul răspunde prea greu. Reîncearcă.",
         "timeout",
       );
-    if (error instanceof CalculationError) throw error;
+    if (error instanceof CalculationError) {
+      if (
+        error.status === 422 &&
+        error.message.includes("Câmpuri de cerere necunoscute")
+      )
+        throw new CalculationError(
+          "Repornește serverul de pe PC: Ctrl+C apoi npm start.",
+          "restart_required",
+          409,
+        );
+      throw error;
+    }
     throw new CalculationError(
       "Serverul de calcul nu răspunde. Verifică dacă npm start rulează pe PC și conexiunea la rețea.",
     );

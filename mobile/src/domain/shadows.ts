@@ -4,7 +4,7 @@ import type { Coordinate } from "./routes.ts";
 export type Bounds = [number, number, number, number];
 export type ShadowPolygon = {
   id: string;
-  source: "osm_height" | "levels_estimate" | "unknown";
+  source: "osm_height" | "levels_estimate" | "display_estimate" | "unknown";
   coordinates: Coordinate[];
   holes: Coordinate[][];
 };
@@ -16,6 +16,7 @@ export type ShadowLayer = {
   warnings: string[];
   truncated: boolean;
   partialCoverage: boolean;
+  sun?: { elevation: number; azimuth: number; location: Coordinate };
 };
 
 /** Keep overlapping geometry during a viewport refresh, never for another instant. */
@@ -67,7 +68,12 @@ export function parseShadowLayer(raw: unknown, instant: string): ShadowLayer {
     if (
       !geometry ||
       geometry.type !== "Polygon" ||
-      !["osm_height", "levels_estimate", "unknown"].includes(source ?? "") ||
+      ![
+        "osm_height",
+        "levels_estimate",
+        "display_estimate",
+        "unknown",
+      ].includes(source ?? "") ||
       !Array.isArray(geometry.coordinates) ||
       !geometry.coordinates.length
     )
@@ -109,6 +115,18 @@ export function parseShadowLayer(raw: unknown, instant: string): ShadowLayer {
     !data.warnings.every((item) => typeof item === "string")
   )
     throw new Error("Lipsește sursa umbrelor.");
+  const sun = data.sun as ShadowLayer["sun"];
+  if (
+    sun &&
+    (!Number.isFinite(sun.elevation) ||
+      sun.elevation < -90 ||
+      sun.elevation > 90 ||
+      !Number.isFinite(sun.azimuth) ||
+      sun.azimuth < 0 ||
+      sun.azimuth >= 360 ||
+      !isCoordinate(sun.location))
+  )
+    throw new Error("Poziție solară invalidă.");
   return {
     at: data.at,
     state: data.state as ShadowLayer["state"],
@@ -117,5 +135,6 @@ export function parseShadowLayer(raw: unknown, instant: string): ShadowLayer {
     warnings: data.warnings as string[],
     truncated: data.truncated === true,
     partialCoverage: data.partial_coverage === true,
+    ...(sun ? { sun } : {}),
   };
 }

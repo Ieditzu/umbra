@@ -606,3 +606,47 @@ test("bundled real OSM city works offline across neighbourhoods without any fetc
     globalThis.fetch = originalFetch;
   }
 });
+
+test("optional map-only shadows use 6 m missing-height volumes and report Sun at the camera without changing source heights", async () => {
+  const raw = synthetic();
+  raw.buildings = [roof({})];
+  const data = await initialize(raw);
+  const focus = unproject({ x: p.x + 10, y: p.y + 10 });
+  const plain = await localShadows(
+    data,
+    new Date(at).toISOString(),
+    around,
+    signal(),
+    { includeNeutralFootprints: false, focus },
+  );
+  const estimated = await localShadows(
+    data,
+    new Date(at).toISOString(),
+    around,
+    signal(),
+    { displayEstimates: true, includeNeutralFootprints: false, focus },
+  );
+  assert.equal(plain.polygons.length, 0);
+  assert.ok(estimated.polygons.some((p) => p.source === "display_estimate"));
+  assert.deepEqual(estimated.sun.location, focus);
+  assert.ok(estimated.sun.elevation > 0);
+  assert.equal(data.buildings[0].height.low_m, 0);
+  const later = await localShadows(
+    data,
+    "2026-06-21T14:00:00Z",
+    around,
+    signal(),
+    { displayEstimates: true, focus },
+  );
+  assert.notDeepEqual(estimated.polygons, later.polygons);
+  assert.notEqual(estimated.sun.azimuth, later.sun.azimuth);
+  const night = await localShadows(
+    data,
+    "2026-06-21T21:00:00Z",
+    around,
+    signal(),
+    { displayEstimates: true, focus },
+  );
+  assert.equal(night.polygons.length, 0);
+  assert.ok(night.sun.elevation < 0);
+});

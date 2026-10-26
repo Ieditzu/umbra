@@ -1,11 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppState } from "react-native";
 import { calculateShadows } from "../services/calculations";
 import { CalculationError } from "../services/calculationClient";
+import type { Coordinate } from "../domain/routes";
 import type { Bounds, ShadowLayer } from "../domain/shadows";
 import { visibleShadowLayer } from "../domain/shadows";
 
-export function useShadowLayer(at: string, bounds: Bounds, enabled: boolean) {
+export function useShadowLayer(
+  at: string,
+  bounds: Bounds,
+  enabled: boolean,
+  includeEstimates = true,
+  focus?: Coordinate,
+) {
   const [result, setResult] = useState<{
     layer: ShadowLayer | null;
     status: string;
@@ -22,7 +29,10 @@ export function useShadowLayer(at: string, bounds: Bounds, enabled: boolean) {
     return () => sub.remove();
   }, []);
   const key = bounds.map((value) => value.toFixed(4)).join(",");
-  const requestKey = `${at}|${key}`;
+  const focusKey = focus
+    ? `${focus.latitude.toFixed(4)},${focus.longitude.toFixed(4)}`
+    : "";
+  const requestKey = `${at}|${key}|${includeEstimates}|${focusKey}`;
   useEffect(() => {
     if (!enabled || !foreground) return;
     const controller = new AbortController();
@@ -50,6 +60,13 @@ export function useShadowLayer(at: string, bounds: Bounds, enabled: boolean) {
             at,
             key.split(",").map(Number) as Bounds,
             controller.signal,
+            includeEstimates,
+            focusKey
+              ? {
+                  latitude: Number(focusKey.split(",")[0]),
+                  longitude: Number(focusKey.split(",")[1]),
+                }
+              : undefined,
           );
           if (!controller.signal.aborted && active)
             setResult({
@@ -65,7 +82,10 @@ export function useShadowLayer(at: string, bounds: Bounds, enabled: boolean) {
               status:
                 error instanceof CalculationError && error.code === "outside"
                   ? "outside"
-                  : "unavailable",
+                  : error instanceof CalculationError &&
+                      error.code === "restart_required"
+                    ? "server_restart"
+                    : "unavailable",
               key: requestKey,
               bounds: null,
             });
@@ -81,15 +101,26 @@ export function useShadowLayer(at: string, bounds: Bounds, enabled: boolean) {
       clearTimeout(timer);
       clearTimeout(timeout);
     };
-  }, [at, key, requestKey, enabled, foreground]);
-  return {
-    layer: visibleShadowLayer(
+  }, [at, key, requestKey, enabled, foreground, includeEstimates, focusKey]);
+  const layer = useMemo(() => {
+    const visible = visibleShadowLayer(
       result,
       at,
       key.split(",").map(Number) as Bounds,
       enabled,
       foreground,
-    ),
+    );
+    return visible && !includeEstimates
+      ? {
+          ...visible,
+          polygons: visible.polygons.filter(
+            (p) => p.source !== "display_estimate",
+          ),
+        }
+      : visible;
+  }, [result, at, key, enabled, foreground, includeEstimates]);
+  return {
+    layer,
     status: !enabled
       ? "off"
       : !foreground

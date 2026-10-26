@@ -6,6 +6,7 @@ export type AppPreferences = Settings & {
   mapStyle: MapStyle;
   threeD: boolean;
   showShadows: boolean;
+  estimatedShadows: boolean;
   departureAt: string | null;
 };
 export const DEFAULT_PREFERENCES: AppPreferences = {
@@ -13,6 +14,7 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   mapStyle: "map",
   threeD: false,
   showShadows: true,
+  estimatedShadows: true,
   departureAt: null,
 };
 
@@ -40,6 +42,10 @@ export function restorePreferences(
     threeD: typeof value.threeD === "boolean" ? value.threeD : false,
     showShadows:
       typeof value.showShadows === "boolean" ? value.showShadows : true,
+    estimatedShadows:
+      typeof value.estimatedShadows === "boolean"
+        ? value.estimatedShadows
+        : true,
     departureAt:
       Number.isFinite(at) && year >= 2000 && year <= 2100
         ? new Date(at).toISOString()
@@ -54,6 +60,7 @@ export function serializePreferences(value: AppPreferences): string {
     mapStyle: value.mapStyle,
     threeD: value.threeD,
     showShadows: value.showShadows,
+    estimatedShadows: value.estimatedShadows,
     departureAt: value.departureAt,
   });
 }

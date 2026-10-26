@@ -53,9 +53,7 @@ export function PlaceSearch({
           );
       }
       if (ticket !== operation.current.value) return;
-      const addresses = await Location.geocodeAsync(
-        `${query.trim()}, Constanța, România`,
-      );
+      const addresses = await Location.geocodeAsync(`${query.trim()}, România`);
       if (ticket !== operation.current.value) return;
       const places = addresses
         .filter(isCoordinate)

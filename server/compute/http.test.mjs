@@ -35,7 +35,16 @@ test("HTTP validates input compresses output and only caches static viewport res
     },
     close: async () => {},
   };
-  const app = createComputeServer({ pool }),
+  const app = createComputeServer({
+      pool,
+      regions: {
+        load: async (selection) => ({
+          key: selection.key,
+          tiles: [],
+          bounds: [28, 44, 29, 45],
+        }),
+      },
+    }),
     base = await listen(app.server);
   t.after(() => app.close());
   assert.equal(
@@ -145,6 +154,22 @@ test(
       at,
     );
     assert.ok(shadows.polygons.length > 0);
+    assert.ok(shadows.polygons.some((p) => p.source === "display_estimate"));
+    assert.ok(shadows.sun.elevation > 0);
+    const measuredOnly = parseShadowLayer(
+      await (
+        await post(base, "/v1/shadows", {
+          bounds,
+          at,
+          include_estimates: false,
+        })
+      ).json(),
+      at,
+    );
+    assert.ok(
+      !measuredOnly.polygons.some((p) => p.source === "display_estimate"),
+    );
+    assert.ok(measuredOnly.polygons.length < shadows.polygons.length);
     const outside = await post(base, "/v1/shadows", {
       bounds: [27, 43, 27.001, 43.001],
       at,

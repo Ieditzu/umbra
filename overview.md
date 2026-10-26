@@ -27,3 +27,6 @@ Am compara traseele recomandate cu cele mai scurte trasee și am verifica pe ter
 ## Arhitectura curentă pentru testare
 
 Calculele rulează pe PC: serverul Node încarcă datele pentru Constanța în worker threads și livrează traseele, umbrele și geometria clădirilor. Telefonul afișează harta și citește GPS-ul/busola. Comanda `npm --prefix mobile start -- --clear` pornește serverul și Expo; aplicația găsește automat API-ul prin conexiunea Expo. PC-ul trebuie să rămână pornit. Coordonatele, ora și zona vizibilă sunt trimise pentru calcul fără salvare pe disc. Randarea 3D rămâne pe telefon; performanța pe dispozitive reale necesită măsurare.
+
+
+Harta clădirilor și umbrele solare sunt extinse la România prin regiuni OpenFreeMap încărcate la cerere pe PC, cu prioritate de verificare pentru București. Înălțimile de randare sau ipoteza de 6 m pot produce umbre orientative afișate distinct; nu sunt măsurători și nu modifică evaluarea expunerii pe traseu. Rutarea păstrează deocamdată graful pietonal pregătit pentru Constanța. Nu se pretinde un model național complet descărcat sau validare în teren.

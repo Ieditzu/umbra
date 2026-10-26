@@ -12,7 +12,7 @@ This starts the Node calculation backend and Metro. Alternatively, run `npm --pr
 
 `server/mobile-api.mjs` binds **127.0.0.1:8000**. `mobile/metro.config.js` wraps Metro with `scripts/api-proxy.cjs`; only health, routes, shadows and buildings are forwarded through `/umbra-api`. The app derives this origin from Expo's `hostUri`, with HTTPS for Expo tunnel hosts. The optional developer environment variable `EXPO_PUBLIC_API_URL` overrides it for a future hosted deployment; no URL is entered through the app UI. An internal port override must be supplied to both processes, or once to the combined launcher: `UMBRA_COMPUTE_PORT=8001 npm --prefix mobile start`.
 
-The combined launcher detects an existing compatible backend, refuses an incompatible service on the same port, and stops its owned backend/Metro children on exit. An independently started compatible backend is reused, not owned. It must be restarted after editing backend/engine files. Metro code reloads do not restart the backend.
+The combined launcher detects an existing compatible backend, refuses an incompatible service on the same port, and stops its owned backend/Metro children on exit. An independently started compatible backend is reused, not owned. The combined launcher watches server/shared-engine sources and restarts its owned backend while leaving Metro running. A separately started backend still needs a manual restart after edits. Health capabilities detect an incompatible old service instead of silently reusing it.
 
 ## Calculation path
 
@@ -26,7 +26,7 @@ Request JSON is limited to 16 KiB; unexpected fields, malformed bounds and inval
 | --- | --- | --- |
 | `GET /health` | none | service identity, schema and readiness |
 | `POST /v1/routes/compare` | existing schema-1 route request | validated route comparison, `server/...` method |
-| `POST /v1/shadows` | `{at, bounds}` | GeoJSON accepted by `parseShadowLayer` |
+| `POST /v1/shadows` | `{at, bounds, focus?, include_estimates?}` | GeoJSON accepted by `parseShadowLayer` |
 | `POST /v1/buildings` | `{bounds, focus?}` | building GeoJSON with source and display heights |
 
 Bounds are WGS84 `[west,south,east,north]`. Routes validate actual departure instants. Shadow inspection supports historical times. Building requests return up to 2,500 parts / 70,000 vertices with 150 m preloading and camera-center priority. Display coordinates are rounded to six decimal degrees (~11 cm latitude precision); this is not a claim of source accuracy. Missing heights remain zero in the engine with separate display-only placeholders.
@@ -49,3 +49,14 @@ npm --prefix mobile run lint
 ```
 
 HTTP tests cover gzip, validation, cache boundaries, proxy routing, unavailable backends, worker cancellation and real-data building/shadow/route results. Phone permissions, compass orientation, network changes and frame rate still need physical-device checks.
+
+
+## Regional building coverage and Sun
+
+Outside the bundled Constanța coverage, the HTTP layer selects a zoom-14 3×3 tile window around the camera inside a broad Romania envelope (20.2–30° E, 43.5–48.4° N). This rectangle also includes some border surroundings; it is not an administrative boundary. OpenFreeMap's public TileJSON supplies the current tile snapshot. Requests use a project User-Agent, at most four concurrent downloads, 4 MB per tile and 12 MB per window. Shared in-flight requests and a bounded 32-tile / 16 MB cache avoid repeated downloads. No full-country download occurs and no regional data are written to disk.
+
+Workers use `@mapbox/vector-tile` and `pbf` to decode only building polygons. Tile buffers are clipped to exact tile edges, corresponding pieces are joined, courtyards retained, and component geometry receives stable hashed IDs. Each worker caches three decoded regions. Empty graph arrays are explicitly allowed only for building-map datasets; these data never become a walking graph. Current walking routes remain on the prepared Constanța graph.
+
+Render heights remain separate from source heights: `umbra:render_height` is a display hint, while the building's evidence height stays unknown. Optional lighter `display_estimate` shadow polygons use that hint or 6 m; they do not feed route scoring. Source-supported heights and floor estimates retain their categories. Elevated/roof-only structures are excluded from assumed solid-ground shadows. Sun elevation and azimuth are computed at the camera focus (or covered viewport center) and selected UTC instant, returned as metadata, and drive iOS 3D lighting too. Night/low-Sun limits remain in force. The bounded tile window and fixed UTM-35N flat-ground projection are approximation limits across Romania, particularly toward its west; no surveyed accuracy is claimed.
+
+Regional data attribution is included in responses and map credits. Dependencies are installed with the mobile project, including Node-only decoder dev dependencies; `npm --prefix mobile ci` installs everything for PC testing. The OpenFreeMap service needs network access and has no availability guarantee. See its [terms](https://openfreemap.org/) and [decoder source](https://github.com/mapbox/vector-tile-js).

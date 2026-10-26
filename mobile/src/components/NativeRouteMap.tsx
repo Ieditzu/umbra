@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import MapView, { Circle, Marker, Polygon, Polyline } from "react-native-maps";
 import type { Region } from "react-native-maps";
-import { CONSTANȚA, routeCoordinates } from "../domain/routes";
+import { CONSTANȚA, distanceBetween, routeCoordinates } from "../domain/routes";
 import type { Coordinate, WalkingRoute } from "../domain/routes";
 import type { Bounds, ShadowLayer } from "../domain/shadows";
 import { headingCone } from "../domain/heading";
@@ -22,13 +22,19 @@ function shadowElements(shadows: ShadowLayer | null) {
       fillColor={
         polygon.source === "unknown"
           ? "#8795940C"
-          : polygon.source === "levels_estimate"
-            ? "#2539493B"
-            : "#1D2B3D70"
+          : polygon.source === "display_estimate"
+            ? "#456D8833"
+            : polygon.source === "levels_estimate"
+              ? "#2539493B"
+              : "#1D2B3D70"
       }
       strokeColor={polygon.source === "unknown" ? "#8A94988A" : "#23374728"}
       strokeWidth={polygon.source === "unknown" ? 1 : 0.3}
-      lineDashPattern={polygon.source === "unknown" ? [3, 4] : undefined}
+      lineDashPattern={
+        polygon.source === "unknown" || polygon.source === "display_estimate"
+          ? [3, 4]
+          : undefined
+      }
       zIndex={1}
     />
   ));
@@ -58,7 +64,7 @@ export function RouteMap({
   recenter: number;
   onPan: () => void;
   onPick: (point: Coordinate) => void;
-  onBounds: (bounds: Bounds) => void;
+  onBounds: (bounds: Bounds, focus?: Coordinate) => void;
   mapStyle: MapStyle;
   threeD: boolean;
   onThreeDChange: (value: boolean) => void;
@@ -104,7 +110,11 @@ export function RouteMap({
   useEffect(() => {
     if (!destination || !ready.current) return;
     const points: Coordinate[] = [destination.coordinate];
-    if (currentFix.current) points.unshift(currentFix.current);
+    if (
+      currentFix.current &&
+      distanceBetween(currentFix.current, destination.coordinate) <= 20000
+    )
+      points.unshift(currentFix.current);
     if (points.length > 1) {
       restorePitch.current = pitch.current;
       map.current?.fitToCoordinates(points, {
@@ -162,12 +172,15 @@ export function RouteMap({
     if (!route) fitted.current = "";
   }, [route, destination]);
   function bounds(region: Region) {
-    onBounds([
-      region.longitude - region.longitudeDelta / 2,
-      region.latitude - region.latitudeDelta / 2,
-      region.longitude + region.longitudeDelta / 2,
-      region.latitude + region.latitudeDelta / 2,
-    ]);
+    onBounds(
+      [
+        region.longitude - region.longitudeDelta / 2,
+        region.latitude - region.latitudeDelta / 2,
+        region.longitude + region.longitudeDelta / 2,
+        region.latitude + region.latitudeDelta / 2,
+      ],
+      { latitude: region.latitude, longitude: region.longitude },
+    );
     if (!manualGesture.current && restorePitch.current === null) return;
     const fromGesture = manualGesture.current;
     const wantedPitch = restorePitch.current;
@@ -201,112 +214,136 @@ export function RouteMap({
     onPan();
   }
   return (
-    <MapView
-      ref={map}
-      style={StyleSheet.absoluteFill}
-      initialRegion={CONSTANȚA}
-      onMapReady={() => {
-        if (ready.current) return;
-        ready.current = true;
-        pitch.current = threeD ? 55 : 0;
-        appliedThreeD.current = threeD;
-        setMapReady(true);
-        const point = currentFix.current;
-        if (point) {
-          positioned.current = true;
-          map.current?.animateCamera(
-            {
-              center: { latitude: point.latitude, longitude: point.longitude },
-              zoom: 16,
-              altitude: 900,
-              pitch: pitch.current,
-            },
-            { duration: 450 },
-          );
-        } else if (threeD) {
-          map.current?.animateCamera(
-            { pitch: 55, zoom: 16, altitude: 900 },
-            { duration: 450 },
-          );
-        }
-      }}
-      onRegionChangeComplete={bounds}
-      onPanDrag={beginGesture}
-      onTouchStart={(event) => {
-        if (event.nativeEvent.touches.length >= 2) beginGesture();
-      }}
-      onLongPress={(event) => onPick(event.nativeEvent.coordinate)}
-      mapType={nativeMapType(mapStyle, Platform.OS)}
-      showsBuildings
-      pitchEnabled
-      showsCompass={false}
-      showsScale={false}
-      showsMyLocationButton={false}
-      toolbarEnabled={false}
-      loadingEnabled
-      rotateEnabled
-    >
-      {polygons}
-      {route?.segments.map((segment, index) => (
-        <Polyline
-          key={`${route.id}-${index}`}
-          coordinates={segment.coordinates}
-          strokeColor={
-            segment.exposure === "shade"
-              ? colors.green
-              : segment.exposure === "sun"
-                ? colors.sun
-                : colors.unknown
+    <>
+      <MapView
+        ref={map}
+        style={StyleSheet.absoluteFill}
+        initialRegion={CONSTANȚA}
+        onMapReady={() => {
+          if (ready.current) return;
+          ready.current = true;
+          pitch.current = threeD ? 55 : 0;
+          appliedThreeD.current = threeD;
+          setMapReady(true);
+          const point = currentFix.current;
+          if (point) {
+            positioned.current = true;
+            map.current?.animateCamera(
+              {
+                center: {
+                  latitude: point.latitude,
+                  longitude: point.longitude,
+                },
+                zoom: 16,
+                altitude: 900,
+                pitch: pitch.current,
+              },
+              { duration: 450 },
+            );
+          } else if (threeD) {
+            map.current?.animateCamera(
+              { pitch: 55, zoom: 16, altitude: 900 },
+              { duration: 450 },
+            );
           }
-          strokeWidth={6}
-          zIndex={4}
-          lineDashPattern={segment.exposure === "unknown" ? [6, 5] : undefined}
-        />
-      ))}
-      {fix && (
-        <>
-          <Circle
-            center={fix}
-            radius={Math.min(fix.accuracy, 250)}
-            fillColor="#4285F414"
-            strokeColor="#4285F42C"
-            strokeWidth={1}
+        }}
+        onRegionChangeComplete={bounds}
+        onPanDrag={beginGesture}
+        onTouchStart={(event) => {
+          if (event.nativeEvent.touches.length >= 2) beginGesture();
+        }}
+        onLongPress={(event) => onPick(event.nativeEvent.coordinate)}
+        mapType={nativeMapType(mapStyle, Platform.OS)}
+        showsBuildings
+        pitchEnabled
+        showsCompass={false}
+        showsScale={false}
+        showsMyLocationButton={false}
+        toolbarEnabled={false}
+        loadingEnabled
+        rotateEnabled
+      >
+        {polygons}
+        {route?.segments.map((segment, index) => (
+          <Polyline
+            key={`${route.id}-${index}`}
+            coordinates={segment.coordinates}
+            strokeColor={
+              segment.exposure === "shade"
+                ? colors.green
+                : segment.exposure === "sun"
+                  ? colors.sun
+                  : colors.unknown
+            }
+            strokeWidth={6}
+            zIndex={4}
+            lineDashPattern={
+              segment.exposure === "unknown" ? [6, 5] : undefined
+            }
           />
-          {heading && (
-            <Polygon
-              coordinates={headingCone(fix, heading.degrees)}
-              fillColor="#4285F445"
-              strokeColor="#4285F47A"
+        ))}
+        {fix && (
+          <>
+            <Circle
+              center={fix}
+              radius={Math.min(fix.accuracy, 250)}
+              fillColor="#4285F414"
+              strokeColor="#4285F42C"
               strokeWidth={1}
-              zIndex={7}
             />
-          )}
+            {heading && (
+              <Polygon
+                coordinates={headingCone(fix, heading.degrees)}
+                fillColor="#4285F445"
+                strokeColor="#4285F47A"
+                strokeWidth={1}
+                zIndex={7}
+              />
+            )}
+            <Marker
+              coordinate={fix}
+              anchor={{ x: 0.5, y: 0.5 }}
+              tracksViewChanges={false}
+              zIndex={9}
+              identifier="live-location"
+            >
+              <View style={styles.dot}>
+                <View style={styles.dotCenter} />
+              </View>
+            </Marker>
+          </>
+        )}
+        {destination && (
           <Marker
-            coordinate={fix}
-            anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges={false}
-            zIndex={9}
-            identifier="live-location"
-          >
-            <View style={styles.dot}>
-              <View style={styles.dotCenter} />
-            </View>
-          </Marker>
-        </>
+            coordinate={destination.coordinate}
+            title={destination.label}
+            pinColor={colors.green}
+            identifier="destination"
+            zIndex={8}
+          />
+        )}
+      </MapView>
+      {shadows?.attribution.some((a) => a.includes("OpenMapTiles")) && (
+        <Text
+          pointerEvents="none"
+          style={[styles.dataCredit, { bottom: destination ? 375 : 105 }]}
+        >
+          © OpenStreetMap · © OpenMapTiles
+        </Text>
       )}
-      {destination && (
-        <Marker
-          coordinate={destination.coordinate}
-          title={destination.label}
-          pinColor={colors.green}
-          identifier="destination"
-          zIndex={8}
-        />
-      )}
-    </MapView>
+    </>
   );
 }
 const styles = StyleSheet.create({
+  dataCredit: {
+    position: "absolute",
+    left: 8,
+    fontSize: 10,
+    color: "#4c5660",
+    backgroundColor: "#FFFFFFD9",
+    padding: 3,
+    borderRadius: 4,
+  },
   dot: {
     padding: 4,
     backgroundColor: "#FFFFFF",

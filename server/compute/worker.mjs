@@ -10,7 +10,9 @@ import {
 } from "../../mobile/src/engine/overlay.ts";
 import { task } from "../../mobile/src/engine/task.ts";
 
+import { decodeRegion } from "./tile-buildings.mjs";
 const controllers = new Map();
+const regionCache = new Map();
 const dataPromise = (async () => {
   const packed = JSON.parse(
     await readFile(
@@ -49,9 +51,18 @@ parentPort.on("message", async (message) => {
   const controller = new AbortController();
   controllers.set(message.id, controller);
   try {
-    const data = await dataPromise;
-    if (controller.signal.aborted) throw Error("Calculul a fost oprit.");
     const q = message.payload;
+    let data = await dataPromise;
+    if (controller.signal.aborted) throw Error("Calculul a fost oprit.");
+    if (q.__region && message.kind !== "routes") {
+      data = regionCache.get(q.__region.key);
+      if (!data) {
+        data = await decodeRegion(q.__region, controller.signal);
+        if (regionCache.size >= 3)
+          regionCache.delete(regionCache.keys().next().value);
+        regionCache.set(q.__region.key, data);
+      }
+    }
     let result;
     if (message.kind === "routes") {
       result = await compareLocalRoutes(data, q, controller.signal);
@@ -72,11 +83,28 @@ parentPort.on("message", async (message) => {
             p[1] = Math.round(p[1] * 1e6) / 1e6;
           }
     } else {
-      const layer = await localShadows(data, q.at, q.bounds, controller.signal);
+      const layer = await localShadows(
+        data,
+        q.at,
+        q.bounds,
+        controller.signal,
+        {
+          displayEstimates: q.include_estimates ?? true,
+          includeNeutralFootprints: false,
+          focus: q.focus,
+        },
+      );
+      if (data.metadata.dataset_kind === "building-map-only") {
+        layer.attribution.unshift("OpenFreeMap · © OpenMapTiles");
+        layer.warnings.push(
+          "Contururi generalizate de hartă și înălțimi de randare; surse orientative, nu măsurători verificate.",
+        );
+      }
       result = {
         type: "FeatureCollection",
         at: layer.at,
         state: layer.state,
+        sun: layer.sun,
         truncated: layer.truncated,
         partial_coverage: layer.partialCoverage,
         attribution: layer.attribution,

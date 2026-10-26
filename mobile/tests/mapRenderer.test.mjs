@@ -61,7 +61,9 @@ function renderer() {
     getStyle() {
       return { layers: Object.values(this.layers) };
     }
-    setLight() {}
+    setLight(value) {
+      this.light = value;
+    }
     getBounds() {
       return {
         getWest: () => 28.63,
@@ -252,4 +254,28 @@ test("retained building geometry stays bounded while giving the new viewport pri
   assert.equal(source.data.features.length, 5000);
   assert.ok(source.data.features.some((f) => f.id === "new"));
   assert.equal(source.replacements, 0);
+});
+
+test("server Sun rotates building light in geographic coordinates and survives a style reload", () => {
+  const { bridge, map } = renderer();
+  bridge.receive({
+    type: "data",
+    name: "shadows",
+    value: {
+      type: "FeatureCollection",
+      features: [],
+      sun: { azimuth: 110, elevation: 30 },
+    },
+  });
+  assert.equal(
+    JSON.stringify(map.light.position),
+    JSON.stringify([1.5, 110, 60]),
+  );
+  map.sources = {};
+  map.layers = {};
+  map.emit("style.load");
+  assert.equal(
+    JSON.stringify(map.light.position),
+    JSON.stringify([1.5, 110, 60]),
+  );
 });

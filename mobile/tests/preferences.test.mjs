@@ -69,6 +69,7 @@ test("map controls detour and chosen time survive a fresh store without retainin
     mapStyle: "satellite",
     threeD: true,
     showShadows: false,
+    estimatedShadows: true,
     departureAt: "2026-10-26T15:00:00.000Z",
   });
   const saved = serializePreferences({

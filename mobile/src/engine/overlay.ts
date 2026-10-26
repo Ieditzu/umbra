@@ -5,6 +5,7 @@ import { ATTRIBUTION } from "./data.ts";
 import type { Dataset } from "./data.ts";
 import {
   bounds,
+  contains,
   expand,
   intersects,
   lerp,
@@ -16,6 +17,8 @@ import {
 import type { Polygon } from "./geometry.ts";
 import { solarDirection, solarPosition } from "./solar.ts";
 import type { Sun } from "./solar.ts";
+import { isCoordinate } from "../domain/routes.ts";
+import type { Coordinate } from "../domain/routes.ts";
 import { task } from "./task.ts";
 
 export class OutsideCoverageError extends Error {}
@@ -91,6 +94,11 @@ export async function localShadows(
   instant: string,
   viewport: Bounds,
   signal: AbortSignal,
+  options: {
+    displayEstimates?: boolean;
+    includeNeutralFootprints?: boolean;
+    focus?: Coordinate;
+  } = {},
 ): Promise<ShadowLayer> {
   const work = task(signal, 12000),
     at = Date.parse(instant),
@@ -108,35 +116,57 @@ export async function localShadows(
     s < -80 ||
     n > 84 ||
     w >= e ||
-    s >= n ||
-    e - w > 0.5 ||
-    n - s > 0.5 ||
-    (e - w) * (n - s) > 0.25
+    s >= n
   )
-    throw new Error("Apropie harta de Constanța.");
+    throw new Error("Apropie harta de România.");
   work.check();
+  const geoRegion = bounds(
+    rect(data.pilot_m)[0].map((p) => {
+      const c = unproject(p);
+      return { x: c.longitude, y: c.latitude };
+    }),
+  );
+  const left = Math.max(w, geoRegion.west),
+    right = Math.min(e, geoRegion.east);
+  const bottom = Math.max(s, geoRegion.south),
+    top = Math.min(n, geoRegion.north);
+  if (left >= right || bottom >= top)
+    throw new OutsideCoverageError(
+      "Zona vizibilă nu conține clădirile încărcate.",
+    );
   const original = clipPoly([
     [
-      project({ latitude: s, longitude: w }),
-      project({ latitude: s, longitude: e }),
-      project({ latitude: n, longitude: e }),
-      project({ latitude: n, longitude: w }),
-      project({ latitude: s, longitude: w }),
+      project({ latitude: bottom, longitude: left }),
+      project({ latitude: bottom, longitude: right }),
+      project({ latitude: top, longitude: right }),
+      project({ latitude: top, longitude: left }),
+      project({ latitude: bottom, longitude: left }),
     ],
   ]);
   const clip = clipping.intersection(original, clipPoly(rect(data.pilot_m)));
   if (!clip.length || area(clip) < 0.01)
     throw new OutsideCoverageError(
-      "Zona vizibilă este în afara acoperirii Constanța.",
+      "Zona vizibilă nu conține clădirile încărcate.",
     );
-  const partialCoverage = area(clip) + 0.1 < area([original]);
-  const sun = solarPosition(
-    at,
-    unproject({
-      x: (data.pilot_m.west + data.pilot_m.east) / 2,
-      y: (data.pilot_m.south + data.pilot_m.north) / 2,
-    }),
+  const partialCoverage =
+    w < left ||
+    e > right ||
+    s < bottom ||
+    n > top ||
+    area(clip) + 0.1 < area([original]);
+  const viewBox = bounds(
+    clip.flatMap((poly) => poly[0].map(([x, y]) => ({ x, y }))),
   );
+  const focus =
+    options.focus &&
+    isCoordinate(options.focus) &&
+    contains(viewBox, project(options.focus))
+      ? options.focus
+      : unproject({
+          x: (viewBox.west + viewBox.east) / 2,
+          y: (viewBox.south + viewBox.north) / 2,
+        });
+  const sun = solarPosition(at, focus);
   const result: ShadowLayer = {
     at: instant,
     state:
@@ -152,24 +182,34 @@ export async function localShadows(
     ],
     truncated: false,
     partialCoverage,
+    sun: { ...sun, location: focus },
   };
   if (partialCoverage)
     result.warnings.push(
-      "Harta depășește acoperirea Constanța; sunt afișate doar datele incluse.",
+      "Datele disponibile acoperă doar o parte din zona vizibilă. Apropie harta.",
     );
   if (result.state !== "available") return result;
-  const viewBox = bounds(
-    clip.flatMap((poly) => poly[0].map(([x, y]) => ({ x, y }))),
-  );
   let vertices = 0,
     skipped = 0;
   const nearby = data.index.query(
-    expand(viewBox, data.maxHeight / Math.tan(rad(sun.elevation))),
+    expand(
+      viewBox,
+      Math.max(
+        data.maxHeight,
+        options.displayEstimates ? data.maxDisplayHeight : 0,
+      ) / Math.tan(rad(sun.elevation)),
+    ),
   );
   // At city zoom, keep actual shadow geometry ahead of missing-height outlines.
   // The existing feature budget must not be consumed entirely by neutral buildings.
-  nearby.sort(
-    (a, b) => Number(a.height.low_m === 0) - Number(b.height.low_m === 0),
+  const center = project(focus);
+  const proximity = (b: Dataset["buildings"][number]) =>
+    ((b.box.west + b.box.east) / 2 - center.x) ** 2 +
+    ((b.box.south + b.box.north) / 2 - center.y) ** 2;
+  nearby.sort((a, b) =>
+    options.displayEstimates || options.focus
+      ? proximity(a) - proximity(b)
+      : Number(a.height.low_m === 0) - Number(b.height.low_m === 0),
   );
   outer: for (const b of nearby) {
     await work.checkpoint();
@@ -178,9 +218,22 @@ export async function localShadows(
         ? "osm_height"
         : b.height.source === "estimated_from_levels"
           ? "levels_estimate"
-          : "unknown";
+          : options.displayEstimates && b.height.source === "missing"
+            ? "display_estimate"
+            : "unknown";
+    if (source === "unknown" && options.includeNeutralFootprints === false)
+      continue;
+    const renderHeight = Number(b.tags["umbra:render_height"]);
+    const height =
+      source === "display_estimate"
+        ? Number.isFinite(renderHeight) &&
+          renderHeight > 0 &&
+          renderHeight <= 1000
+          ? renderHeight
+          : 6
+        : b.height.low_m;
     const reach =
-      source === "unknown" ? 0 : b.height.low_m / Math.tan(rad(sun.elevation));
+      source === "unknown" ? 0 : height / Math.tan(rad(sun.elevation));
     if (!intersects(expand(b.box, reach), viewBox)) continue;
     for (let i = 0; i < b.geometry.length; i++) {
       await work.checkpoint();
@@ -194,7 +247,7 @@ export async function localShadows(
         shape = clipping.intersection(
           source === "unknown"
             ? [clipPoly(poly)]
-            : castShadow(poly, b.height.low_m, sun),
+            : castShadow(poly, height, sun),
           clip,
         );
       } catch {
@@ -226,6 +279,10 @@ export async function localShadows(
   result.warnings.push(
     "Etajele folosesc limita inferioară de 2,5 m/etaj. Contururile fără înălțime sunt clădiri, nu umbre inventate.",
   );
+  if (options.displayEstimates)
+    result.warnings.push(
+      "Umbrele orientative folosesc înălțimea de randare a hărții sau ipoteza de 6 m pentru clădirile fără înălțime. Nu sunt măsurători și nu sunt folosite la evaluarea traseelor.",
+    );
   if (skipped)
     result.warnings.push(
       `${skipped} operații geometrice nesuportate au fost omise.`,

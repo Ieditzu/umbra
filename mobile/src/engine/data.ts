@@ -47,6 +47,7 @@ export type Dataset = Omit<RawDataset, "edges" | "buildings"> & {
   adjacency: Map<number, number[]>;
   index: BuildingIndex;
   maxHeight: number;
+  maxDisplayHeight: number;
 };
 function positive(value: string | undefined): number {
   if (!value) return 0;
@@ -149,14 +150,14 @@ export class BuildingIndex {
 export async function initializeDataset(
   raw: RawDataset,
   work: Task,
+  options = { requireGraph: true },
 ): Promise<Dataset> {
   if (
     raw.schema_version !== 1 ||
     raw.crs !== "EPSG:32635" ||
     !validBox(raw.pilot_m) ||
     !validBox(raw.imported_m) ||
-    !raw.nodes.length ||
-    !raw.edges.length ||
+    (options.requireGraph && (!raw.nodes.length || !raw.edges.length)) ||
     raw.nodes.length > 150000 ||
     raw.edges.length > 400000 ||
     raw.buildings.length > 100000
@@ -229,6 +230,18 @@ export async function initializeDataset(
     maxHeight: buildings.reduce(
       (height, b) => Math.max(height, b.height.high_m),
       0,
+    ),
+    maxDisplayHeight: buildings.reduce(
+      (height, b) =>
+        Math.max(
+          height,
+          b.height.low_m,
+          Number(b.tags["umbra:render_height"]) > 0 &&
+            Number(b.tags["umbra:render_height"]) <= 1000
+            ? Number(b.tags["umbra:render_height"])
+            : 6,
+        ),
+      6,
     ),
     index: new BuildingIndex(buildings, raw.imported_m),
   };

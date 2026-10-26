@@ -96,6 +96,7 @@ export function locationFeatures(
 export function shadowFeatures(layer: ShadowLayer | null) {
   return {
     type: "FeatureCollection",
+    sun: layer?.sun,
     features: (layer?.polygons ?? [])
       .filter((p) => p.source !== "unknown")
       .map((p) => ({

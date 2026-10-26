@@ -44,7 +44,8 @@ const shadowStatus: Record<string, string> = {
   low_sun: "Soare la orizont",
   loading: "Se actualizează",
   unavailable: "Temporar indisponibile",
-  outside: "În afara acoperirii Constanța",
+  server_restart: "Repornește serverul de pe PC",
+  outside: "Apropie harta de România",
   paused: "În pauză",
   idle: "În așteptare",
   off: "Oprite",
@@ -58,7 +59,7 @@ export default function MapScreen() {
   const [search, setSearch] = useState(false);
   const [timeOpen, setTimeOpen] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
-  const { showShadows, mapStyle, threeD } = planner.settings;
+  const { showShadows, estimatedShadows, mapStyle, threeD } = planner.settings;
   const setShowShadows = (value: boolean | ((previous: boolean) => boolean)) =>
     planner.changePreferences((previous) => ({
       showShadows:
@@ -76,7 +77,11 @@ export default function MapScreen() {
   const [foreground, setForeground] = useState(
     AppState.currentState === "active",
   );
-  const [bounds, setBounds] = useState<Bounds>(INITIAL_BOUNDS);
+  const [view, setView] = useState<{ bounds: Bounds; focus: Coordinate }>({
+    bounds: INITIAL_BOUNDS,
+    focus: CONSTANȚA,
+  });
+  const bounds = view.bounds;
   const callbacks = useRef({
     updateOrigin: planner.updateOrigin,
     calculate: planner.calculate,
@@ -114,7 +119,13 @@ export default function MapScreen() {
   }, [live.fix]);
   const departureKey = planner.departure?.toISOString() ?? "now";
   const snapshotAt = shadowInstant(planner.departure, clock);
-  const shadow = useShadowLayer(snapshotAt, bounds, showShadows);
+  const shadow = useShadowLayer(
+    snapshotAt,
+    bounds,
+    showShadows,
+    estimatedShadows,
+    view.focus,
+  );
   const route =
     planner.comparison?.routes.find((item) => item.id === planner.selectedId) ??
     null;
@@ -190,7 +201,9 @@ export default function MapScreen() {
           recenter={recenter}
           onPan={() => setFollowing(false)}
           onPick={pick}
-          onBounds={setBounds}
+          onBounds={(bounds, focus) =>
+            setView({ bounds, focus: focus ?? view.focus })
+          }
           mapStyle={mapStyle}
           threeD={threeD}
           onThreeDChange={setThreeD}
@@ -347,7 +360,7 @@ export default function MapScreen() {
           {threeD && (
             <Text style={styles.subtle}>
               {Platform.OS === "ios" && mapStyle === "map"
-                ? "Clădiri OSM. Înălțimile lipsă sunt orientative doar în 3D; nu produc umbre."
+                ? "Clădiri OSM. Înălțimile lipsă folosesc volume orientative."
                 : `Detaliile 3D depind de acoperirea ${Platform.OS === "ios" ? "Apple Maps" : "Google Maps"}.`}
             </Text>
           )}
@@ -371,8 +384,41 @@ export default function MapScreen() {
           <Text style={styles.subtle}>
             {shadowStatus[shadow.status] ?? "Indisponibile"}
           </Text>
+          {shadow.layer?.sun && (
+            <Text style={styles.subtle}>
+              Soare {shadow.layer.sun.elevation.toFixed(1)}° · azimut{" "}
+              {shadow.layer.sun.azimuth.toFixed(0)}°
+            </Text>
+          )}
+          <View style={styles.layerHeader}>
+            <Text style={styles.panelTitle}>Umbre orientative</Text>
+            <Pressable
+              accessibilityRole="switch"
+              accessibilityLabel="Umbre din înălțimi orientative"
+              accessibilityState={{ checked: estimatedShadows }}
+              onPress={() =>
+                planner.changePreferences((p) => ({
+                  estimatedShadows: !p.estimatedShadows,
+                }))
+              }
+              style={[styles.toggle, estimatedShadows && styles.toggleOn]}
+            >
+              <View
+                style={[
+                  styles.toggleDot,
+                  estimatedShadows && { alignSelf: "flex-end" },
+                ]}
+              />
+            </Pressable>
+          </View>
+          <Text style={styles.subtle}>
+            Înălțimi orientative ale hărții sau ipoteză de 6 m. Nu intră în
+            evaluarea traseului.
+          </Text>
           {shadow.layer?.partialCoverage && (
-            <Text style={styles.subtle}>Acoperire parțială · Constanța</Text>
+            <Text style={styles.subtle}>
+              Acoperire parțială · apropie harta
+            </Text>
           )}
           {shadow.layer?.truncated && (
             <Text style={styles.subtle}>

@@ -1,6 +1,6 @@
 # Umbra
 
-A React Native walking map for Constanța, Mamaia and Palazu Mare with estimated building shadows and shade-aware routes. **The PC calculates routes, sunlight and building geometry; the phone displays the map and reads GPS/compass.** No server address needs to be entered in the app. See [the overview](overview.md).
+A React Native map with building geometry and estimated solar shadows across Romania, prioritizing București. Shade-aware walking routes currently use the prepared Constanța/Mamaia/Palazu Mare graph. **The PC calculates routes, sunlight and building geometry; the phone displays the map and reads GPS/compass.** No server address needs to be entered in the app. See [the overview](overview.md).
 
 ## Run on your PC and phone
 
@@ -12,6 +12,8 @@ npm --prefix mobile start -- --clear
 ```
 
 This starts **both the calculation server and Expo**. Stop any older Expo process with **Ctrl+C** first. Scan the new QR code with Expo Go on Android or the Camera app on iPhone. Normally the PC and phone must share Wi-Fi. Keep this command running while using the app; **Ctrl+C** stops both processes it started.
+
+The combined launcher automatically reloads its backend after edits to server/shared engine files. Stop a separately started older backend before relaunching; incompatible old versions are reported explicitly.
 
 The app automatically reaches the backend through the same Expo connection, at `/umbra-api`. There is no IP/server field to configure. The backend uses `127.0.0.1:8000` internally; Metro forwards the permitted API paths. If you already started this backend separately, the launcher reuses it and leaves it running on exit. Go is not required for this workflow.
 
@@ -41,14 +43,14 @@ For an emulator, use `npm --prefix mobile run android` or `npm --prefix mobile r
 - Tap **Unde mergi?** or long-press the map to choose a destination. Routes attach to walking segments and refresh after useful movement or a minute.
 - Tap **Acum** to change date/time. At night no daylight shadow polygons are drawn.
 - Tap **3D** or drag vertically with two fingers. iOS **Hartă** uses MapLibre and a free OpenFreeMap basemap; no Google iOS key is needed. **Satelit** uses Apple imagery. Android retains its native Google map and terrain layer.
-- **Straturi** controls map style and shadows. Missing OSM heights get a display-only 6 m building volume, excluded from shadow calculations. OSM omissions and geometry budgets can limit detail.
+- **Straturi** controls map style and shadows. **Umbre orientative** adds lighter shadows from map-render heights or a 6 m fallback when source height is missing. Their direction and length use the selected instant and Sun position at the viewed location; these visual assumptions remain excluded from route exposure. The option is saved locally. OSM omissions and geometry budgets can limit detail.
 - **Setări** contains the maximum walking detour.
 
-The city snapshot has 50,071 walking nodes, 111,552 directed edges and 51,428 building outlines. The server reads the existing compressed snapshot from `mobile/assets/data/constanta-city.json`; no separate download/preparation step is needed. It decodes/indexes the data in two Node worker threads. The app no longer loads that dataset or performs route/shadow calculations. Server responses are compressed and bounded; the renderer keeps a limited geometry cache. The GPU still draws 3D on the phone, so this does not establish a device frame-rate guarantee.
+For Constanța routing and local building coverage, the snapshot has 50,071 walking nodes, 111,552 directed edges and 51,428 building outlines. The server reads the existing compressed snapshot from `mobile/assets/data/constanta-city.json`; no separate download/preparation step is needed. It decodes/indexes the data in two Node worker threads. Elsewhere in Romania, the PC downloads a bounded 3×3 group of OpenFreeMap vector tiles around the viewed position and decodes building footprints on a worker. The first visit needs internet; requests are cached in memory. This is on-demand coverage, not a downloaded nationwide offline model. Tile geometry can be generalized and render heights are assumptions, not verified height tags. The app no longer loads that dataset or performs route/shadow calculations. Server responses are compressed and bounded; the renderer keeps a limited geometry cache. The GPU still draws 3D on the phone, so this does not establish a device frame-rate guarantee.
 
 The PC must stay on and reachable for new routes, buildings and shadows. **There is no automatic on-phone calculation fallback.** Basemap tiles and address search also need their providers. An installed standalone app will need a deployed HTTPS backend configured by the developer with `EXPO_PUBLIC_API_URL`; this implementation is configured for PC testing through Expo.
 
-GPS origin/destination, chosen time and viewport are sent to the PC for calculation. The server does not write those requests to disk or request logs; bounded viewport-result caches exist in server memory. Map style, 3D, shadow visibility, selected date/time and detour preference are saved locally on the phone and restored on reopening. Map controls save automatically; the detour screen uses **Salvează**. **Acum** remains a live clock when selected. GPS, destination and routes are not persisted. OpenFreeMap/Apple/Google handle their own map/search requests. See [server architecture and privacy](docs/backend/mobile-server.md) and [data provenance](docs/mobile-data.md).
+GPS origin/destination, chosen time and viewport are sent to the PC for calculation. The server does not write those requests to disk or request logs; bounded viewport-result caches exist in server memory. Map style, 3D, shadow visibility, selected date/time and detour preference are saved locally on the phone and restored on reopening. Map controls save automatically; the detour screen uses **Salvează**. **Acum** remains a live clock when selected. GPS, destination and routes are not persisted. OpenFreeMap also receives the server’s regional tile requests. Apple/Google handle native map/search requests. See [server architecture and privacy](docs/backend/mobile-server.md) and [data provenance](docs/mobile-data.md).
 
 Unknown heights, missing obstructions, trees, weather and terrain remain uncertain. Unmodeled exposure is not counted as shade. These are experimental geometric estimates, not field-validated temperature, UV or route-safety measurements.
 
@@ -84,3 +86,6 @@ node scripts/prepare-city.mjs /absolute/path/to/city/dataset.json
 Review coverage, height provenance and generated metadata before replacing the snapshot. Preserve ODbL attribution. Go 1.24+ and Python/pyosmium are data-preparation tools only.
 
 Historical parking-camera documents remain in `docs/`; the previous README is in [the archive](docs/archive/README.previous.md).
+
+
+If shadows say **Repornește serverul de pe PC**, stop the old command with **Ctrl+C**, run `npm --prefix mobile start -- --clear`, and reload Expo Go. An old running backend cannot understand fields added by a freshly updated app. **Straturi** also shows the computed Sun elevation and azimuth. At night, daylight shadows remain empty.

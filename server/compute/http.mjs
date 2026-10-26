@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { gzip } from "node:zlib";
 import { promisify } from "node:util";
 import { ComputeError, ComputePool } from "./pool.mjs";
+import { RegionTiles, regionalSelection } from "./regions.mjs";
 const compress = promisify(gzip);
 const kinds = new Map([
   ["/v1/routes/compare", "routes"],
@@ -23,7 +24,7 @@ function validate(kind, q) {
           "walking_speed_mps",
         ]
       : kind === "shadows"
-        ? ["at", "bounds"]
+        ? ["at", "bounds", "focus", "include_estimates"]
         : ["bounds", "focus"];
   if (Object.keys(q).some((k) => !fields.includes(k)))
     throw new ComputeError("Câmpuri de cerere necunoscute.", 422, "invalid");
@@ -42,6 +43,11 @@ function validate(kind, q) {
   )
     throw new ComputeError("Ora este invalidă.", 422, "invalid");
   if (
+    q.include_estimates !== undefined &&
+    typeof q.include_estimates !== "boolean"
+  )
+    throw new ComputeError("Opțiune de umbre invalidă.", 422, "invalid");
+  if (
     q.focus &&
     (!Number.isFinite(q.focus.latitude) ||
       !Number.isFinite(q.focus.longitude) ||
@@ -50,7 +56,10 @@ function validate(kind, q) {
   )
     throw new ComputeError("Centrul hărții este invalid.", 422, "invalid");
 }
-export function createComputeServer({ pool = new ComputePool() } = {}) {
+export function createComputeServer({
+  pool = new ComputePool(),
+  regions = new RegionTiles(),
+} = {}) {
   const cache = new Map();
   let cacheBytes = 0;
   const server = createServer(async (req, res) => {
@@ -83,6 +92,11 @@ export function createComputeServer({ pool = new ComputePool() } = {}) {
           JSON.stringify({
             service: "umbra-compute",
             schema_version: 1,
+            capabilities: [
+              "regional_buildings",
+              "estimated_shadows",
+              "sun_position",
+            ],
             ready: pool.ready,
           }),
         );
@@ -140,7 +154,14 @@ export function createComputeServer({ pool = new ComputePool() } = {}) {
       const key = kind === "routes" ? null : JSON.stringify([kind, q]);
       let json = key ? cache.get(key) : null;
       if (!json) {
-        json = await pool.run(kind, q, controller.signal);
+        const selection = kind === "routes" ? null : regionalSelection(q);
+        const region = selection ? await regions.load(selection) : undefined;
+        if (controller.signal.aborted) return;
+        json = await pool.run(
+          kind,
+          region ? { ...q, __region: region } : q,
+          controller.signal,
+        );
         if (key && Buffer.byteLength(json) <= 8_000_000) {
           while (
             cache.size &&

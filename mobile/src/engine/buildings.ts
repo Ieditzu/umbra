@@ -115,7 +115,13 @@ export async function visibleBuildings(
           height: b.height.low_m,
           height_source: b.height.source,
           // Display-only placeholder. Never fed back into solar or routing geometry.
-          display_height: b.height.low_m > 0 ? b.height.low_m : 6,
+          display_height:
+            b.height.low_m > 0
+              ? b.height.low_m
+              : Number(b.tags["umbra:render_height"]) > 0 &&
+                  Number(b.tags["umbra:render_height"]) <= 1000
+                ? Number(b.tags["umbra:render_height"])
+                : 6,
         },
         geometry: {
           type: "Polygon",
