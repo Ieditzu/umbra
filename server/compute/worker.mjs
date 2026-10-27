@@ -163,7 +163,13 @@ parentPort.on("message", async (message) => {
         warnings: layer.warnings,
         features: layer.polygons.map((p) => ({
           type: "Feature",
-          properties: { building_id: p.id, height_source: p.source },
+          properties: {
+            building_id: p.id,
+            height_source: p.source,
+            ...(p.canopyHeight !== undefined
+              ? { canopy_height: p.canopyHeight, canopy_base: p.canopyBase }
+              : {}),
+          },
           geometry: {
             type: "Polygon",
             coordinates: [p.coordinates, ...p.holes].map((r) =>

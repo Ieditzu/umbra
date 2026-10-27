@@ -94,23 +94,49 @@ export function locationFeatures(
   };
 }
 export function shadowFeatures(layer: ShadowLayer | null) {
-  return {
-    type: "FeatureCollection",
-    sun: layer?.sun,
-    features: (layer?.polygons ?? [])
-      .filter((p) => p.source !== "unknown")
-      .map((p) => ({
-        type: "Feature",
+  const features = (layer?.polygons ?? [])
+    .filter((p) => p.source !== "unknown")
+    .flatMap((p) => {
+      const height = p.canopyHeight ?? 8,
+        base = p.canopyBase ?? height * 0.4;
+      const feature = {
+        type: "Feature" as const,
         geometry: {
-          type: "Polygon",
+          type: "Polygon" as const,
           coordinates: [p.coordinates, ...p.holes].map((ring) =>
             ring.map((c) => [c.longitude, c.latitude]),
           ),
         },
-        properties: { source: p.source },
-      })),
-  };
+        properties: { source: p.source as string, height, base },
+      };
+      // Only mapped individual trees have a known trunk location; a canopy raster
+      // or tree row does not locate an individual trunk.
+      if (p.source !== "tree_canopy" || !p.id.startsWith("tree-"))
+        return [feature];
+      const ring = p.coordinates.slice(0, -1);
+      const latitude =
+        ring.reduce((sum, c) => sum + c.latitude, 0) / ring.length;
+      const longitude =
+        ring.reduce((sum, c) => sum + c.longitude, 0) / ring.length;
+      const radiusLat = 0.4 / 111320,
+        radiusLon = radiusLat / Math.cos((latitude * Math.PI) / 180);
+      const trunk = Array.from({ length: 9 }, (_, i) => [
+        longitude + radiusLon * Math.cos((i * Math.PI) / 4),
+        latitude + radiusLat * Math.sin((i * Math.PI) / 4),
+      ]);
+      trunk[8] = trunk[0];
+      return [
+        feature,
+        {
+          type: "Feature" as const,
+          geometry: { type: "Polygon" as const, coordinates: [trunk] },
+          properties: { source: "tree_trunk", height: base, base: 0 },
+        },
+      ];
+    });
+  return { type: "FeatureCollection", sun: layer?.sun, features };
 }
+
 export function routeFeatures(route: WalkingRoute | null) {
   if (!route) return empty();
   return {

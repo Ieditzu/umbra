@@ -117,3 +117,7 @@ The dated Romania snapshot contains 78,814 tree nodes and 3,650 mapped rows. Geo
 ## Constanța canopy supplement
 
 The 4 m satellite-derived Constanța snapshot has 33,955 canopy polygons after masking known OSM buildings and mapped tree/row footprints. Metadata for Tomis Mall and Tomis Nord identifies 2019-10-21 imagery; imagery across the wider pilot spans 2019–2020. At 2026-06-21T09:00Z, the local server returned 144 satellite canopy and 144 corresponding estimated shadow features for the Tomis Mall viewport `[28.643,44.176,28.650,44.181]` and 95 of each for the Tomis Nord viewport `[28.612,44.210,28.618,44.215]`, both without truncation. A Chromium MapLibre preview at 55° pitch displayed 94 canopy features near Tomis Mall; this verifies rendering, not satellite classification accuracy or physical iPhone rendering.
+
+## 3D tree visualization
+
+The shadow API supplies bounded canopy height/base values, which the iOS MapLibre renderer uses for simplified canopy extrusions; only individually mapped OSM tree nodes receive illustrative trunks. A real Chromium renderer near Tomis Mall at 55° pitch displayed 69 extruded canopy features, then switched back to flat canopies at zero pitch. The renderer unit tests cover the same tilt transition; iOS device rendering remains unverified. The Android and iOS satellite native map renderers still display flat polygons.

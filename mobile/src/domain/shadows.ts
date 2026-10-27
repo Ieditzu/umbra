@@ -13,6 +13,8 @@ export type ShadowPolygon = {
     | "satellite_canopy"
     | "satellite_estimate"
     | "unknown";
+  canopyHeight?: number;
+  canopyBase?: number;
   coordinates: Coordinate[];
   holes: Coordinate[][];
 };
@@ -69,7 +71,12 @@ export function parseShadowLayer(raw: unknown, instant: string): ShadowLayer {
   const polygons = data.features.map((rawFeature, index) => {
     const feature = rawFeature as {
       geometry?: { type?: string; coordinates?: unknown };
-      properties?: { height_source?: string; building_id?: string };
+      properties?: {
+        height_source?: string;
+        building_id?: string;
+        canopy_height?: number;
+        canopy_base?: number;
+      };
     };
     const geometry = feature?.geometry;
     const source = feature?.properties?.height_source;
@@ -112,7 +119,21 @@ export function parseShadowLayer(raw: unknown, instant: string): ShadowLayer {
         throw new Error("Conturul nu este închis.");
       return points;
     });
+    const canopyHeight = feature.properties?.canopy_height;
+    const canopyBase = feature.properties?.canopy_base;
+    if (
+      (canopyHeight !== undefined || canopyBase !== undefined) &&
+      (!Number.isFinite(canopyHeight) ||
+        !Number.isFinite(canopyBase) ||
+        canopyHeight! <= 0 ||
+        canopyHeight! > 60 ||
+        canopyBase! < 0 ||
+        canopyBase! > canopyHeight!)
+    )
+      throw new Error("Înălțime de coroană invalidă.");
     return {
+      canopyHeight,
+      canopyBase,
       id: `${feature.properties?.building_id ?? "building"}-${index}`,
       source: source as ShadowPolygon["source"],
       coordinates: rings[0],

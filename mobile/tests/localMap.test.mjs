@@ -190,3 +190,41 @@ test("GPS uncertainty and shadow data stay separate from building meshes", () =>
   );
   assert.equal(routeFeatures(null).features.length, 0);
 });
+
+test("individual mapped trees get trunks while satellite canopies keep only their modeled volume", () => {
+  const ring = [
+    { latitude: 44.175, longitude: 28.64 },
+    { latitude: 44.175, longitude: 28.6401 },
+    { latitude: 44.1751, longitude: 28.6401 },
+    { latitude: 44.175, longitude: 28.64 },
+  ];
+  const layer = {
+    polygons: [
+      {
+        id: "tree-42-tree_canopy-0",
+        source: "tree_canopy",
+        canopyHeight: 12,
+        canopyBase: 4,
+        coordinates: ring,
+        holes: [],
+      },
+      {
+        id: "sat-1-satellite_canopy-0",
+        source: "satellite_canopy",
+        canopyHeight: 7,
+        canopyBase: 2.8,
+        coordinates: ring,
+        holes: [],
+      },
+    ],
+  };
+  const features = shadowFeatures(layer).features;
+  assert.deepEqual(
+    features.map((f) => f.properties.source),
+    ["tree_canopy", "tree_trunk", "satellite_canopy"],
+  );
+  assert.equal(features[0].properties.height, 12);
+  assert.equal(features[0].properties.base, 4);
+  assert.equal(features[1].properties.height, 4);
+  assert.equal(features[2].properties.height, 7);
+});

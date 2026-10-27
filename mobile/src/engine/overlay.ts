@@ -230,6 +230,9 @@ export async function localShadows(
           result.polygons.push({
             id: `${tree.id}-${source}-${part}`,
             source,
+            ...(source === "tree_canopy" || source === "satellite_canopy"
+              ? { canopyHeight: tree.height, canopyBase: tree.base }
+              : {}),
             coordinates: rings[0],
             holes: rings.slice(1),
           });

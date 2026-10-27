@@ -157,7 +157,11 @@ test(
     assert.ok(shadows.polygons.some((p) => p.source === "display_estimate"));
     assert.ok(shadows.polygons.some((p) => p.source === "tree_canopy"));
     assert.ok(shadows.polygons.some((p) => p.source === "tree_estimate"));
-    assert.ok(shadows.polygons.some((p) => p.source === "satellite_canopy"));
+    assert.ok(
+      shadows.polygons.some(
+        (p) => p.source === "satellite_canopy" && p.canopyHeight > p.canopyBase,
+      ),
+    );
     assert.ok(shadows.polygons.some((p) => p.source === "satellite_estimate"));
     assert.ok(shadows.sun.elevation > 0);
     const measuredOnly = parseShadowLayer(

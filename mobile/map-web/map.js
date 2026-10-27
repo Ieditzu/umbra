@@ -93,6 +93,16 @@
       bearing: map.getBearing(),
     });
   }
+  function applyTreeDimension() {
+    const is3d = map.getPitch() > 2;
+    for (const [id, visible] of [
+      ["umbra-tree-canopy", !is3d],
+      ["umbra-tree-volume", is3d],
+      ["umbra-tree-trunk", is3d],
+    ])
+      if (map.getLayer(id))
+        map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
+  }
   function installLayers() {
     for (const name of Object.keys(saved))
       if (!map.getSource(`umbra-${name}`))
@@ -109,7 +119,7 @@
           filter: [
             "!in",
             ["get", "source"],
-            ["literal", ["tree_canopy", "satellite_canopy"]],
+            ["literal", ["tree_canopy", "satellite_canopy", "tree_trunk"]],
           ],
           paint: {
             "fill-color": [
@@ -198,6 +208,37 @@
           "fill-outline-color": "#3d8050",
         },
       });
+    if (!map.getLayer("umbra-tree-volume"))
+      map.addLayer({
+        id: "umbra-tree-volume",
+        type: "fill-extrusion",
+        source: "umbra-shadows",
+        filter: [
+          "in",
+          ["get", "source"],
+          ["literal", ["tree_canopy", "satellite_canopy"]],
+        ],
+        paint: {
+          "fill-extrusion-color": "#52935a",
+          "fill-extrusion-height": ["coalesce", ["get", "height"], 8],
+          "fill-extrusion-base": ["coalesce", ["get", "base"], 3.2],
+          "fill-extrusion-opacity": 0.86,
+        },
+      });
+    if (!map.getLayer("umbra-tree-trunk"))
+      map.addLayer({
+        id: "umbra-tree-trunk",
+        type: "fill-extrusion",
+        source: "umbra-shadows",
+        filter: ["==", ["get", "source"], "tree_trunk"],
+        paint: {
+          "fill-extrusion-color": "#795741",
+          "fill-extrusion-height": ["get", "height"],
+          "fill-extrusion-base": 0,
+          "fill-extrusion-opacity": 1,
+        },
+      });
+    applyTreeDimension();
     if (!map.getLayer("umbra-route"))
       map.addLayer({
         id: "umbra-route",
@@ -293,7 +334,10 @@
       "bottom-left",
     );
     map.on("style.load", installLayers);
-    map.on("moveend", viewport);
+    map.on("moveend", () => {
+      applyTreeDimension();
+      viewport();
+    });
     map.on("dragstart", startGesture);
     map.on("zoomstart", (e) => {
       if (e.originalEvent) startGesture();

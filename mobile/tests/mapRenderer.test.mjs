@@ -58,6 +58,10 @@ function renderer() {
     addLayer(layer) {
       this.layers[layer.id] = layer;
     }
+    setLayoutProperty(id, name, value) {
+      this.layers[id].layout ??= {};
+      this.layers[id].layout[name] = value;
+    }
     getStyle() {
       return { layers: Object.values(this.layers) };
     }
@@ -383,4 +387,19 @@ test("navigation recentres close to the walker and preserves manual zoom on GPS 
   });
   assert.equal(map.getZoom(), 16);
   assert.equal(instances.length, 1);
+});
+
+test("tree canopies switch between flat and extruded layers as the map tilts", () => {
+  const { bridge, map } = renderer();
+  assert.equal(map.layers["umbra-tree-canopy"].layout.visibility, "visible");
+  assert.equal(map.layers["umbra-tree-volume"].layout.visibility, "none");
+  bridge.receive({ type: "tilt", value: true });
+  map.emit("moveend");
+  assert.equal(map.layers["umbra-tree-canopy"].layout.visibility, "none");
+  assert.equal(map.layers["umbra-tree-volume"].layout.visibility, "visible");
+  assert.equal(map.layers["umbra-tree-trunk"].layout.visibility, "visible");
+  bridge.receive({ type: "tilt", value: false });
+  map.emit("moveend");
+  assert.equal(map.layers["umbra-tree-volume"].layout.visibility, "none");
+  assert.equal(map.layers["umbra-tree-canopy"].layout.visibility, "visible");
 });
