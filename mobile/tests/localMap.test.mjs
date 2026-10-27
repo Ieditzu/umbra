@@ -223,6 +223,8 @@ test("individual mapped trees get trunks while satellite canopies keep only thei
     features.map((f) => f.properties.source),
     ["tree_canopy", "tree_trunk", "satellite_canopy"],
   );
+  assert.equal(features[0].properties.model_kind, "individual");
+  assert.equal(features[2].properties.model_kind, "area");
   assert.equal(features[0].properties.height, 12);
   assert.equal(features[0].properties.base, 4);
   assert.equal(features[1].properties.height, 4);

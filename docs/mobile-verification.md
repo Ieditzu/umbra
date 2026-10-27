@@ -126,3 +126,8 @@ The shadow API supplies bounded canopy height/base values, which the iOS MapLibr
 ## iOS tree models
 
 The iOS MapLibre renderer uses an offline-bundled Three.js custom layer to draw procedural, instanced tree meshes with trunks and rounded crowns. A 390 × 844 Chromium preview near Tomis Mall loaded 160 models; at 55° pitch the custom layer was active and the previous extruded canopy volumes were hidden. At zero pitch the flat canopy layer returned. Satellite canopy areas and OSM rows use representative positions, rather than identified individual trees. The real iPhone WebView and device performance still require testing.
+
+
+## Denser park models
+
+The iOS renderer places deterministic illustrative trees inside the modeled canopy patches and OSM rows, excluding polygon holes, while preserving one model per individually mapped tree. A round-robin budget distributes up to 700 across patches. Low-poly smooth crowns share instanced meshes. For a sample Parcul Tăbăcăriei viewport in Constanța, 129 returned canopy features generated 700 illustrative models; the Chromium preview displayed them at 3D tilt. This is a rendering test, not a tree census, source-data coverage audit, or physical iPhone performance measurement.

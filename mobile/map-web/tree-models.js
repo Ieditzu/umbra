@@ -1,9 +1,10 @@
 import * as THREE from "three";
+import { planTrees } from "./tree-placement.mjs";
 
 // Procedural low-poly trees are illustrative models, not surveyed tree geometry.
 // Instance meshes share geometry and keep phone GPU draw calls bounded.
 window.umbraCreateTreeLayer = (maplibregl) => {
-  const maxTrees = 350;
+  const maxTrees = 700;
   let map,
     renderer,
     scene,
@@ -21,70 +22,6 @@ window.umbraCreateTreeLayer = (maplibregl) => {
     objects = [];
     count = 0;
   };
-  function pointInRing(point, ring) {
-    let inside = false;
-    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-      const a = ring[i],
-        b = ring[j];
-      if (
-        a[1] > point[1] !== b[1] > point[1] &&
-        point[0] < ((b[0] - a[0]) * (point[1] - a[1])) / (b[1] - a[1]) + a[0]
-      )
-        inside = !inside;
-    }
-    return inside;
-  }
-  function position(feature) {
-    const rings = feature.geometry?.coordinates;
-    const ring = rings?.[0];
-    if (!ring || ring.length < 4) return null;
-    const valid = (p) =>
-      pointInRing(p, ring) &&
-      !rings.slice(1).some((hole) => pointInRing(p, hole));
-    let minX = Infinity,
-      minY = Infinity,
-      maxX = -Infinity,
-      maxY = -Infinity;
-    for (const p of ring) {
-      if (!Number.isFinite(p[0]) || !Number.isFinite(p[1])) return null;
-      minX = Math.min(minX, p[0]);
-      maxX = Math.max(maxX, p[0]);
-      minY = Math.min(minY, p[1]);
-      maxY = Math.max(maxY, p[1]);
-    }
-    let center = [(minX + maxX) / 2, (minY + maxY) / 2];
-    if (!valid(center)) {
-      // Find a point in the polygon, even for crescent-shaped canopies with holes.
-      let found = false;
-      for (let y = 1; y < 8 && !found; y++)
-        for (let x = 1; x < 8 && !found; x++) {
-          const p = [
-            minX + ((maxX - minX) * x) / 8,
-            minY + ((maxY - minY) * y) / 8,
-          ];
-          if (valid(p)) {
-            center = p;
-            found = true;
-          }
-        }
-      if (!found) return null;
-    }
-    const radius = Math.max(
-      1.5,
-      Math.min(
-        7,
-        Math.min(
-          (maxX - minX) * 111320 * Math.cos((center[1] * Math.PI) / 180),
-          (maxY - minY) * 111320,
-        ) / 2,
-      ),
-    );
-    const height = Math.max(
-      3,
-      Math.min(25, Number(feature.properties?.height) || 8),
-    );
-    return { center, radius, height };
-  }
   const layer = {
     id: "umbra-tree-models",
     type: "custom",
@@ -109,13 +46,7 @@ window.umbraCreateTreeLayer = (maplibregl) => {
       window.umbraTreeFeatures = features;
       if (!scene) return;
       disposeObjects();
-      const trees = features
-        .filter((f) =>
-          ["tree_canopy", "satellite_canopy"].includes(f.properties?.source),
-        )
-        .map(position)
-        .filter(Boolean)
-        .slice(0, maxTrees);
+      const trees = planTrees(features, maxTrees);
       if (!trees.length) {
         map?.triggerRepaint();
         return;
@@ -126,17 +57,17 @@ window.umbraCreateTreeLayer = (maplibregl) => {
         new THREE.MeshStandardMaterial({
           color,
           roughness: 1,
-          flatShading: true,
+          flatShading: false,
         });
       const trunk = new THREE.InstancedMesh(
-        new THREE.CylinderGeometry(0.17, 0.28, 1, 6),
+        new THREE.CylinderGeometry(0.15, 0.27, 1, 8),
         material(0x76533a),
         trees.length,
       );
-      const crowns = [0x3f833f, 0x4d9748, 0x5a9f50].map(
+      const crowns = [0x39733a, 0x478345, 0x528e4a, 0x619c56, 0x70a85e].map(
         (color) =>
           new THREE.InstancedMesh(
-            new THREE.IcosahedronGeometry(1, 1),
+            new THREE.SphereGeometry(1, 8, 6),
             material(color),
             trees.length,
           ),
@@ -144,9 +75,11 @@ window.umbraCreateTreeLayer = (maplibregl) => {
       objects = [trunk, ...crowns];
       const transform = new THREE.Object3D();
       const offsets = [
-        [-0.26, 0, 0.02],
-        [0.24, 0.12, 0],
-        [0, -0.12, 0.18],
+        [-0.42, -0.12, -0.08],
+        [0.38, 0.12, -0.07],
+        [-0.04, 0.38, -0.04],
+        [0.05, -0.35, 0.0],
+        [0, 0, 0.15],
       ];
       trees.forEach((tree, i) => {
         const pos = maplibregl.MercatorCoordinate.fromLngLat(tree.center);
@@ -169,11 +102,11 @@ window.umbraCreateTreeLayer = (maplibregl) => {
             y + dy * tree.radius,
             trunkHeight + tree.height * 0.28 + dz * tree.height,
           );
-          transform.rotation.set(0, 0, j * 0.8);
+          transform.rotation.set(0, 0, j * 0.8 + tree.seed);
           transform.scale.set(
-            tree.radius * 0.72,
-            tree.radius * 0.72,
-            tree.height * 0.29,
+            tree.radius * (j === 4 ? 0.72 : 0.66),
+            tree.radius * (j === 4 ? 0.72 : 0.66),
+            tree.height * (j === 4 ? 0.24 : 0.21),
           );
           transform.updateMatrix();
           mesh.setMatrixAt(i, transform.matrix);

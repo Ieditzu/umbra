@@ -107,7 +107,16 @@ export function shadowFeatures(layer: ShadowLayer | null) {
             ring.map((c) => [c.longitude, c.latitude]),
           ),
         },
-        properties: { source: p.source as string, height, base },
+        properties: {
+          source: p.source as string,
+          height,
+          base,
+          model_kind: p.id.startsWith("tree-")
+            ? "individual"
+            : p.id.startsWith("row-")
+              ? "row"
+              : "area",
+        },
       };
       // Only mapped individual trees have a known trunk location; a canopy raster
       // or tree row does not locate an individual trunk.
