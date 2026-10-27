@@ -20,9 +20,11 @@ function shadowElements(shadows: ShadowLayer | null) {
       coordinates={polygon.coordinates}
       holes={polygon.holes}
       fillColor={
-        polygon.source === "tree_canopy"
+        polygon.source === "tree_canopy" ||
+        polygon.source === "satellite_canopy"
           ? "#5B9C6666"
-          : polygon.source === "tree_estimate"
+          : polygon.source === "tree_estimate" ||
+              polygon.source === "satellite_estimate"
             ? "#456D8833"
             : polygon.source === "unknown"
               ? "#8795940C"

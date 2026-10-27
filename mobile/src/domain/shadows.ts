@@ -10,6 +10,8 @@ export type ShadowPolygon = {
     | "display_estimate"
     | "tree_canopy"
     | "tree_estimate"
+    | "satellite_canopy"
+    | "satellite_estimate"
     | "unknown";
   coordinates: Coordinate[];
   holes: Coordinate[][];
@@ -80,6 +82,8 @@ export function parseShadowLayer(raw: unknown, instant: string): ShadowLayer {
         "display_estimate",
         "tree_canopy",
         "tree_estimate",
+        "satellite_canopy",
+        "satellite_estimate",
         "unknown",
       ].includes(source ?? "") ||
       !Array.isArray(geometry.coordinates) ||

@@ -106,6 +106,11 @@
           id: "umbra-shadows",
           type: "fill",
           source: "umbra-shadows",
+          filter: [
+            "!in",
+            ["get", "source"],
+            ["literal", ["tree_canopy", "satellite_canopy"]],
+          ],
           paint: {
             "fill-color": [
               "match",
@@ -114,6 +119,10 @@
               "#456d88",
               "tree_estimate",
               "#456d88",
+              "satellite_estimate",
+              "#456d88",
+              "satellite_canopy",
+              "#64a66d",
               "tree_canopy",
               "#51945c",
               "#182b3c",
@@ -125,6 +134,10 @@
               0.18,
               "tree_estimate",
               0.18,
+              "satellite_estimate",
+              0.18,
+              "satellite_canopy",
+              0.46,
               "tree_canopy",
               0.4,
               "levels_estimate",
@@ -169,6 +182,22 @@
         },
         before,
       );
+    if (!map.getLayer("umbra-tree-canopy"))
+      map.addLayer({
+        id: "umbra-tree-canopy",
+        type: "fill",
+        source: "umbra-shadows",
+        filter: [
+          "in",
+          ["get", "source"],
+          ["literal", ["tree_canopy", "satellite_canopy"]],
+        ],
+        paint: {
+          "fill-color": "#51945c",
+          "fill-opacity": 0.55,
+          "fill-outline-color": "#3d8050",
+        },
+      });
     if (!map.getLayer("umbra-route"))
       map.addLayer({
         id: "umbra-route",

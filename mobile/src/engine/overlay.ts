@@ -209,7 +209,11 @@ export async function localShadows(
       await work.checkpoint();
       const add = (
         shape: MultiPolygon,
-        source: "tree_canopy" | "tree_estimate",
+        source:
+          | "tree_canopy"
+          | "tree_estimate"
+          | "satellite_canopy"
+          | "satellite_estimate",
       ) => {
         for (const [part, polygon] of shape.entries()) {
           const count = polygon.reduce((n, ring) => n + ring.length, 0);
@@ -235,7 +239,7 @@ export async function localShadows(
         if (intersects(tree.box, viewBox))
           add(
             clipping.intersection(clipPoly(tree.geometry), clip),
-            "tree_canopy",
+            tree.origin === "satellite" ? "satellite_canopy" : "tree_canopy",
           );
         if (result.state !== "available" || !treeHasFoliage(tree, at)) continue;
         const v = solarDirection(center, sun.azimuth),
@@ -252,7 +256,7 @@ export async function localShadows(
             clipping.union(clipPoly(shifted), ...swept),
             clip,
           ),
-          "tree_estimate",
+          tree.origin === "satellite" ? "satellite_estimate" : "tree_estimate",
         );
       } catch {
         skipped++;
@@ -262,6 +266,14 @@ export async function localShadows(
       result.truncated = true;
       result.warnings.push(
         "Au fost afișați maximum 500 de arbori și segmente de rând din apropiere. Apropie harta.",
+      );
+    }
+    if (data.trees?.some((tree) => tree.origin === "satellite")) {
+      result.attribution.push(
+        "Canopy height: Tolan et al. 2024 · WRI and Meta · CC BY 4.0 · source imagery © Maxar · 2019–2020",
+      );
+      result.warnings.push(
+        "În Constanța, coroanele satelitare sunt estimări din imagini din 2019–2020; pot include erori și schimbări ulterioare.",
       );
     }
     result.warnings.push(

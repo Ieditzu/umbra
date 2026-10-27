@@ -157,6 +157,8 @@ test(
     assert.ok(shadows.polygons.some((p) => p.source === "display_estimate"));
     assert.ok(shadows.polygons.some((p) => p.source === "tree_canopy"));
     assert.ok(shadows.polygons.some((p) => p.source === "tree_estimate"));
+    assert.ok(shadows.polygons.some((p) => p.source === "satellite_canopy"));
+    assert.ok(shadows.polygons.some((p) => p.source === "satellite_estimate"));
     assert.ok(shadows.sun.elevation > 0);
     const measuredOnly = parseShadowLayer(
       await (
@@ -170,7 +172,13 @@ test(
     );
     assert.ok(
       !measuredOnly.polygons.some((p) =>
-        ["display_estimate", "tree_canopy", "tree_estimate"].includes(p.source),
+        [
+          "display_estimate",
+          "tree_canopy",
+          "tree_estimate",
+          "satellite_canopy",
+          "satellite_estimate",
+        ].includes(p.source),
       ),
     );
     assert.ok(measuredOnly.polygons.length < shadows.polygons.length);

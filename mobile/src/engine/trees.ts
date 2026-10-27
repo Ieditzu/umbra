@@ -20,6 +20,7 @@ export type Tree = {
   height: number;
   base: number;
   evergreen: boolean;
+  origin: "osm" | "satellite";
 };
 
 function measurement(
@@ -61,6 +62,7 @@ export function makeTree(raw: RawTree): Tree | null {
   ring.push({ ...ring[0] });
   return {
     id: raw.id,
+    origin: "osm",
     geometry: [ring],
     box: bounds(ring),
     height,
@@ -78,6 +80,69 @@ export function treeHasFoliage(tree: Tree, at: number): boolean {
 }
 export function withTrees(data: Dataset, raw: RawTree[]): Dataset {
   const trees = raw.map(makeTree).filter((tree): tree is Tree => tree !== null);
+  return {
+    ...data,
+    trees,
+    treeIndex: new BuildingIndex<Tree>(trees, data.imported_m),
+  };
+}
+
+/** Satellite polygons are modeled tree cover, never verified individual trees. */
+export function withSatelliteCanopies(
+  data: Dataset,
+  records: unknown,
+): Dataset {
+  if (!Array.isArray(records) || records.length > 300000)
+    throw new Error("Date satelitare invalide.");
+  const trees = [...(data.trees ?? [])];
+  for (const record of records) {
+    if (
+      !Array.isArray(record) ||
+      typeof record[0] !== "string" ||
+      !Number.isFinite(record[1]) ||
+      record[1] < 3 ||
+      record[1] > 60 ||
+      !Array.isArray(record[2]) ||
+      !record[2].length ||
+      record[2].length > 64
+    )
+      continue;
+    let count = 0;
+    const geometry: Polygon = [];
+    for (const rawRing of record[2]) {
+      if (!Array.isArray(rawRing) || rawRing.length < 4) {
+        count = 10000;
+        break;
+      }
+      count += rawRing.length;
+      if (
+        count > 256 ||
+        !rawRing.every(
+          (p: unknown) =>
+            Array.isArray(p) && p.length === 2 && p.every(Number.isFinite),
+        )
+      ) {
+        count = 10000;
+        break;
+      }
+      const ring = rawRing.map(([x, y]: number[]) => ({ x, y }));
+      if (ring[0].x !== ring.at(-1)!.x || ring[0].y !== ring.at(-1)!.y) {
+        count = 10000;
+        break;
+      }
+      geometry.push(ring);
+    }
+    if (count > 256 || !geometry.length) continue;
+    trees.push({
+      id: record[0],
+      geometry,
+      box: bounds(geometry[0]),
+      height: record[1],
+      base: record[1] * 0.4,
+      evergreen: false,
+      origin: "satellite",
+    });
+  }
   return {
     ...data,
     trees,

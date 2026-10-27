@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { initializeDataset } from "../src/engine/data.ts";
-import { makeTree, treeHasFoliage, withTrees } from "../src/engine/trees.ts";
+import {
+  makeTree,
+  treeHasFoliage,
+  withTrees,
+  withSatelliteCanopies,
+} from "../src/engine/trees.ts";
 import { classifyAt } from "../src/engine/exposure.ts";
 import { localShadows } from "../src/engine/overlay.ts";
 import { project, unproject } from "../src/engine/geometry.ts";
@@ -129,5 +134,58 @@ test("canopy and estimated shadow survive server validation; winter and disabled
     parseShadowLayer(wire, summer.at).polygons.some(
       (p) => p.source === "tree_estimate",
     ),
+  );
+});
+
+test("satellite canopies display and influence routes only as estimated shade", async () => {
+  const data = await dataset([]);
+  const box = [
+    [point.x + 6, point.y - 4],
+    [point.x + 14, point.y - 4],
+    [point.x + 14, point.y + 4],
+    [point.x + 6, point.y + 4],
+    [point.x + 6, point.y - 4],
+  ];
+  const withSatellite = withSatelliteCanopies(data, [["sat-1", 15, [box]]]);
+  assert.equal(
+    classifyAt(withSatellite, point, { elevation: 45, azimuth: 90 }, true, june)
+      .reason,
+    "estimated_satellite_canopy",
+  );
+  assert.equal(
+    classifyAt(
+      withSatellite,
+      point,
+      { elevation: 45, azimuth: 90 },
+      true,
+      january,
+    ).exposure,
+    "unknown",
+  );
+  const layer = await localShadows(
+    withSatellite,
+    new Date(june).toISOString(),
+    [28.638, 44.173, 28.642, 44.177],
+    signal(),
+    { displayEstimates: true },
+  );
+  assert.ok(layer.polygons.some((p) => p.source === "satellite_canopy"));
+  assert.ok(layer.polygons.some((p) => p.source === "satellite_estimate"));
+  assert.ok(layer.attribution.some((a) => a.includes("WRI and Meta")));
+  assert.ok(layer.warnings.some((w) => w.includes("2019")));
+  assert.equal(
+    withSatelliteCanopies(data, [
+      [
+        "bad",
+        15,
+        [
+          [
+            [1, 2],
+            [3, 4],
+          ],
+        ],
+      ],
+    ]).trees.length,
+    0,
   );
 });

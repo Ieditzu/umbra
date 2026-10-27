@@ -2,7 +2,10 @@ import { parentPort } from "node:worker_threads";
 import { readFile } from "node:fs/promises";
 import { gunzipSync } from "node:zlib";
 import { initializeDataset } from "../../mobile/src/engine/data.ts";
-import { withTrees } from "../../mobile/src/engine/trees.ts";
+import {
+  withTrees,
+  withSatelliteCanopies,
+} from "../../mobile/src/engine/trees.ts";
 import { TreeCatalog } from "./tree-catalog.mjs";
 import { compareLocalRoutes } from "../../mobile/src/engine/routing.ts";
 import { visibleBuildings } from "../../mobile/src/engine/buildings.ts";
@@ -31,6 +34,27 @@ const treePromise = (async () => {
     throw Error("Tree snapshot size mismatch");
   return new TreeCatalog(JSON.parse(decoded.toString("utf8")));
 })();
+const canopyPromise = (async () => {
+  const packed = JSON.parse(
+    await readFile(
+      new URL(
+        "../../mobile/assets/data/constanta-canopy.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  if (packed.format !== "umbra-gzip-json-v1" || packed.raw_bytes > 40_000_000)
+    throw Error("Invalid canopy snapshot");
+  const decoded = gunzipSync(Buffer.from(packed.payload, "base64"), {
+    maxOutputLength: 40_000_000,
+  });
+  if (decoded.length !== packed.raw_bytes)
+    throw Error("Canopy snapshot size mismatch");
+  const raw = JSON.parse(decoded.toString("utf8"));
+  if (raw.schema_version !== 1) throw Error("Invalid canopy schema");
+  return raw.polygons;
+})();
 const dataPromise = (async () => {
   const packed = JSON.parse(
     await readFile(
@@ -45,14 +69,18 @@ const dataPromise = (async () => {
   });
   if (decoded.length !== packed.raw_bytes)
     throw Error("City snapshot size mismatch");
-  const [data, catalog] = await Promise.all([
+  const [data, catalog, canopies] = await Promise.all([
     initializeDataset(
       JSON.parse(decoded.toString("utf8")),
       task(new AbortController().signal, 60000),
     ),
     treePromise,
+    canopyPromise,
   ]);
-  return withTrees(data, catalog.forArea(data.imported_m));
+  return withSatelliteCanopies(
+    withTrees(data, catalog.forArea(data.imported_m)),
+    canopies,
+  );
 })();
 dataPromise
   .then((data) =>

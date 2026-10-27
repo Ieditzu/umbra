@@ -65,3 +65,6 @@ Regional data attribution is included in responses and map credits. Dependencies
 ## Mapped tree data
 
 Workers load the compact `mobile/assets/data/romania-trees.json` snapshot and index points and mapped row segments in geographic cells. For each city or regional dataset, the server builds a separate tree spatial index; it never adds tree canopies to the building index used for pedestrian network attachment. Map shadows include green `tree_canopy` and `tree_estimate` polygons only when display estimates are enabled. Tree data contributes the distinct `estimated_shade` category to Constanța route scoring. The snapshot is dated, incomplete and assumed canopy dimensions/foliage make the results approximate. See `docs/mobile-app.md` for the model and limitations.
+
+
+The Constanța worker also indexes an offline 4 m canopy estimate derived from Meta/WRI imagery (2019–2020) after masking OSM buildings and known trees. It is an additional modeled source, not a verified tree inventory. Its `satellite_canopy` and `satellite_estimate` features are distinct from OSM canopy features. Route scoring assigns all modeled tree/canopy shade the existing estimated-shade category. Countrywide satellite coverage is not included. See `docs/mobile-app.md` for provenance and processing.

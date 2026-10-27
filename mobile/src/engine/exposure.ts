@@ -53,7 +53,13 @@ export function classifyAt(
       if (entry === null || reverse === null) continue;
       const exit = length - reverse;
       if (entry * slope < tree.height && exit * slope > tree.base)
-        return { exposure: "estimated_shade", reason: "estimated_tree_canopy" };
+        return {
+          exposure: "estimated_shade",
+          reason:
+            tree.origin === "satellite"
+              ? "estimated_satellite_canopy"
+              : "estimated_tree_canopy",
+        };
     }
   }
   // This bundled OSM pilot has no independent obstruction-completeness audit.
