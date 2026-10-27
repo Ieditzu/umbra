@@ -127,6 +127,8 @@ text(.65,23.30,'Liceul Tehnologic de Marină · Liceul Internațional de Informa
 text(.65,23.55,'Liceul Tehnologic de Electrotehnică și Telecomunicații · Coordonator: prof. Ramona Rădulescu',10.5)
 text(15.35,23.55,'UMBRA / 2026',10.5,True,ha='right')
 fig.savefig(OUT/'umbra-poster.svg',format='svg')
+svg_path=OUT/'umbra-poster.svg'
+svg_path.write_text('\n'.join(line.rstrip() for line in svg_path.read_text().splitlines())+'\n')
 fig.savefig(OUT/'umbra-poster-preview.png',dpi=150)
 # Scale the complete vector page and its content to the competition print size.
 from io import BytesIO
