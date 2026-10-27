@@ -97,6 +97,20 @@ export default function MapScreen() {
     planner.changePreferences({ mapStyle: value });
   const [tilted, setTilted] = useState(false);
   const [following, setFollowing] = useState(true);
+  // Second tap on the locate button: rotate the map with the phone (Google Maps compass mode).
+  const [compassMode, setCompassMode] = useState(false);
+  const compass = following && compassMode;
+  /** Off → follow north-up → follow heading-up → follow north-up. */
+  function locate() {
+    if (!live.fix) live.retry();
+    if (following) {
+      setCompassMode((value) => !value);
+      return;
+    }
+    setCompassMode(false);
+    setFollowing(true);
+    setRecenter((value) => value + 1);
+  }
   const [recenter, setRecenter] = useState(0);
   const [overview, setOverview] = useState(0);
   const [bottomHeight, setBottomHeight] = useState(125);
@@ -312,6 +326,7 @@ export default function MapScreen() {
           route={route}
           shadows={mapShadows}
           following={following}
+          compass={compass}
           recenter={recenter}
           navigating={navigating}
           overview={overview}
@@ -415,20 +430,28 @@ export default function MapScreen() {
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Centrează pe locația mea"
+              accessibilityLabel={
+                compass
+                  ? "Orientează harta spre nord"
+                  : following
+                    ? "Rotește harta după direcția ta"
+                    : "Centrează pe locația mea"
+              }
               accessibilityState={{ selected: following }}
-              onPress={() => {
-                setFollowing(true);
-                setRecenter((value) => value + 1);
-                if (!live.fix) live.retry();
-              }}
+              onPress={locate}
               style={styles.navigationMapControl}
             >
               {live.status === "locating" ? (
                 <ActivityIndicator size="small" color={MAP_ACCENT} />
               ) : (
                 <Ionicons
-                  name={following ? "navigate" : "locate-outline"}
+                  name={
+                    compass
+                      ? "compass"
+                      : following
+                        ? "navigate"
+                        : "locate-outline"
+                  }
                   size={23}
                   color={following ? MAP_ACCENT : colors.ink}
                 />
@@ -467,19 +490,27 @@ export default function MapScreen() {
         {!navigating && (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Urmărește locația mea"
-            onPress={() => {
-              setFollowing(true);
-              setRecenter((value) => value + 1);
-              if (!live.fix) live.retry();
-            }}
+            accessibilityLabel={
+              compass
+                ? "Orientează harta spre nord"
+                : following
+                  ? "Rotește harta după direcția ta"
+                  : "Urmărește locația mea"
+            }
+            onPress={locate}
             style={[styles.round, following && styles.followSelected]}
           >
             {live.status === "locating" ? (
               <ActivityIndicator color={colors.green} />
             ) : (
               <Ionicons
-                name={following ? "navigate" : "locate-outline"}
+                name={
+                  compass
+                    ? "compass"
+                    : following
+                      ? "navigate"
+                      : "locate-outline"
+                }
                 size={22}
                 color={following ? colors.white : MAP_ACCENT}
               />

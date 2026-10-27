@@ -566,3 +566,33 @@ test("tree clearance refreshes after road tiles load and ignores repeated idle e
   assert.equal(layer.obstacleUpdates.length, 2);
   assert.equal(layer.obstacleUpdates[1].roads.length, 0);
 });
+
+test("compass mode turns the map with the phone and keeps the walker centred", () => {
+  const { bridge, map } = renderer();
+  const coordinate = { latitude: 44.175, longitude: 28.64 };
+  bridge.receive({
+    type: "follow",
+    coordinate,
+    recenter: true,
+    navigating: false,
+  });
+  // The heading cone alone never rotates the map (north-up following).
+  assert.equal(map.lastCamera.bearing, undefined);
+  bridge.receive({ type: "bearing", value: 135 });
+  assert.equal(map.lastCamera.bearing, 135);
+  assert.deepEqual(Array.from(map.lastCamera.center), [28.64, 44.175]);
+  // New GPS fixes keep the compass bearing instead of snapping north.
+  bridge.receive({
+    type: "follow",
+    coordinate: { latitude: 44.176, longitude: 28.641 },
+    recenter: false,
+    navigating: false,
+    bearing: 140,
+  });
+  assert.equal(map.lastCamera.bearing, 140);
+  assert.deepEqual(Array.from(map.lastCamera.center), [28.641, 44.176]);
+  // Back to north-up.
+  bridge.receive({ type: "bearing", value: 0 });
+  assert.equal(map.lastCamera.bearing, 0);
+  assert.deepEqual(Array.from(map.lastCamera.center), [28.641, 44.176]);
+});

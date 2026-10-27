@@ -57,6 +57,7 @@ export function LocalRouteMap(props: RouteMapProps) {
     null,
   );
   const centered = useRef(-1);
+  const lastBearing = useRef<number | null>(null);
   const framed = useRef("");
   const overviewed = useRef(props.overview);
   const buildingTicket = useRef(0);
@@ -148,17 +149,39 @@ export function LocalRouteMap(props: RouteMapProps) {
         coordinate: fix,
         recenter,
         navigating: props.navigating,
+        // Keep the compass bearing while re-centring on new fixes.
+        ...(props.compass && lastBearing.current !== null
+          ? { bearing: lastBearing.current }
+          : {}),
       });
     }
   }, [
     ready,
     props.fix,
     props.following,
+    props.compass,
     props.recenter,
     props.navigating,
     foreground,
     send,
   ]);
+  // Compass mode: rotate with the phone; a tap back to north-up resets the bearing.
+  useEffect(() => {
+    if (!ready || !foreground) return;
+    if (props.compass && props.heading) {
+      const previous = lastBearing.current;
+      const delta =
+        previous === null
+          ? 360
+          : Math.abs(((props.heading.degrees - previous + 540) % 360) - 180);
+      if (delta < 2) return;
+      lastBearing.current = props.heading.degrees;
+      send({ type: "bearing", value: props.heading.degrees });
+    } else if (!props.compass && lastBearing.current !== null) {
+      lastBearing.current = null;
+      if (props.following) send({ type: "bearing", value: 0 });
+    }
+  }, [ready, foreground, props.compass, props.heading, props.following, send]);
   useEffect(() => {
     if (ready)
       send({

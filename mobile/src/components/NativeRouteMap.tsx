@@ -56,6 +56,7 @@ export function RouteMap({
   route,
   shadows,
   following,
+  compass = false,
   recenter,
   navigating,
   overview,
@@ -75,6 +76,8 @@ export function RouteMap({
   route: WalkingRoute | null;
   shadows: ShadowLayer | null;
   following: boolean;
+  /** Following with the map rotated to the phone's heading. */
+  compass?: boolean;
   recenter: number;
   navigating: boolean;
   overview: number;
@@ -184,6 +187,38 @@ export function RouteMap({
         );
     }
   }, [fix, following, recenter, navigating, mapReady]);
+  // Compass mode turns the camera with the phone; leaving it by tap returns to north-up.
+  const lastBearing = useRef<number | null>(null);
+  useEffect(() => {
+    if (!mapReady) return;
+    if (compass && heading) {
+      const previous = lastBearing.current;
+      const delta =
+        previous === null
+          ? 360
+          : Math.abs(((heading.degrees - previous + 540) % 360) - 180);
+      if (delta < 2) return;
+      lastBearing.current = heading.degrees;
+      map.current?.animateCamera(
+        {
+          heading: heading.degrees,
+          ...(currentFix.current
+            ? {
+                center: {
+                  latitude: currentFix.current.latitude,
+                  longitude: currentFix.current.longitude,
+                },
+              }
+            : {}),
+        },
+        { duration: 250 },
+      );
+    } else if (!compass && lastBearing.current !== null) {
+      lastBearing.current = null;
+      if (following)
+        map.current?.animateCamera({ heading: 0 }, { duration: 350 });
+    }
+  }, [compass, heading, following, mapReady]);
   useEffect(() => {
     const key =
       route && destination

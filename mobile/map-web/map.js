@@ -22,6 +22,7 @@
     pressPoint,
     lastTreeFocus,
     measuring = false,
+    followCenter = null,
     obstacleTimer,
     obstacleFingerprint = "",
     buildingRevision = 0;
@@ -735,12 +736,24 @@
                 duration: 350,
               });
             break;
-          case "follow":
+          case "bearing":
+            // Compass mode; keep the followed position centred while turning.
             map.easeTo({
-              center: [
-                message.coordinate.longitude,
-                message.coordinate.latitude,
-              ],
+              bearing: message.value,
+              ...(followCenter ? { center: followCenter } : {}),
+              duration: 250,
+            });
+            break;
+          case "follow":
+            followCenter = [
+              message.coordinate.longitude,
+              message.coordinate.latitude,
+            ];
+            map.easeTo({
+              center: followCenter,
+              ...(typeof message.bearing === "number"
+                ? { bearing: message.bearing }
+                : {}),
               ...(message.recenter
                 ? { zoom: message.navigating ? 18 : 16 }
                 : {}),
