@@ -91,6 +91,7 @@ function renderer() {
       this.easeTo(options);
     }
     easeTo(options) {
+      this.lastCamera = options;
       if (options.pitch !== undefined) this.pitch = options.pitch;
       if (options.zoom !== undefined) this.zoom = options.zoom;
     }
@@ -336,5 +337,50 @@ test("a refreshed renderer restores its previous camera rather than jumping back
   });
   assert.equal(map.getPitch(), 65);
   assert.equal(map.getZoom(), 17);
+  assert.equal(instances.length, 1);
+});
+
+test("navigation recentres close to the walker and preserves manual zoom on GPS updates", () => {
+  const { bridge, map, instances } = renderer();
+  const coordinate = { latitude: 44.175, longitude: 28.64 };
+  bridge.receive({
+    type: "follow",
+    coordinate,
+    recenter: true,
+    navigating: true,
+  });
+  assert.equal(map.getZoom(), 18);
+  assert.deepEqual(Array.from(map.lastCamera.center), [28.64, 44.175]);
+  map.zoom = 17.4;
+  bridge.receive({
+    type: "follow",
+    coordinate,
+    recenter: false,
+    navigating: true,
+  });
+  assert.equal(map.getZoom(), 17.4);
+  bridge.receive({
+    type: "frame",
+    navigating: true,
+    coordinates: [
+      [28.64, 44.175],
+      [28.65, 44.18],
+    ],
+  });
+  assert.equal(map.frame.options.padding.bottom, 240);
+  bridge.receive({
+    type: "follow",
+    coordinate,
+    recenter: true,
+    navigating: true,
+  });
+  assert.equal(map.getZoom(), 18);
+  bridge.receive({
+    type: "follow",
+    coordinate,
+    recenter: true,
+    navigating: false,
+  });
+  assert.equal(map.getZoom(), 16);
   assert.equal(instances.length, 1);
 });

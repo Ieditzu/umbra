@@ -364,7 +364,9 @@
             if (map.getPitch() > 2 !== message.value)
               map.easeTo({
                 pitch: message.value ? 55 : 0,
-                ...(message.value && map.getZoom() < 16 ? { zoom: 16 } : {}),
+                ...(message.value && map.getZoom() < 16
+                  ? { zoom: message.navigating ? 18 : 16 }
+                  : {}),
                 duration: 350,
               });
             break;
@@ -374,7 +376,9 @@
                 message.coordinate.longitude,
                 message.coordinate.latitude,
               ],
-              ...(message.recenter ? { zoom: 16 } : {}),
+              ...(message.recenter
+                ? { zoom: message.navigating ? 18 : 16 }
+                : {}),
               duration: 500,
             });
             break;
@@ -384,7 +388,12 @@
             const bounds = new maplibregl.LngLatBounds(points[0], points[0]);
             for (const point of points) bounds.extend(point);
             map.fitBounds(bounds, {
-              padding: { top: 110, bottom: 350, left: 35, right: 35 },
+              padding: {
+                top: 150,
+                bottom: message.navigating ? 240 : 380,
+                left: 35,
+                right: 35,
+              },
               maxZoom: 17,
               pitch: map.getPitch(),
               bearing: map.getBearing(),
@@ -392,6 +401,12 @@
             });
             break;
           }
+          case "navigation":
+            document.documentElement.style.setProperty(
+              "--bottom-clearance",
+              message.active ? "240px" : destination ? "400px" : "135px",
+            );
+            break;
           case "destination": {
             if (!message.place) {
               destination?.remove();

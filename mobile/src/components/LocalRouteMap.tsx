@@ -57,6 +57,7 @@ export function LocalRouteMap(props: RouteMapProps) {
   );
   const centered = useRef(-1);
   const framed = useRef("");
+  const overviewed = useRef(props.overview);
   const buildingTicket = useRef(0);
   const boundsKey = [
     ...view.bounds,
@@ -128,9 +129,22 @@ export function LocalRouteMap(props: RouteMapProps) {
     if (fix && props.following && foreground) {
       const recenter = centered.current !== props.recenter;
       centered.current = props.recenter;
-      send({ type: "follow", coordinate: fix, recenter });
+      send({
+        type: "follow",
+        coordinate: fix,
+        recenter,
+        navigating: props.navigating,
+      });
     }
-  }, [ready, props.fix, props.following, props.recenter, foreground, send]);
+  }, [
+    ready,
+    props.fix,
+    props.following,
+    props.recenter,
+    props.navigating,
+    foreground,
+    send,
+  ]);
   useEffect(() => {
     if (ready)
       send({
@@ -145,16 +159,22 @@ export function LocalRouteMap(props: RouteMapProps) {
   useEffect(() => {
     if (!ready || nativePitch.current === props.threeD) return;
     nativePitch.current = props.threeD;
-    send({ type: "tilt", value: props.threeD });
-  }, [ready, props.threeD, send]);
+    send({ type: "tilt", value: props.threeD, navigating: props.navigating });
+  }, [ready, props.threeD, props.navigating, send]);
+  useEffect(() => {
+    if (ready) send({ type: "navigation", active: props.navigating });
+  }, [ready, props.navigating, send]);
   useEffect(() => {
     if (!ready || !props.destination) {
       if (!props.destination) framed.current = "";
       return;
     }
+    const requested = overviewed.current !== props.overview;
+    if (props.navigating && !requested) return;
+    overviewed.current = props.overview;
     const destination = props.destination.coordinate;
     const key = `${destination.latitude}|${destination.longitude}|${props.route?.kind ?? "destination"}`;
-    if (framed.current === key) return;
+    if (framed.current === key && !requested) return;
     framed.current = key;
     const points = props.route
       ? routeCoordinates(props.route)
@@ -167,9 +187,17 @@ export function LocalRouteMap(props: RouteMapProps) {
         ].filter((p) => p !== null);
     send({
       type: "frame",
+      navigating: props.navigating,
       coordinates: points.map((p) => [p.longitude, p.latitude]),
     });
-  }, [ready, props.destination, props.route, send]);
+  }, [
+    ready,
+    props.destination,
+    props.route,
+    props.navigating,
+    props.overview,
+    send,
+  ]);
 
   return (
     <View style={StyleSheet.absoluteFill}>

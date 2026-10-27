@@ -40,7 +40,7 @@ For an emulator, use `npm --prefix mobile run android` or `npm --prefix mobile r
 ## Use
 
 - Allow foreground location. The map follows your live position; panning stops following and the location button resumes it. The blue sector shows the phone's compass direction even when stationary; it hides if direction readings are unavailable.
-- Tap **Unde mergi?** or long-press the map to choose a destination. Select a calculated route and tap **Pornește traseul** to follow GPS with a compact remaining-distance/time panel; **Oprește** returns to alternatives. Routes refresh after useful movement or a minute.
+- Tap **Unde mergi?** or long-press the map to choose a destination. Select a calculated route and tap **Pornește traseul** to zoom in and follow GPS with remaining time/distance and estimated arrival. **Ansamblu** fits the whole route; **Pe mine** recenters and resumes following after you move the map. **Oprește** returns to alternatives. Routes refresh after useful movement or a minute.
 - Tap **Acum** to change date/time. At night no daylight shadow polygons are drawn.
 - Tap **3D** or drag vertically with two fingers. iOS **Hartă** uses MapLibre and a free OpenFreeMap basemap; no Google iOS key is needed. **Satelit** uses Apple imagery. Android retains its native Google map and terrain layer.
 - **Straturi** controls map style and shadows. **Umbre orientative** adds lighter shadows from map-render heights or a 6 m fallback when source height is missing. Their direction and length use the selected instant and Sun position at the viewed location; these visual assumptions remain excluded from route exposure. The option is saved locally. OSM omissions and geometry budgets can limit detail.

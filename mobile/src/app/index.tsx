@@ -81,6 +81,8 @@ export default function MapScreen() {
     planner.changePreferences({ mapStyle: value });
   const [following, setFollowing] = useState(true);
   const [recenter, setRecenter] = useState(0);
+  const [overview, setOverview] = useState(0);
+  const [bottomHeight, setBottomHeight] = useState(125);
   const [clock, setClock] = useState(() => Date.now());
   const [foreground, setForeground] = useState(
     AppState.currentState === "active",
@@ -220,6 +222,8 @@ export default function MapScreen() {
           shadows={shadow.layer}
           following={following}
           recenter={recenter}
+          navigating={navigating}
+          overview={overview}
           onPan={() => setFollowing(false)}
           onPick={pick}
           onBounds={(bounds, focus) =>
@@ -230,36 +234,59 @@ export default function MapScreen() {
           onThreeDChange={setThreeD}
         />
       )}
-      <View
-        pointerEvents="box-none"
-        style={[styles.top, { top: insets.top + 12 }]}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Setări"
-          disabled={!planner.hydrated}
-          style={styles.round}
-          onPress={() => router.push("/settings")}
+      {!navigating && (
+        <View
+          pointerEvents="box-none"
+          style={[styles.top, { top: insets.top + 12 }]}
         >
-          <Ionicons name="menu-outline" size={24} color={MAP_ACCENT} />
-        </Pressable>
-        <View style={styles.wordmark}>
-          <Text style={styles.brand}>umbra</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Setări"
+            disabled={!planner.hydrated}
+            style={styles.round}
+            onPress={() => router.push("/settings")}
+          >
+            <Ionicons name="menu-outline" size={24} color={MAP_ACCENT} />
+          </Pressable>
+          <View style={styles.wordmark}>
+            <Text style={styles.brand}>umbra</Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Ora umbrelor"
+            onPress={() => setTimeOpen(true)}
+            style={styles.time}
+          >
+            <Ionicons name="time-outline" size={17} color={colors.ink} />
+            <Text style={styles.timeText}>{timeLabel}</Text>
+          </Pressable>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Ora umbrelor"
-          onPress={() => setTimeOpen(true)}
-          style={styles.time}
-        >
-          <Ionicons name="time-outline" size={17} color={colors.ink} />
-          <Text style={styles.timeText}>{timeLabel}</Text>
-        </Pressable>
-      </View>
+      )}
+      {navigating && (
+        <View style={[styles.navigationHeader, { top: insets.top + 12 }]}>
+          <View style={styles.navigationIcon}>
+            <Ionicons
+              name={arrived ? "checkmark" : "walk"}
+              size={28}
+              color={colors.white}
+            />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={styles.navigationHeading}>
+              {arrived ? "Ai ajuns" : "Spre destinație"}
+            </Text>
+            <Text numberOfLines={1} style={styles.navigationDestination}>
+              {destination?.label}
+            </Text>
+          </View>
+        </View>
+      )}
       <View
         style={[
           styles.mapButtons,
-          { bottom: destination ? 295 + insets.bottom : 125 + insets.bottom },
+          {
+            bottom: bottomHeight + 12,
+          },
         ]}
       >
         <Pressable
@@ -271,34 +298,38 @@ export default function MapScreen() {
         >
           <Ionicons name="layers" size={23} color={MAP_ACCENT} />
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Caută o destinație"
-          onPress={() => setSearch(true)}
-          style={styles.round}
-        >
-          <Ionicons name="search" size={23} color={MAP_ACCENT} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Urmărește locația mea"
-          onPress={() => {
-            setFollowing(true);
-            setRecenter((value) => value + 1);
-            if (!live.fix) live.retry();
-          }}
-          style={[styles.round, following && styles.followSelected]}
-        >
-          {live.status === "locating" ? (
-            <ActivityIndicator color={colors.green} />
-          ) : (
-            <Ionicons
-              name={following ? "navigate" : "locate-outline"}
-              size={22}
-              color={following ? colors.white : MAP_ACCENT}
-            />
-          )}
-        </Pressable>
+        {!navigating && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Caută o destinație"
+            onPress={() => setSearch(true)}
+            style={styles.round}
+          >
+            <Ionicons name="search" size={23} color={MAP_ACCENT} />
+          </Pressable>
+        )}
+        {!navigating && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Urmărește locația mea"
+            onPress={() => {
+              setFollowing(true);
+              setRecenter((value) => value + 1);
+              if (!live.fix) live.retry();
+            }}
+            style={[styles.round, following && styles.followSelected]}
+          >
+            {live.status === "locating" ? (
+              <ActivityIndicator color={colors.green} />
+            ) : (
+              <Ionicons
+                name={following ? "navigate" : "locate-outline"}
+                size={22}
+                color={following ? colors.white : MAP_ACCENT}
+              />
+            )}
+          </Pressable>
+        )}
       </View>
       <Pressable
         accessibilityRole="button"
@@ -309,7 +340,9 @@ export default function MapScreen() {
         onPress={() => setThreeD((value) => !value)}
         style={[
           styles.dimensionButton,
-          { bottom: destination ? 295 + insets.bottom : 125 + insets.bottom },
+          {
+            bottom: bottomHeight + 12,
+          },
           threeD && styles.controlSelected,
         ]}
       >
@@ -320,7 +353,7 @@ export default function MapScreen() {
         <ScrollView
           style={[
             styles.layerPanel,
-            { top: insets.top + 75, maxHeight: "65%" },
+            { top: insets.top + (navigating ? 125 : 75), maxHeight: "65%" },
           ]}
           contentContainerStyle={styles.layerContent}
         >
@@ -471,6 +504,7 @@ export default function MapScreen() {
         </ScrollView>
       )}
       <View
+        onLayout={(event) => setBottomHeight(event.nativeEvent.layout.height)}
         style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, 16) }]}
       >
         {!!locationLabel && (
@@ -498,30 +532,32 @@ export default function MapScreen() {
           </Pressable>
         ) : (
           <View style={styles.routePanel}>
-            <View style={styles.destinationRow}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setSearch(true)}
-                style={styles.destinationName}
-              >
-                <Ionicons name="location" size={20} color={colors.green} />
-                <Text numberOfLines={1} style={styles.panelTitle}>
-                  {destination.label}
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Elimină destinația"
-                onPress={() => {
-                  setNavigation(null);
-                  planner.clearDestination();
-                  lastAttempt.current = null;
-                }}
-                style={styles.close}
-              >
-                <Ionicons name="close" size={22} color={colors.ink} />
-              </Pressable>
-            </View>
+            {!navigating && (
+              <View style={styles.destinationRow}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setSearch(true)}
+                  style={styles.destinationName}
+                >
+                  <Ionicons name="location" size={20} color={colors.green} />
+                  <Text numberOfLines={1} style={styles.panelTitle}>
+                    {destination.label}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Elimină destinația"
+                  onPress={() => {
+                    setNavigation(null);
+                    planner.clearDestination();
+                    lastAttempt.current = null;
+                  }}
+                  style={styles.close}
+                >
+                  <Ionicons name="close" size={22} color={colors.ink} />
+                </Pressable>
+              </View>
+            )}
             {planner.loading && (
               <View style={styles.inline}>
                 <ActivityIndicator size="small" color={colors.green} />
@@ -546,38 +582,87 @@ export default function MapScreen() {
               </Pressable>
             )}
             {navigating ? (
-              <View style={styles.navigationSummary}>
-                <Ionicons
-                  name={arrived ? "checkmark-circle" : "navigate"}
-                  size={25}
-                  color={MAP_ACCENT}
-                />
-                <View style={{ flex: 1, gap: 3 }}>
-                  <Text style={styles.panelTitle}>
-                    {arrived ? "Ai ajuns" : "Pe traseu"}
-                  </Text>
-                  <Text style={styles.subtle}>
-                    {!live.fix
-                      ? "Se așteaptă GPS-ul"
-                      : !progress
-                        ? "Se actualizează traseul"
-                        : progress.distanceFromRoute >
-                            Math.max(50, live.fix.accuracy)
-                          ? "În afara traseului"
-                          : `${minutes(progress.remainingSeconds)} · ${distanceLabel(progress.remainingMetres)} pe traseu`}
-                  </Text>
+              <View style={styles.navigationContent}>
+                <View style={styles.navigationSummary}>
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Text style={styles.remainingTime}>
+                      {arrived
+                        ? "Ai ajuns"
+                        : progress
+                          ? minutes(progress.remainingSeconds)
+                          : "Pe traseu"}
+                    </Text>
+                    <Text style={styles.subtle}>
+                      {!live.fix
+                        ? "Se așteaptă GPS-ul"
+                        : !progress
+                          ? "Se actualizează traseul"
+                          : progress.distanceFromRoute >
+                              Math.max(50, live.fix.accuracy)
+                            ? "În afara traseului"
+                            : `${distanceLabel(progress.remainingMetres)} · Sosire ${new Date(clock + progress.remainingSeconds * 1000).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })}`}
+                    </Text>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Oprește urmărirea traseului"
+                    style={styles.stopRoute}
+                    onPress={() => {
+                      setNavigation(null);
+                      setFollowing(false);
+                      setOverview((value) => value + 1);
+                    }}
+                  >
+                    <Ionicons name="close" size={18} color={colors.error} />
+                    <Text style={styles.stopRouteText}>Oprește</Text>
+                  </Pressable>
                 </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Oprește urmărirea traseului"
-                  style={styles.stopRoute}
-                  onPress={() => {
-                    setNavigation(null);
-                    setFollowing(false);
-                  }}
-                >
-                  <Text style={styles.stopRouteText}>Oprește</Text>
-                </Pressable>
+                <View style={styles.navigationActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Vezi întregul traseu"
+                    style={styles.navigationAction}
+                    onPress={() => {
+                      setFollowing(false);
+                      setOverview((value) => value + 1);
+                    }}
+                  >
+                    <Ionicons
+                      name="scan-outline"
+                      size={19}
+                      color={MAP_ACCENT}
+                    />
+                    <Text style={styles.navigationActionText}>Ansamblu</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Centrează pe locația mea"
+                    accessibilityState={{ selected: following }}
+                    style={[
+                      styles.navigationAction,
+                      following && styles.navigationActionSelected,
+                    ]}
+                    onPress={() => {
+                      setFollowing(true);
+                      setRecenter((value) => value + 1);
+                      if (!live.fix) live.retry();
+                    }}
+                  >
+                    <Ionicons
+                      name="locate"
+                      size={19}
+                      color={following ? colors.white : MAP_ACCENT}
+                    />
+                    <Text
+                      style={[
+                        styles.navigationActionText,
+                        following && { color: colors.white },
+                      ]}
+                    >
+                      Pe mine
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
             ) : (
               <>
@@ -829,9 +914,54 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 15,
+    paddingVertical: 6,
   },
+  navigationHeader: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    padding: 18,
+    borderRadius: 24,
+    backgroundColor: MAP_ACCENT,
+    boxShadow: "0 4px 15px #152C5526",
+  },
+  navigationIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF20",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navigationHeading: { fontSize: 20, fontWeight: "700", color: colors.white },
+  navigationDestination: { fontSize: 14, color: "#E2E8FF" },
+  navigationContent: { gap: 12 },
+  remainingTime: {
+    fontSize: 28,
+    fontWeight: "700",
+    letterSpacing: -0.6,
+    color: MAP_ACCENT,
+  },
+  navigationActions: { flexDirection: "row", gap: 10 },
+  navigationAction: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 15,
+    backgroundColor: "#F0F3FF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  navigationActionSelected: { backgroundColor: MAP_ACCENT },
+  navigationActionText: { fontSize: 14, fontWeight: "600", color: MAP_ACCENT },
   stopRoute: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
     minHeight: 44,
     paddingHorizontal: 12,
     justifyContent: "center",

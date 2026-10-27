@@ -48,6 +48,8 @@ export function RouteMap({
   shadows,
   following,
   recenter,
+  navigating,
+  overview,
   onPan,
   onPick,
   onBounds,
@@ -62,6 +64,8 @@ export function RouteMap({
   shadows: ShadowLayer | null;
   following: boolean;
   recenter: number;
+  navigating: boolean;
+  overview: number;
   onPan: () => void;
   onPick: (point: Coordinate) => void;
   onBounds: (bounds: Bounds, focus?: Coordinate) => void;
@@ -79,7 +83,8 @@ export function RouteMap({
   const cameraRead = useRef(0);
   const restorePitch = useRef<number | null>(null);
   const positioned = useRef(false);
-  const centered = useRef(recenter);
+  const centered = useRef(-1);
+  const overviewed = useRef(overview);
   const currentFix = useRef(fix);
   const polygons = useMemo(() => shadowElements(shadows), [shadows]);
   useEffect(() => {
@@ -93,11 +98,13 @@ export function RouteMap({
       {
         pitch: threeD ? 55 : 0,
         ...(!threeD ? { heading: 0 } : {}),
-        ...(threeD ? { zoom: 16, altitude: 900 } : {}),
+        ...(threeD
+          ? { zoom: navigating ? 18 : 16, altitude: navigating ? 220 : 900 }
+          : {}),
       },
       { duration: 450 },
     );
-  }, [threeD, mapReady]);
+  }, [threeD, mapReady, navigating]);
   useEffect(
     () => () => {
       cameraRead.current++;
@@ -108,7 +115,7 @@ export function RouteMap({
     currentFix.current = fix;
   }, [fix]);
   useEffect(() => {
-    if (!destination || !ready.current) return;
+    if (!destination || !mapReady || navigating) return;
     const points: Coordinate[] = [destination.coordinate];
     if (
       currentFix.current &&
@@ -131,17 +138,17 @@ export function RouteMap({
         },
         { duration: 500 },
       );
-  }, [destination]);
+  }, [destination, mapReady, navigating]);
   useEffect(() => {
-    if (following && fix && ready.current) {
+    if (following && fix && mapReady) {
       if (!positioned.current || centered.current !== recenter) {
         positioned.current = true;
         centered.current = recenter;
         map.current?.animateCamera(
           {
             center: { latitude: fix.latitude, longitude: fix.longitude },
-            zoom: 16,
-            altitude: 900,
+            zoom: navigating ? 18 : 16,
+            altitude: navigating ? 220 : 900,
             pitch: pitch.current,
           },
           { duration: 650 },
@@ -155,22 +162,30 @@ export function RouteMap({
           { duration: 650 },
         );
     }
-  }, [fix, following, recenter]);
+  }, [fix, following, recenter, navigating, mapReady]);
   useEffect(() => {
     const key =
       route && destination
         ? `${route.kind}|${destination.coordinate.latitude},${destination.coordinate.longitude}`
         : "";
-    if (route && key !== fitted.current && ready.current) {
+    const requested = overviewed.current !== overview;
+    if (!mapReady || (navigating && !requested)) return;
+    overviewed.current = overview;
+    if (route && (key !== fitted.current || requested)) {
       fitted.current = key;
       restorePitch.current = pitch.current;
       map.current?.fitToCoordinates(routeCoordinates(route), {
-        edgePadding: { top: 150, left: 55, right: 55, bottom: 280 },
+        edgePadding: {
+          top: 150,
+          left: 55,
+          right: 55,
+          bottom: navigating ? 240 : 380,
+        },
         animated: true,
       });
     }
     if (!route) fitted.current = "";
-  }, [route, destination]);
+  }, [route, destination, overview, navigating, mapReady]);
   function bounds(region: Region) {
     onBounds(
       [
