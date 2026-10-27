@@ -12,7 +12,8 @@ export type Height = {
     | "osm_height_tag"
     | "estimated_from_levels"
     | "missing"
-    | "unsupported_elevated";
+    | "unsupported_elevated"
+    | "measured_shadow";
 };
 export type Building = {
   id: string;
@@ -108,6 +109,15 @@ export class BuildingIndex<T extends { box: Box } = Building> {
       n = Math.floor(Math.min(b.north, this.area.north) / 100);
     for (let x = w; x <= e; x++)
       for (let y = s; y <= n; y++) visit(`${x}:${y}`);
+  }
+  /** Same grid with replacement items; boxes must be unchanged and in the same order. */
+  withItems(items: T[]): BuildingIndex<T> {
+    if (items.length !== this.buildings.length)
+      throw new Error("Index replacement must keep every building.");
+    return Object.assign(
+      Object.create(BuildingIndex.prototype) as BuildingIndex<T>,
+      { cells: this.cells, area: this.area, buildings: items },
+    );
   }
   query(box: Box): T[] {
     const ids = new Set<number>();
@@ -247,5 +257,41 @@ export async function initializeDataset(
       6,
     ),
     index: new BuildingIndex(buildings, raw.imported_m),
+  };
+}
+
+export type MeasuredHeight = { id: string; low_m: number; high_m: number };
+/** Request-scoped copy with confirmed shadow measurements; the shared dataset is not mutated. */
+export function withMeasuredHeights(
+  data: Dataset,
+  measured: MeasuredHeight[] | undefined,
+): Dataset {
+  if (!measured?.length) return data;
+  const byId = new Map(measured.map((m) => [m.id, m]));
+  let changed = false;
+  const buildings = data.buildings.map((b) => {
+    const m = byId.get(b.id);
+    // Elevated/roof-only parts have an unknown base; a ground shadow cannot measure them.
+    if (!m || b.height.source === "unsupported_elevated") return b;
+    changed = true;
+    return {
+      ...b,
+      height: {
+        low_m: m.low_m,
+        high_m: m.high_m,
+        source: "measured_shadow" as const,
+      },
+    };
+  });
+  if (!changed) return data;
+  return {
+    ...data,
+    buildings,
+    index: data.index.withItems(buildings),
+    maxHeight: buildings.reduce((h, b) => Math.max(h, b.height.high_m), 0),
+    maxDisplayHeight: buildings.reduce(
+      (h, b) => Math.max(h, b.height.low_m),
+      data.maxDisplayHeight,
+    ),
   };
 }

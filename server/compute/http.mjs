@@ -3,12 +3,38 @@ import { gzip } from "node:zlib";
 import { promisify } from "node:util";
 import { ComputeError, ComputePool } from "./pool.mjs";
 import { RegionTiles, regionalSelection } from "./regions.mjs";
+import { heightsRoute, RateLimiter } from "../heights/routes.mjs";
 const compress = promisify(gzip);
 const kinds = new Map([
   ["/v1/routes/compare", "routes"],
   ["/v1/shadows", "shadows"],
   ["/v1/buildings", "buildings"],
+  ["/v1/buildings/inspect", "inspect"],
 ]);
+const BUILDING_ID = /^(way|relation)\/\d{1,15}$/;
+/** Confirmed on-phone shadow measurements, sent only as building id + height range. */
+function validateMeasured(list) {
+  if (list === undefined) return;
+  if (
+    !Array.isArray(list) ||
+    list.length > 200 ||
+    new Set(list.map((m) => m?.id)).size !== list.length ||
+    !list.every(
+      (m) =>
+        m &&
+        typeof m === "object" &&
+        Object.keys(m).every((k) => ["id", "low_m", "high_m"].includes(k)) &&
+        typeof m.id === "string" &&
+        BUILDING_ID.test(m.id) &&
+        Number.isFinite(m.low_m) &&
+        Number.isFinite(m.high_m) &&
+        m.low_m > 0 &&
+        m.low_m <= m.high_m &&
+        m.high_m <= 1000,
+    )
+  )
+    throw new ComputeError("Înălțimi măsurate invalide.", 422, "invalid");
+}
 function validate(kind, q) {
   if (!q || Array.isArray(q) || typeof q !== "object")
     throw new ComputeError("Cerere invalidă.", 422, "invalid");
@@ -22,12 +48,29 @@ function validate(kind, q) {
           "departure_timezone",
           "max_extra_minutes",
           "walking_speed_mps",
+          "measured_heights",
         ]
       : kind === "shadows"
-        ? ["at", "bounds", "focus", "include_estimates"]
-        : ["bounds", "focus"];
+        ? ["at", "bounds", "focus", "include_estimates", "measured_heights"]
+        : kind === "inspect"
+          ? ["point", "at", "measured_heights"]
+          : ["bounds", "focus", "measured_heights"];
   if (Object.keys(q).some((k) => !fields.includes(k)))
     throw new ComputeError("Câmpuri de cerere necunoscute.", 422, "invalid");
+  validateMeasured(q.measured_heights);
+  if (kind === "inspect") {
+    if (
+      !q.point ||
+      !Number.isFinite(q.point.latitude) ||
+      !Number.isFinite(q.point.longitude) ||
+      Math.abs(q.point.latitude) > 85 ||
+      Math.abs(q.point.longitude) > 180 ||
+      typeof q.at !== "string" ||
+      !Number.isFinite(Date.parse(q.at))
+    )
+      throw new ComputeError("Punct de măsurare invalid.", 422, "invalid");
+    return;
+  }
   if (
     kind !== "routes" &&
     (!Array.isArray(q.bounds) ||
@@ -56,9 +99,22 @@ function validate(kind, q) {
   )
     throw new ComputeError("Centrul hărții este invalid.", 422, "invalid");
 }
+/** Shared confirmed heights first, then the phone's own confirmed measurements on top. */
+function mergeHeights(shared, own) {
+  if (!shared?.length) return own;
+  const merged = new Map(shared.map((h) => [h.id, h]));
+  for (const h of own ?? []) merged.set(h.id, h);
+  return [...merged.values()];
+}
 export function createComputeServer({
   pool = new ComputePool(),
   regions = new RegionTiles(),
+  heights = null,
+  limiter = new RateLimiter({
+    post_contributor: 30,
+    post_ip: 60,
+    delete_ip: 120,
+  }),
 } = {}) {
   const cache = new Map();
   let cacheBytes = 0;
@@ -84,34 +140,7 @@ export function createComputeServer({
       res.writeHead(status, { "Content-Length": body.length });
       res.end(body);
     };
-    try {
-      const path = new URL(req.url, "http://localhost").pathname;
-      if (path === "/health" && req.method === "GET") {
-        await reply(
-          pool.ready ? 200 : 503,
-          JSON.stringify({
-            service: "umbra-compute",
-            schema_version: 1,
-            capabilities: [
-              "regional_buildings",
-              "estimated_shadows",
-              "sun_position",
-            ],
-            ready: pool.ready,
-          }),
-        );
-        return;
-      }
-      const kind = kinds.get(path);
-      if (!kind) {
-        await reply(404, JSON.stringify({ detail: "Not found" }));
-        return;
-      }
-      if (req.method !== "POST") {
-        res.setHeader("Allow", "POST");
-        await reply(405, JSON.stringify({ detail: "Method not allowed" }));
-        return;
-      }
+    const readJson = async () => {
       if (!/^application\/json(?:;|$)/i.test(req.headers["content-type"] ?? ""))
         throw new ComputeError(
           "Content-Type trebuie să fie application/json.",
@@ -143,25 +172,86 @@ export function createComputeServer({
           reject(new ComputeError("Cererea a fost oprită.", 499, "cancelled")),
         );
       });
-      let q;
       try {
-        q = JSON.parse(body.toString("utf8"));
+        return JSON.parse(body.toString("utf8"));
       } catch {
         throw new ComputeError("JSON invalid.", 422, "invalid");
       }
+    };
+    try {
+      const url = new URL(req.url, "http://localhost"),
+        path = url.pathname;
+      if (path === "/health" && req.method === "GET") {
+        await reply(
+          pool.ready ? 200 : 503,
+          JSON.stringify({
+            service: "umbra-compute",
+            schema_version: 1,
+            capabilities: [
+              "regional_buildings",
+              "estimated_shadows",
+              "sun_position",
+              "shadow_measurement",
+              ...(heights ? ["shared_heights"] : []),
+            ],
+            ready: pool.ready,
+          }),
+        );
+        return;
+      }
+      if (
+        heights &&
+        (await heightsRoute({
+          req,
+          path,
+          url,
+          store: heights,
+          pool,
+          limiter,
+          readJson,
+          reply,
+          signal: controller.signal,
+        }))
+      )
+        return;
+      const kind = kinds.get(path);
+      if (!kind) {
+        await reply(404, JSON.stringify({ detail: "Not found" }));
+        return;
+      }
+      if (req.method !== "POST") {
+        res.setHeader("Allow", "POST");
+        await reply(405, JSON.stringify({ detail: "Method not allowed" }));
+        return;
+      }
+      const q = await readJson();
       validate(kind, q);
       // Only static viewport results are cached; routes/GPS endpoints are never cached.
-      const key = kind === "routes" ? null : JSON.stringify([kind, q]);
+      const key =
+        kind === "routes" || kind === "inspect"
+          ? null
+          : JSON.stringify([kind, q, heights?.revision ?? 0]);
       let json = key ? cache.get(key) : null;
       if (!json) {
-        const selection = kind === "routes" ? null : regionalSelection(q);
+        // Measuring uses stable OSM ids, so it always reads the bundled city snapshot.
+        const selection =
+          kind === "routes" || kind === "inspect" ? null : regionalSelection(q);
         const region = selection ? await regions.load(selection) : undefined;
         if (controller.signal.aborted) return;
+        const measured = mergeHeights(heights?.confirmed(), q.measured_heights);
+        const job = measured?.length ? { ...q, measured_heights: measured } : q;
         json = await pool.run(
           kind,
-          region ? { ...q, __region: region } : q,
+          region ? { ...job, __region: region } : job,
           controller.signal,
         );
+        if (kind === "inspect" && heights) {
+          // Shared status for the building card; never cached because it changes per upload.
+          const value = JSON.parse(json);
+          if (value.building)
+            value.building.shared = heights.summary(value.building.id);
+          json = JSON.stringify(value);
+        }
         if (key && Buffer.byteLength(json) <= 8_000_000) {
           while (
             cache.size &&

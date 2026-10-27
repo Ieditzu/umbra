@@ -309,20 +309,87 @@ A 2 m height error moves a shadow edge by 2·cot(e) m, which is about 3 m at 33�
 
 ## 9. Implementation phases
 
-Not started; each phase begins on the team's go-ahead.
+The software for phases 1, 3, 4 and 5 is implemented; see [implementation status](#implementation-status). Phases 2 and 6 need field work: no field measurement has been made yet, so there are no results to report.
 
-1. **Local measuring mode:** ruler, methods, checklist, local storage and new height source values in the engine, with tests. Offline only.
-2. **Pilot field test:** 5–10 buildings, to check the protocol and the error model.
-3. **Server and shared database:** endpoints, combination and moderation, heights file download, opt-in upload, privacy text.
-4. **Main field study and analysis script**, extending [`compare-gba-heights.py`](../scripts/compare-gba-heights.py).
-5. **Route-effect analysis.**
-6. **Paper, documentation and poster.**
+1. **Local measuring mode (implemented):** ruler, methods, checklist, local storage and new height source values in the engine, with tests.
+2. **Pilot field test (tools ready, not done):** 5–10 buildings, to check the protocol and the error model. The app records observers, reference heights, rejected attempts and a blind mode, and exports everything.
+3. **Server and shared database (implemented):** endpoints, combination and moderation, heights file download, opt-in upload, privacy text.
+4. **Main field study and analysis script (script implemented, study not done):** [`analyze-shadow-heights.py`](../scripts/analyze-shadow-heights.py).
+5. **Route-effect analysis (implemented):** [`route-effect.mjs`](../server/compute/route-effect.mjs).
+6. **Paper, documentation and poster (not started):** they need the field results. The analysis script already draws the poster's main graphic.
 
-Sketch of the planned endpoints:
-- `GET /v1/heights?since=…` returns changed confirmed heights;
-- `POST /v1/measurements` stores a measurement;
-- `DELETE /v1/measurements/{id}` deletes one, by its owner's install id;
-- `GET /v1/buildings/{osm_id}` returns one building's measurements and status.
+## Implementation status
+
+### Measuring in the app
+
+- **Entry:** the ruler button on the map opens **Măsoară clădirea**. While it is open, building outlines are coloured by height source (§6.5) and a tap selects a building instead of a destination.
+- **Lookup:** `POST /v1/buildings/inspect` on the PC server returns the tapped Constanța building, its height source, floor count, its shared-database summary, and the roof corners whose tip lies on the shadow outline. Each corner is flagged when the expected shadow would cross another mapped building. Only bundled OSM `way/` and `relation/` buildings can be measured; regional tile buildings outside the city snapshot have no stable id.
+- **Methods:**
+  - tape/laser: a typed corner-to-tip distance, ±0.3 m;
+  - phone GPS: 12 s of fixes snapped to the ruler line, σ = max(3 m, mean accuracy), rejected beyond max(8 m, 1.5 × accuracy) sideways;
+  - drone photo (§5.2): typed altitude, focal length, sensor width, image width, shadow length in pixels and photo time; ±2 px and ±1 m altitude.
+
+  AR is not implemented: ARKit/ARCore need a development build, and the app runs in Expo Go.
+- **Reference heights (§7.2):** laser indirect height, drone altitude at roof level or floor count × measured floor height, entered per building. They are stored locally, exported for analysis and never used for routing.
+- **Physics:** `mobile/src/engine/shadowMeasure.ts`. Length uncertainty adds the penumbra as a uniform reading error (w/√12); the Sun-angle term uses 0.065°. The sun position is taken at the instant of measuring (or the photo time), not the map's selected time. The panel shows the expected error per method and today's 15–40° windows.
+- **Rules:** `mobile/src/domain/measurements.ts` implements §6.3 and is shared with the server.
+  - Rejected: Sun below 10°, no sharp shadow, obstructed tip, rooftop structure, off the ruler, impossible height.
+  - Slope gives `needs_review`.
+  - Outliers use the median of all measurements when there are three or more.
+  - A building is confirmed by two accepted measurements that agree within 2σ and are independent (different install, different observer, or at least 10 minutes apart), or by one tape/laser or drone measurement.
+- **Field study (§7.3):**
+  - Observer initials are kept on the phone.
+  - Blind mode hides known heights, references and the ruler's height marks.
+  - Rejected attempts can be saved.
+  - **Setări → Exportă JSON/CSV** shares the full study file (no install id).
+
+### Shared database (phase 3)
+
+- **Server:** the same Node PC server, with SQLite (`node:sqlite`) at `.umbra-data/heights.sqlite3` (ignored by Git). `UMBRA_HEIGHTS_DB` changes the path and `UMBRA_HEIGHTS=off` disables it. A hosted copy runs the same `server/mobile-api.mjs`; the phone uses `EXPO_PUBLIC_HEIGHTS_URL` for it.
+- **Endpoints** (`server/heights/routes.mjs`):
+  - `GET /v1/heights?since=…` returns changed heights, with `confirmed: false` entries for heights that were withdrawn;
+  - `GET /v1/heights` is the full public file (ODbL);
+  - `POST /v1/measurements` stores one measurement;
+  - `DELETE /v1/measurements/{id}` and `DELETE /v1/measurements` delete by the owner's `X-Umbra-Contributor` install id;
+  - `GET /v1/buildings/{way|relation}/{id}` returns one building's summary and public measurements.
+- **Trust:** the server ignores any submitted height. It checks that the corner is a vertex of the bundled OSM footprint, recomputes the Sun position, height, σ, tip and status, and then re-runs §6.3 for the building.
+- **Engine:** shared confirmed heights are merged into every shadow, building, inspect and route calculation. A phone's own confirmed value takes priority for the same building. The result cache is keyed by the database revision.
+- **Abuse protection (§6.8):**
+  - 30 uploads per hour per install id, 60 per IP address, 120 deletions per IP;
+  - retries of an already stored measurement are free;
+  - plausibility checks;
+  - only confirmed heights are published.
+- **Moderation and export:** `node --experimental-strip-types server/heights/admin.mjs queue | accept <id> | reject <id> | building way/… | export [file]`.
+- **Phone:** sharing is opt-in (**Setări → Contribuie la baza comună**) and creates a random 128-bit install id (`expo-crypto`).
+  - New measurements are queued and uploaded when the server answers, with retries every minute and on app start.
+  - Refused measurements stay local.
+  - Deleting a sent measurement deletes it on the server, also after an offline period.
+  - **Șterge de pe server tot ce am trimis** removes everything from this install and stops sharing.
+- **Privacy (§6.7):**
+  - Uploads contain the building id, corner, shadow length, time, method, checklist answers and the install id; never positions, a location history, names or photos.
+  - Public responses omit install ids, corners and tips, and give only the measurement day.
+  - The consent text asks under-16s to get a parent's or coordinator's agreement. It still needs the coordinator's review (§10).
+
+### Analysis (phases 4 and 5)
+
+- `scripts/analyze-shadow-heights.py OUT export1.json … [--gba file]` merges exports from several phones and covers §7.4:
+  - bias, MAE, RMSE, median absolute error and share within ±3 m per method;
+  - building-level bootstrap 95% intervals;
+  - calibration of the recorded σ (share of errors within 2σ, H2);
+  - error against elevation;
+  - observer agreement;
+  - the phone-GPS convergence curve (H4);
+  - floor-count, OSM-tag and GBA baselines on the same buildings (H3).
+
+  It also draws the measured-vs-reference poster graphic. `--self-test` checks the mechanics on synthetic data.
+- `server/compute/route-effect.mjs [--heights export] [--gba file] [--trips N] [--seed S] [--at times]` re-runs routing on seeded trips with four height sources: OSM tags only, + floor estimates (the current app), GBA instead of floor estimates, and + measured heights. It reports:
+  - shade and unknown shares on the fastest and recommended routes;
+  - how often the recommendation changes;
+  - the mean shadow-edge shift Δh·cot(e).
+
+  Trips whose points are not connected in the walking graph are counted as failed.
+
+Tests cover the error model against §3.2–3.3, corner selection, GPS snapping, drone scaling, the combination and confirmation rules, storage recovery and upgrades, the export, the store, every endpoint including ownership and rate limits, the dev proxy paths, and real-city round trips. They also cover the analysis self-test and a real-city route-effect run. They verify the mechanism, not field accuracy.
 
 ## 10. Open questions
 

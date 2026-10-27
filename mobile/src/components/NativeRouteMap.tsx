@@ -12,6 +12,7 @@ import type { Place } from "../state/PlannerProvider";
 import { colors } from "../theme";
 import { nativeMapType } from "../domain/mapDisplay";
 import type { MapStyle } from "../domain/mapDisplay";
+import type { MeasureOverlay } from "../domain/measureOverlay";
 
 function shadowElements(shadows: ShadowLayer | null) {
   return shadows?.polygons.map((polygon) => (
@@ -32,7 +33,9 @@ function shadowElements(shadows: ShadowLayer | null) {
                 ? "#456D8833"
                 : polygon.source === "levels_estimate"
                   ? "#2539493B"
-                  : "#1D2B3D70"
+                  : polygon.source === "measured"
+                    ? "#1E4A3570"
+                    : "#1D2B3D70"
       }
       strokeColor={polygon.source === "unknown" ? "#8A94988A" : "#23374728"}
       strokeWidth={polygon.source === "unknown" ? 1 : 0.3}
@@ -63,6 +66,8 @@ export function RouteMap({
   threeD,
   tilted,
   onTiltChange,
+  measure = null,
+  onTap,
 }: {
   fix: LocationFix | null;
   heading: DeviceHeading | null;
@@ -81,6 +86,13 @@ export function RouteMap({
   tilted: boolean;
   treesEnabled: boolean;
   onTiltChange: (value: boolean) => void;
+  /** Shadow ruler shown while measuring a building. */
+  measure?: MeasureOverlay | null;
+  measuring?: boolean;
+  /** Single tap; used to choose a building while measuring. */
+  onTap?: (point: Coordinate) => void;
+  /** Changes when confirmed measured heights change, to refetch building geometry. */
+  heightsKey?: string;
 }) {
   const map = useRef<MapView>(null);
   const fitted = useRef("");
@@ -277,6 +289,11 @@ export function RouteMap({
           if (event.nativeEvent.touches.length >= 2) beginGesture();
         }}
         onLongPress={(event) => onPick(event.nativeEvent.coordinate)}
+        onPress={(event) => {
+          // Marker presses also arrive here; only plain map taps select buildings.
+          if (event.nativeEvent.action === "marker-press") return;
+          onTap?.(event.nativeEvent.coordinate);
+        }}
         mapType={nativeMapType(mapStyle, Platform.OS)}
         showsBuildings={threeD}
         pitchEnabled
@@ -339,6 +356,57 @@ export function RouteMap({
             </Marker>
           </>
         )}
+        {measure && measure.outline.length >= 4 && (
+          <Polyline
+            coordinates={measure.outline}
+            strokeColor="#C2410C"
+            strokeWidth={3.5}
+            zIndex={5}
+          />
+        )}
+        {measure && measure.ruler.length === 2 && (
+          <Polyline
+            coordinates={measure.ruler}
+            strokeColor="#C2410C"
+            strokeWidth={3}
+            lineDashPattern={[8, 6]}
+            zIndex={5}
+          />
+        )}
+        {measure?.marks.map((mark) => (
+          <Marker
+            key={`mark-${mark.label}`}
+            coordinate={mark.coordinate}
+            anchor={{ x: 0, y: 0.5 }}
+            tracksViewChanges={false}
+            zIndex={6}
+          >
+            <View style={styles.markRow}>
+              <View style={styles.markDot} />
+              <Text style={styles.markText}>{mark.label}</Text>
+            </View>
+          </Marker>
+        ))}
+        {measure?.corner && (
+          <Circle
+            center={measure.corner}
+            radius={1.5}
+            fillColor="#C2410C"
+            strokeColor="#FFFFFF"
+            strokeWidth={2}
+            zIndex={6}
+          />
+        )}
+        {measure?.tip && (
+          <Circle
+            center={measure.tip}
+            radius={2}
+            fillColor="#2F8F4E"
+            strokeColor="#FFFFFF"
+            strokeWidth={2}
+            zIndex={6}
+          />
+        )}
         {destination && (
           <Marker
             coordinate={destination.coordinate}
@@ -361,6 +429,23 @@ export function RouteMap({
   );
 }
 const styles = StyleSheet.create({
+  markRow: { flexDirection: "row", alignItems: "center", gap: 3 },
+  markDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#C2410C",
+    borderWidth: 1,
+    borderColor: "#FFFFFF",
+  },
+  markText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#7C2D12",
+    backgroundColor: "#FFFFFFD9",
+    paddingHorizontal: 3,
+    borderRadius: 3,
+  },
   dataCredit: {
     position: "absolute",
     left: 8,

@@ -12,6 +12,7 @@
     route: empty(),
     location: empty(),
     heading: empty(),
+    measure: empty(),
   };
   let map,
     destination,
@@ -20,6 +21,7 @@
     pressTimer,
     pressPoint,
     lastTreeFocus,
+    measuring = false,
     obstacleTimer,
     obstacleFingerprint = "",
     buildingRevision = 0;
@@ -255,6 +257,8 @@
               "#64a66d",
               "tree_canopy",
               "#51945c",
+              "measured",
+              "#1e4a35",
               "#182b3c",
             ],
             "fill-opacity": [
@@ -303,6 +307,8 @@
               "case",
               ["==", ["get", "height_source"], "osm_height_tag"],
               "#f7f7f2",
+              ["==", ["get", "height_source"], "measured_shadow"],
+              "#e3f1e6",
               "#e8e9e3",
             ],
             "fill-extrusion-height": ["get", "display_height"],
@@ -423,6 +429,97 @@
           "circle-stroke-color": "#fff",
         },
       });
+    // Measuring overlay: height-source outlines, building outline, ruler and tip.
+    if (!map.getLayer("umbra-height-source"))
+      map.addLayer({
+        id: "umbra-height-source",
+        type: "line",
+        source: "umbra-buildings",
+        layout: { visibility: measuring ? "visible" : "none" },
+        paint: {
+          "line-width": 1.6,
+          "line-color": [
+            "match",
+            ["get", "height_source"],
+            "measured_shadow",
+            "#2f8f4e",
+            "osm_height_tag",
+            "#2f62c9",
+            "estimated_from_levels",
+            "#7fa7e8",
+            "#9aa19d",
+          ],
+        },
+      });
+    if (!map.getLayer("umbra-measure-outline"))
+      map.addLayer({
+        id: "umbra-measure-outline",
+        type: "line",
+        source: "umbra-measure",
+        filter: ["==", ["get", "kind"], "outline"],
+        paint: { "line-color": "#c2410c", "line-width": 3.5 },
+      });
+    if (!map.getLayer("umbra-measure-ruler"))
+      map.addLayer({
+        id: "umbra-measure-ruler",
+        type: "line",
+        source: "umbra-measure",
+        filter: ["==", ["get", "kind"], "ruler"],
+        layout: { "line-cap": "round" },
+        paint: {
+          "line-color": "#c2410c",
+          "line-width": 3,
+          "line-dasharray": [2, 1.5],
+        },
+      });
+    if (!map.getLayer("umbra-measure-points"))
+      map.addLayer({
+        id: "umbra-measure-points",
+        type: "circle",
+        source: "umbra-measure",
+        filter: ["==", ["geometry-type"], "Point"],
+        paint: {
+          "circle-radius": [
+            "match",
+            ["get", "kind"],
+            "corner",
+            7,
+            "tip",
+            8,
+            3.5,
+          ],
+          "circle-color": [
+            "match",
+            ["get", "kind"],
+            "tip",
+            "#2f8f4e",
+            "#c2410c",
+          ],
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#fff",
+        },
+      });
+    // Labels need the basemap's glyphs; offline the marks still show as dots.
+    if (map.getStyle()?.glyphs && !map.getLayer("umbra-measure-labels"))
+      map.addLayer({
+        id: "umbra-measure-labels",
+        type: "symbol",
+        source: "umbra-measure",
+        filter: ["==", ["get", "kind"], "mark"],
+        layout: {
+          "text-field": ["get", "label"],
+          "text-font": ["Noto Sans Bold"],
+          "text-size": 12,
+          "text-offset": [0.9, 0],
+          "text-anchor": "left",
+          "text-allow-overlap": true,
+        },
+        paint: {
+          "text-color": "#7c2d12",
+          "text-halo-color": "#fff",
+          "text-halo-width": 1.6,
+        },
+      });
     applySun();
     if (!readySent) {
       readySent = true;
@@ -507,6 +604,12 @@
     });
     map.on("rotatestart", (e) => {
       if (e.originalEvent) startGesture();
+    });
+    map.on("click", (e) => {
+      send({
+        type: "tap",
+        coordinate: { latitude: e.lngLat.lat, longitude: e.lngLat.lng },
+      });
     });
     map.on("contextmenu", (e) => {
       cancelPress();
@@ -609,6 +712,15 @@
               bearing: message.bearing,
             });
             break;
+          case "measuring":
+            measuring = message.value === true;
+            if (map.getLayer("umbra-height-source"))
+              map.setLayoutProperty(
+                "umbra-height-source",
+                "visibility",
+                measuring ? "visible" : "none",
+              );
+            break;
           case "models":
             modelsEnabled = message.value === true;
             applyTreeDimension();
@@ -694,6 +806,7 @@
       buildings: saved.buildings.features.length,
       shadows: saved.shadows.features.length,
       route: saved.route.features.length,
+      measure: saved.measure.features.length,
       treeModels: window.umbraTreeLayer?.inspect().count ?? 0,
     });
     window.umbraMap.map = map;

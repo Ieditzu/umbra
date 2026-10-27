@@ -307,13 +307,15 @@ export async function localShadows(
   outer: for (const b of nearby) {
     await work.checkpoint();
     const source: ShadowPolygon["source"] =
-      b.height.source === "osm_height_tag"
-        ? "osm_height"
-        : b.height.source === "estimated_from_levels"
-          ? "levels_estimate"
-          : options.displayEstimates && b.height.source === "missing"
-            ? "display_estimate"
-            : "unknown";
+      b.height.source === "measured_shadow"
+        ? "measured"
+        : b.height.source === "osm_height_tag"
+          ? "osm_height"
+          : b.height.source === "estimated_from_levels"
+            ? "levels_estimate"
+            : options.displayEstimates && b.height.source === "missing"
+              ? "display_estimate"
+              : "unknown";
     if (source === "unknown" && options.includeNeutralFootprints === false)
       continue;
     const renderHeight = Number(b.tags["umbra:render_height"]);
@@ -369,6 +371,10 @@ export async function localShadows(
     }
   }
   work.check();
+  if (result.polygons.some((p) => p.source === "measured"))
+    result.warnings.push(
+      "Unele umbre folosesc înălțimi măsurate pe telefon din umbra clădirii (interval ±2σ). Sunt măsurători locale, neverificate de alte persoane.",
+    );
   result.warnings.push(
     "Etajele folosesc limita inferioară de 2,5 m/etaj; înălțimile lipsă pot folosi estimări doar pentru afișare.",
   );

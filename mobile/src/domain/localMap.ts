@@ -8,6 +8,7 @@ export type MapMessage =
   | { type: "ready" }
   | { type: "gesture" }
   | { type: "pick"; coordinate: Coordinate }
+  | { type: "tap"; coordinate: Coordinate }
   | {
       type: "viewport";
       bounds: Bounds;
@@ -23,8 +24,8 @@ export function parseMapMessage(text: string): MapMessage | null {
   try {
     const m = JSON.parse(text);
     if (m.type === "ready" || m.type === "gesture") return { type: m.type };
-    if (m.type === "pick" && isCoordinate(m.coordinate))
-      return { type: "pick", coordinate: m.coordinate };
+    if ((m.type === "pick" || m.type === "tap") && isCoordinate(m.coordinate))
+      return { type: m.type, coordinate: m.coordinate };
     if (m.type === "error" && typeof m.message === "string")
       return { type: "error", message: m.message.slice(0, 200) };
     if (

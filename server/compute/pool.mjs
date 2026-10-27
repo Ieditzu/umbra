@@ -157,7 +157,13 @@ export class ComputePool {
         20000,
       ).unref();
       this.queue.push(job);
-      const priority = { routes: 0, buildings: 1, shadows: 2 };
+      const priority = {
+        routes: 0,
+        verify: 1,
+        inspect: 1,
+        buildings: 1,
+        shadows: 2,
+      };
       this.queue.sort(
         (a, b) => priority[a.kind] - priority[b.kind] || a.id - b.id,
       );

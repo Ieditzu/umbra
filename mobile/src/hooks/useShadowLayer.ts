@@ -12,6 +12,8 @@ export function useShadowLayer(
   enabled: boolean,
   includeEstimates = true,
   focus?: Coordinate,
+  /** Confirmed measured heights; a change must refetch shadows. */
+  heightsKey = "",
 ) {
   const [result, setResult] = useState<{
     layer: ShadowLayer | null;
@@ -32,7 +34,7 @@ export function useShadowLayer(
   const focusKey = focus
     ? `${focus.latitude.toFixed(4)},${focus.longitude.toFixed(4)}`
     : "";
-  const requestKey = `${at}|${key}|${includeEstimates}|${focusKey}`;
+  const requestKey = `${at}|${key}|${includeEstimates}|${focusKey}|${heightsKey}`;
   useEffect(() => {
     if (!enabled || !foreground) return;
     const controller = new AbortController();

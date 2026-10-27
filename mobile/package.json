@@ -8,6 +8,7 @@
     "@react-native-community/datetimepicker": "9.2.1",
     "expo": "^58.0.0",
     "expo-constants": "~58.0.13",
+    "expo-crypto": "~58.0.7",
     "expo-font": "~58.0.10",
     "expo-linking": "~58.0.14",
     "expo-location": "~58.0.19",
@@ -49,7 +50,7 @@
     "export:ios": "expo export --platform ios",
     "metro": "expo start",
     "server": "node --experimental-strip-types ../server/mobile-api.mjs",
-    "test:server": "node --experimental-strip-types --test ../server/compute/*.test.mjs"
+    "test:server": "node --experimental-strip-types --test ../server/compute/*.test.mjs ../server/heights/*.test.mjs"
   },
   "private": true
 }

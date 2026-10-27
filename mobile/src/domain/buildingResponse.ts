@@ -35,6 +35,7 @@ export function parseBuildingFeatures(raw: unknown): BuildingFeatures {
         "unsupported_elevated",
         "osm_height_tag",
         "estimated_from_levels",
+        "measured_shadow",
       ].includes(p.height_source)
     )
       throw Error("Înălțime de clădire invalidă.");

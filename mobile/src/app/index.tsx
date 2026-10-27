@@ -1,4 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -16,6 +17,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DeparturePicker } from "../components/DeparturePicker";
 import { PlaceSearch } from "../components/PlaceSearch";
 import { RouteCard } from "../components/RouteCard";
+import { MeasurePanel } from "../components/MeasurePanel";
+import { buildMeasureOverlay } from "../domain/measureOverlay";
+import type { MeasureTarget } from "../engine/measureTarget";
+import type { Point } from "../engine/geometry";
+import { inspectBuilding } from "../services/calculations";
+import { CalculationError } from "../services/calculationClient";
+import { useMeasurements } from "../state/MeasurementProvider";
 import { RouteMap } from "../components/RouteMap";
 import {
   CONSTANȚA,
@@ -67,6 +75,14 @@ export default function MapScreen() {
   const [navigation, setNavigation] = useState<string | null>(null);
   const [timeOpen, setTimeOpen] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
+  const measurements = useMeasurements();
+  const [measuring, setMeasuring] = useState(false);
+  const [target, setTarget] = useState<MeasureTarget | null>(null);
+  const [targetLoading, setTargetLoading] = useState(false);
+  const [targetError, setTargetError] = useState("");
+  const [cornerIndex, setCornerIndex] = useState<number | null>(null);
+  const [tip, setTip] = useState<Point | null>(null);
+  const inspecting = useRef<AbortController | null>(null);
   const { showShadows, estimatedShadows, mapStyle, threeD } = planner.settings;
   const setShowShadows = (value: boolean | ((previous: boolean) => boolean)) =>
     planner.changePreferences((previous) => ({
@@ -136,7 +152,29 @@ export default function MapScreen() {
     showShadows || threeD,
     estimatedShadows || threeD,
     view.focus,
+    measurements.heightsKey,
   );
+  const measureOverlay = useMemo(
+    () =>
+      measuring && target
+        ? buildMeasureOverlay(
+            target,
+            cornerIndex,
+            clock,
+            tip,
+            measurements.settings.blind,
+          )
+        : null,
+    [measuring, target, cornerIndex, clock, tip, measurements.settings.blind],
+  );
+  // New confirmed heights change modelled shade, so shown routes are recalculated.
+  const heightsSeen = useRef(measurements.heightsKey);
+  useEffect(() => {
+    if (heightsSeen.current === measurements.heightsKey) return;
+    heightsSeen.current = measurements.heightsKey;
+    lastAttempt.current = null;
+    if (planner.comparison) void callbacks.current.calculate();
+  }, [measurements.heightsKey, planner.comparison]);
   const mapShadows = useMemo(
     () =>
       mapShadowVisibility(shadow.layer, showShadows, estimatedShadows, threeD),
@@ -190,8 +228,55 @@ export default function MapScreen() {
     routeKey,
   ]);
 
+  function selectBuilding(point: Coordinate) {
+    if (!isCoordinate(point)) return;
+    inspecting.current?.abort();
+    const controller = new AbortController();
+    inspecting.current = controller;
+    setTargetLoading(true);
+    setTargetError("");
+    inspectBuilding(point, new Date().toISOString(), controller.signal)
+      .then((found) => {
+        if (controller.signal.aborted) return;
+        if (!found) {
+          setTargetError(
+            "Nu am găsit o clădire aici. Măsurarea funcționează în Constanța, Mamaia și Palazu Mare.",
+          );
+          return;
+        }
+        setTarget(found);
+        setTip(null);
+        setCornerIndex(found.corners[0]?.index ?? null);
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        setTargetError(
+          error instanceof CalculationError && error.status === 404
+            ? "Repornește serverul de pe PC: Ctrl+C apoi npm start."
+            : error instanceof Error
+              ? error.message
+              : "Clădirea nu a putut fi încărcată.",
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setTargetLoading(false);
+      });
+  }
+  function stopMeasuring() {
+    inspecting.current?.abort();
+    setMeasuring(false);
+    setTarget(null);
+    setTip(null);
+    setCornerIndex(null);
+    setTargetError("");
+    setTargetLoading(false);
+  }
   function pick(point: Coordinate) {
     if (!isCoordinate(point)) return;
+    if (measuring) {
+      selectBuilding(point);
+      return;
+    }
     setNavigation(null);
     planner.choosePlace("destination", {
       coordinate: point,
@@ -232,6 +317,12 @@ export default function MapScreen() {
           overview={overview}
           onPan={() => setFollowing(false)}
           onPick={pick}
+          onTap={(point) => {
+            if (measuring) selectBuilding(point);
+          }}
+          measure={measureOverlay}
+          measuring={measuring}
+          heightsKey={measurements.heightsKey}
           onBounds={(bounds, focus) =>
             setView({ bounds, focus: focus ?? view.focus })
           }
@@ -344,6 +435,24 @@ export default function MapScreen() {
               )}
             </Pressable>
           </>
+        )}
+        {!navigating && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Măsoară înălțimea unei clădiri din umbra ei"
+            accessibilityState={{ selected: measuring }}
+            onPress={() => {
+              if (measuring) stopMeasuring();
+              else {
+                setMeasuring(true);
+                setLayersOpen(false);
+                setFollowing(false);
+              }
+            }}
+            style={[styles.round, measuring && styles.controlSelected]}
+          >
+            <MaterialCommunityIcons name="ruler" size={23} color={MAP_ACCENT} />
+          </Pressable>
         )}
         {!navigating && (
           <Pressable
@@ -571,7 +680,22 @@ export default function MapScreen() {
             <Text style={styles.subtle}>{locationLabel}</Text>
           </Pressable>
         )}
-        {!destination ? (
+        {measuring && !navigating ? (
+          <MeasurePanel
+            target={target}
+            loading={targetLoading}
+            error={targetError}
+            cornerIndex={cornerIndex}
+            onCorner={(index) => {
+              setCornerIndex(index);
+              setTip(null);
+            }}
+            onTip={setTip}
+            fix={live.fix}
+            now={clock}
+            onClose={stopMeasuring}
+          />
+        ) : !destination ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Unde mergi?"

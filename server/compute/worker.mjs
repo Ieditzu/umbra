@@ -1,87 +1,29 @@
 import { parentPort } from "node:worker_threads";
-import { readFile } from "node:fs/promises";
-import { gunzipSync } from "node:zlib";
-import { initializeDataset } from "../../mobile/src/engine/data.ts";
-import {
-  withTrees,
-  withSatelliteCanopies,
-} from "../../mobile/src/engine/trees.ts";
-import { TreeCatalog } from "./tree-catalog.mjs";
+import { withMeasuredHeights } from "../../mobile/src/engine/data.ts";
+import { inspectBuilding } from "../../mobile/src/engine/measureTarget.ts";
+import { withTrees } from "../../mobile/src/engine/trees.ts";
 import { compareLocalRoutes } from "../../mobile/src/engine/routing.ts";
 import { visibleBuildings } from "../../mobile/src/engine/buildings.ts";
 import {
   localShadows,
   OutsideCoverageError,
 } from "../../mobile/src/engine/overlay.ts";
-import { task } from "../../mobile/src/engine/task.ts";
 
 import { decodeRegion } from "./tile-buildings.mjs";
+import { loadCity } from "./city.mjs";
 const controllers = new Map();
+const idIndex = new WeakMap();
+/** Building lookup by OSM id for upload verification. */
+function byId(data) {
+  let index = idIndex.get(data);
+  if (!index) {
+    index = new Map(data.buildings.map((b) => [b.id, b]));
+    idIndex.set(data, index);
+  }
+  return index;
+}
 const regionCache = new Map();
-const treePromise = (async () => {
-  const packed = JSON.parse(
-    await readFile(
-      new URL("../../mobile/assets/data/romania-trees.json", import.meta.url),
-      "utf8",
-    ),
-  );
-  if (packed.format !== "umbra-gzip-json-v1" || packed.raw_bytes > 80_000_000)
-    throw Error("Invalid tree snapshot");
-  const decoded = gunzipSync(Buffer.from(packed.payload, "base64"), {
-    maxOutputLength: 80_000_000,
-  });
-  if (decoded.length !== packed.raw_bytes)
-    throw Error("Tree snapshot size mismatch");
-  return new TreeCatalog(JSON.parse(decoded.toString("utf8")));
-})();
-const canopyPromise = (async () => {
-  const packed = JSON.parse(
-    await readFile(
-      new URL(
-        "../../mobile/assets/data/constanta-canopy.json",
-        import.meta.url,
-      ),
-      "utf8",
-    ),
-  );
-  if (packed.format !== "umbra-gzip-json-v1" || packed.raw_bytes > 40_000_000)
-    throw Error("Invalid canopy snapshot");
-  const decoded = gunzipSync(Buffer.from(packed.payload, "base64"), {
-    maxOutputLength: 40_000_000,
-  });
-  if (decoded.length !== packed.raw_bytes)
-    throw Error("Canopy snapshot size mismatch");
-  const raw = JSON.parse(decoded.toString("utf8"));
-  if (raw.schema_version !== 1) throw Error("Invalid canopy schema");
-  return raw.polygons;
-})();
-const dataPromise = (async () => {
-  const packed = JSON.parse(
-    await readFile(
-      new URL("../../mobile/assets/data/constanta-city.json", import.meta.url),
-      "utf8",
-    ),
-  );
-  if (packed.format !== "umbra-gzip-json-v1" || packed.raw_bytes > 50_000_000)
-    throw Error("Invalid city snapshot");
-  const decoded = gunzipSync(Buffer.from(packed.payload, "base64"), {
-    maxOutputLength: 50_000_000,
-  });
-  if (decoded.length !== packed.raw_bytes)
-    throw Error("City snapshot size mismatch");
-  const [data, catalog, canopies] = await Promise.all([
-    initializeDataset(
-      JSON.parse(decoded.toString("utf8")),
-      task(new AbortController().signal, 60000),
-    ),
-    treePromise,
-    canopyPromise,
-  ]);
-  return withSatelliteCanopies(
-    withTrees(data, catalog.forArea(data.imported_m)),
-    canopies,
-  );
-})();
+const { dataPromise, treePromise } = loadCity();
 dataPromise
   .then((data) =>
     parentPort.postMessage({
@@ -101,7 +43,7 @@ parentPort.on("message", async (message) => {
   const controller = new AbortController();
   controllers.set(message.id, controller);
   try {
-    const q = message.payload;
+    const { measured_heights: measured, ...q } = message.payload;
     let data = await dataPromise;
     if (controller.signal.aborted) throw Error("Calculul a fost oprit.");
     if (q.__region && message.kind !== "routes") {
@@ -115,8 +57,34 @@ parentPort.on("message", async (message) => {
         regionCache.set(q.__region.key, data);
       }
     }
+    data = withMeasuredHeights(data, measured);
     let result;
-    if (message.kind === "routes") {
+    if (message.kind === "verify") {
+      const b = byId(await dataPromise).get(q.osm_building);
+      result = {
+        exists: !!b,
+        elevated: b?.height.source === "unsupported_elevated",
+        // Phones receive corners as WGS84 and project them back: allow 5 cm of rounding.
+        corner: !!b?.geometry.some((poly) =>
+          poly[0].some(
+            (p) => Math.hypot(p.x - q.corner.x, p.y - q.corner.y) < 0.05,
+          ),
+        ),
+        levels: (() => {
+          const levels = Number(b?.tags["building:levels"]);
+          return Number.isFinite(levels) && levels > 0 && levels <= 150
+            ? levels
+            : null;
+        })(),
+      };
+    } else if (message.kind === "inspect") {
+      result = {
+        building: inspectBuilding(data, q.point, Date.parse(q.at)),
+        attribution: [
+          data.metadata.attribution ?? "© OpenStreetMap contributors",
+        ],
+      };
+    } else if (message.kind === "routes") {
       result = await compareLocalRoutes(data, q, controller.signal);
       result.method = result.method.replace(/^on-device\//, "server/");
     } else if (message.kind === "buildings") {

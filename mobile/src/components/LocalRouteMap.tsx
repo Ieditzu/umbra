@@ -16,6 +16,7 @@ import {
   locationFeatures,
   headingFeatures,
 } from "../domain/localMap";
+import { measureFeatures } from "../domain/measureOverlay";
 import { distanceBetween, routeCoordinates } from "../domain/routes";
 import type { Bounds } from "../domain/shadows";
 import type { MapMessage } from "../domain/localMap";
@@ -78,6 +79,7 @@ export function LocalRouteMap(props: RouteMapProps) {
     );
     return () => sub.remove();
   }, []);
+  // heightsKey refetches when confirmed measurements change building heights.
   useEffect(() => {
     if (!ready || !foreground) return;
     const controller = new AbortController(),
@@ -105,7 +107,18 @@ export function LocalRouteMap(props: RouteMapProps) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [ready, foreground, boundsKey, send]);
+  }, [ready, foreground, boundsKey, send, props.heightsKey]);
+  useEffect(() => {
+    if (ready)
+      send({
+        type: "data",
+        name: "measure",
+        value: measureFeatures(props.measure ?? null),
+      });
+  }, [ready, props.measure, send]);
+  useEffect(() => {
+    if (ready) send({ type: "measuring", value: !!props.measuring });
+  }, [ready, props.measuring, send]);
   useEffect(() => {
     if (ready)
       send({
@@ -260,6 +273,8 @@ export function LocalRouteMap(props: RouteMapProps) {
             current.current.onPan();
           } else if (message.type === "pick")
             current.current.onPick(message.coordinate);
+          else if (message.type === "tap")
+            current.current.onTap?.(message.coordinate);
           else if (message.type === "error")
             setError("Randarea 3D nu a putut porni pe acest dispozitiv.");
         }}

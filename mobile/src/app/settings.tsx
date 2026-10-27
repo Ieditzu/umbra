@@ -2,12 +2,17 @@ import { router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
+import { studyCsv, studyExport } from "../domain/measurements";
+import { useMeasurements } from "../state/MeasurementProvider";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { usePlanner } from "../state/PlannerProvider";
 import { colors } from "../theme";
@@ -19,6 +24,39 @@ export default function SettingsScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [privacy, setPrivacy] = useState(false);
+  const measurements = useMeasurements();
+  const m = measurements.settings;
+  const shared = measurements.list.filter((x) => x.upload === "sent").length;
+  const pending = measurements.list.filter(
+    (x) => x.upload === "pending",
+  ).length;
+  const local = measurements.list.filter(
+    (x) => !x.upload || x.upload === "local" || x.upload === "failed",
+  ).length;
+  const syncLabel = {
+    off: "Partajare oprită",
+    idle: "Sincronizat",
+    syncing: "Se sincronizează…",
+    offline: "Serverul nu răspunde; se reîncearcă automat",
+    error: measurements.syncMessage || "Sincronizarea a eșuat",
+  }[measurements.sync];
+  async function exportStudy(format: "json" | "csv") {
+    const message =
+      format === "json"
+        ? JSON.stringify(
+            studyExport(
+              measurements.list,
+              measurements.references,
+              new Date().toISOString(),
+            ),
+          )
+        : studyCsv(measurements.list);
+    try {
+      await Share.share({ message, title: `umbra-masuratori.${format}` });
+    } catch {
+      setError("Exportul nu a putut fi deschis.");
+    }
+  }
   async function save() {
     if (busy) return;
     setBusy(true);
@@ -73,6 +111,135 @@ export default function SettingsScreen() {
             <Text style={styles.saveText}>Salvează</Text>
           )}
         </Pressable>
+        <View style={styles.divider} />
+        <Text style={styles.label}>Măsurători din umbră</Text>
+        <Text style={styles.small}>
+          {measurements.list.length} măsurători ·{" "}
+          {measurements.references.length} referințe · {shared} trimise ·{" "}
+          {pending} în așteptare · {local} doar pe telefon
+        </Text>
+        <View style={styles.switchRow}>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={styles.option}>Contribuie la baza comună</Text>
+            <Text style={styles.small}>
+              Opțional. Se trimit doar: clădirea OSM, colțul ales, lungimea
+              umbrei, ora, metoda, răspunsurile la verificări și un cod anonim
+              al instalării. Nu se trimit numele, istoricul locațiilor sau
+              fotografii. Înălțimile combinate devin publice (licență ODbL).
+              Dacă ai sub 16 ani, cere acordul unui părinte sau al
+              coordonatorului.
+            </Text>
+          </View>
+          <Pressable
+            accessibilityRole="switch"
+            accessibilityLabel="Contribuie la baza comună"
+            accessibilityState={{ checked: m.contribute }}
+            onPress={() => measurements.setContribute(!m.contribute)}
+            style={[styles.toggle, m.contribute && styles.toggleOn]}
+          >
+            <View
+              style={[
+                styles.toggleDot,
+                m.contribute && { alignSelf: "flex-end" },
+              ]}
+            />
+          </Pressable>
+        </View>
+        {(m.contribute || m.pendingDeleteAll || !!m.pendingDeletes.length) && (
+          <Text style={styles.small}>{syncLabel}</Text>
+        )}
+        {m.contribute && local > 0 && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={measurements.shareExisting}
+            style={styles.secondary}
+          >
+            <Text style={styles.secondaryText}>
+              Trimite și cele {local} salvate doar pe telefon
+            </Text>
+          </Pressable>
+        )}
+        {!!m.contributor && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() =>
+              Alert.alert(
+                "Ștergi datele trimise?",
+                "Toate măsurătorile trimise de pe acest telefon vor fi șterse de pe server, iar partajarea se oprește. Copiile de pe telefon rămân.",
+                [
+                  { text: "Renunță", style: "cancel" },
+                  {
+                    text: "Șterge",
+                    style: "destructive",
+                    onPress: measurements.deleteAllShared,
+                  },
+                ],
+              )
+            }
+            style={styles.secondary}
+          >
+            <Text style={[styles.secondaryText, { color: colors.error }]}>
+              Șterge de pe server tot ce am trimis
+            </Text>
+          </Pressable>
+        )}
+        <Text style={[styles.option, { marginTop: 18 }]}>
+          Inițiale observator (studiu)
+        </Text>
+        <TextInput
+          value={m.observer}
+          onChangeText={(observer) =>
+            measurements.updateSettings({ observer: observer.slice(0, 24) })
+          }
+          placeholder="ex. AP"
+          placeholderTextColor={colors.muted}
+          autoCapitalize="characters"
+          style={[styles.input, { marginTop: 8 }]}
+        />
+        <Text style={styles.small}>
+          Rămân pe telefon; servesc la compararea măsurătorilor între
+          observatori.
+        </Text>
+        <View style={styles.switchRow}>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={styles.option}>Mod orb</Text>
+            <Text style={styles.small}>
+              Ascunde înălțimile cunoscute, referințele și cifrele de pe riglă
+              cât timp măsori, ca să nu influențeze unde marchezi vârful.
+            </Text>
+          </View>
+          <Pressable
+            accessibilityRole="switch"
+            accessibilityLabel="Mod orb"
+            accessibilityState={{ checked: m.blind }}
+            onPress={() => measurements.updateSettings({ blind: !m.blind })}
+            style={[styles.toggle, m.blind && styles.toggleOn]}
+          >
+            <View
+              style={[styles.toggleDot, m.blind && { alignSelf: "flex-end" }]}
+            />
+          </Pressable>
+        </View>
+        <View style={[styles.choices, { marginTop: 14 }]}>
+          <Pressable
+            accessibilityRole="button"
+            disabled={
+              !measurements.list.length && !measurements.references.length
+            }
+            onPress={() => void exportStudy("json")}
+            style={styles.chip}
+          >
+            <Text style={styles.chipText}>Exportă JSON (studiu)</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            disabled={!measurements.list.length}
+            onPress={() => void exportStudy("csv")}
+            style={styles.chip}
+          >
+            <Text style={styles.chipText}>Exportă CSV</Text>
+          </Pressable>
+        </View>
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ expanded: privacy }}
@@ -88,7 +255,10 @@ export default function SettingsScreen() {
             clădirile sunt calculate pe server din datele pentru Constanța.
             Căutarea adreselor și harta folosesc Google/Apple sau OpenFreeMap
             pentru harta OSM de pe iOS. Umbrele sunt estimări geometrice, nu
-            măsurători de temperatură.
+            măsurători de temperatură. Măsurătorile din umbră rămân pe telefon;
+            serverul de pe PC primește doar înălțimile confirmate. Dacă pornești
+            contribuția, măsurătorile (fără locația ta) ajung în baza comună și
+            le poți șterge oricând.
           </Text>
         )}
       </ScrollView>
@@ -137,4 +307,35 @@ const styles = StyleSheet.create({
   },
   saveText: { color: colors.white, fontWeight: "600", fontSize: 15 },
   privacyButton: { marginTop: 22, minHeight: 44, justifyContent: "center" },
+  option: { fontSize: 15, fontWeight: "600", color: colors.ink },
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    marginTop: 16,
+  },
+  toggle: {
+    width: 50,
+    height: 30,
+    borderRadius: 15,
+    padding: 3,
+    backgroundColor: colors.line,
+  },
+  toggleOn: { backgroundColor: colors.green },
+  toggleDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+  },
+  secondary: {
+    minHeight: 46,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    marginTop: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.greenLight,
+  },
+  secondaryText: { color: colors.green, fontWeight: "700", fontSize: 14 },
 });
