@@ -2,6 +2,8 @@ import { parentPort } from "node:worker_threads";
 import { readFile } from "node:fs/promises";
 import { gunzipSync } from "node:zlib";
 import { initializeDataset } from "../../mobile/src/engine/data.ts";
+import { withTrees } from "../../mobile/src/engine/trees.ts";
+import { TreeCatalog } from "./tree-catalog.mjs";
 import { compareLocalRoutes } from "../../mobile/src/engine/routing.ts";
 import { visibleBuildings } from "../../mobile/src/engine/buildings.ts";
 import {
@@ -13,6 +15,22 @@ import { task } from "../../mobile/src/engine/task.ts";
 import { decodeRegion } from "./tile-buildings.mjs";
 const controllers = new Map();
 const regionCache = new Map();
+const treePromise = (async () => {
+  const packed = JSON.parse(
+    await readFile(
+      new URL("../../mobile/assets/data/romania-trees.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  if (packed.format !== "umbra-gzip-json-v1" || packed.raw_bytes > 80_000_000)
+    throw Error("Invalid tree snapshot");
+  const decoded = gunzipSync(Buffer.from(packed.payload, "base64"), {
+    maxOutputLength: 80_000_000,
+  });
+  if (decoded.length !== packed.raw_bytes)
+    throw Error("Tree snapshot size mismatch");
+  return new TreeCatalog(JSON.parse(decoded.toString("utf8")));
+})();
 const dataPromise = (async () => {
   const packed = JSON.parse(
     await readFile(
@@ -27,10 +45,14 @@ const dataPromise = (async () => {
   });
   if (decoded.length !== packed.raw_bytes)
     throw Error("City snapshot size mismatch");
-  return initializeDataset(
-    JSON.parse(decoded.toString("utf8")),
-    task(new AbortController().signal, 60000),
-  );
+  const [data, catalog] = await Promise.all([
+    initializeDataset(
+      JSON.parse(decoded.toString("utf8")),
+      task(new AbortController().signal, 60000),
+    ),
+    treePromise,
+  ]);
+  return withTrees(data, catalog.forArea(data.imported_m));
 })();
 dataPromise
   .then((data) =>
@@ -58,6 +80,8 @@ parentPort.on("message", async (message) => {
       data = regionCache.get(q.__region.key);
       if (!data) {
         data = await decodeRegion(q.__region, controller.signal);
+        const catalog = await treePromise;
+        data = withTrees(data, catalog.forArea(data.imported_m));
         if (regionCache.size >= 3)
           regionCache.delete(regionCache.keys().next().value);
         regionCache.set(q.__region.key, data);

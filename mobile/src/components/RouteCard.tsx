@@ -33,11 +33,16 @@ export function RouteCard({
         {distanceLabel(route.distance_m)} ·{" "}
         {totals.unknown >= route.duration_s - 1
           ? "Expunere necunoscută"
-          : `${totals.sun < 60 ? "Sub 1 min" : minutes(totals.sun)} în soare (modelat)`}
+          : `${minutes(totals.shade + totals.estimated_shade)} umbră modelată`}
       </Text>
       <View style={styles.bar}>
         {totals.shade > 0 && (
           <View style={{ flex: totals.shade, backgroundColor: colors.green }} />
+        )}
+        {totals.estimated_shade > 0 && (
+          <View
+            style={{ flex: totals.estimated_shade, backgroundColor: "#8CAE71" }}
+          />
         )}
         {totals.sun > 0 && (
           <View style={{ flex: totals.sun, backgroundColor: colors.sun }} />
@@ -48,6 +53,11 @@ export function RouteCard({
           />
         )}
       </View>
+      {totals.estimated_shade > 0 && (
+        <Text style={styles.detail}>
+          {minutes(totals.estimated_shade)} umbră de copaci estimată
+        </Text>
+      )}
       {totals.unknown > 0 && (
         <Text style={styles.detail}>
           {minutes(totals.unknown)} cu expunere necunoscută

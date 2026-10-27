@@ -1,6 +1,7 @@
 import { bounds, contains, distance, length, intersects } from "./geometry.ts";
 import type { Box, Point, Polygon } from "./geometry.ts";
 import type { Task } from "./task.ts";
+import type { Tree } from "./trees.ts";
 
 export const ATTRIBUTION =
   "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright";
@@ -48,6 +49,8 @@ export type Dataset = Omit<RawDataset, "edges" | "buildings"> & {
   index: BuildingIndex;
   maxHeight: number;
   maxDisplayHeight: number;
+  trees?: Tree[];
+  treeIndex?: BuildingIndex<Tree>;
 };
 function positive(value: string | undefined): number {
   if (!value) return 0;
@@ -82,11 +85,11 @@ const validBox = (b: Box) =>
   b.south < b.north;
 
 /** Uniform grid limits repeated building/ray work without an extra native module. */
-export class BuildingIndex {
+export class BuildingIndex<T extends { box: Box } = Building> {
   private cells = new Map<string, number[]>();
-  private buildings: Building[];
+  private buildings: T[];
   private area: Box;
-  constructor(buildings: Building[], area: Box) {
+  constructor(buildings: T[], area: Box) {
     this.buildings = buildings;
     this.area = area;
     for (let i = 0; i < buildings.length; i++) {
@@ -106,7 +109,7 @@ export class BuildingIndex {
     for (let x = w; x <= e; x++)
       for (let y = s; y <= n; y++) visit(`${x}:${y}`);
   }
-  query(box: Box): Building[] {
+  query(box: Box): T[] {
     const ids = new Set<number>();
     this.eachCell(box, (key) => {
       for (const i of this.cells.get(key) ?? []) ids.add(i);
@@ -116,7 +119,7 @@ export class BuildingIndex {
       .filter((b) => intersects(box, b.box));
   }
   /** Walk only cells touched by the ray, not every cell of its large diagonal box. */
-  ray(a: Point, b: Point): Building[] {
+  ray(a: Point, b: Point): T[] {
     const dx = b.x - a.x,
       dy = b.y - a.y;
     const count = Math.max(

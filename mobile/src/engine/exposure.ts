@@ -4,6 +4,7 @@ import type { Dataset } from "./data.ts";
 import type { Exposure } from "../domain/routes.ts";
 import { solarDirection, solarPosition } from "./solar.ts";
 import type { Sun } from "./solar.ts";
+import { treeHasFoliage } from "./trees.ts";
 
 export type ExposureResult = { exposure: Exposure; reason: string };
 export function classifyAt(
@@ -11,6 +12,7 @@ export function classifyAt(
   p: Point,
   sun: Sun,
   positionKnown: boolean,
+  at?: number,
 ): ExposureResult {
   if (sun.elevation < -0.833) return { exposure: "unknown", reason: "night" };
   if (sun.elevation < 5) return { exposure: "unknown", reason: "low_sun" };
@@ -18,7 +20,11 @@ export function classifyAt(
     return { exposure: "unknown", reason: "road_or_grade_position" };
   const v = solarDirection(p, sun.azimuth),
     slope = Math.tan(rad(sun.elevation)),
-    length = Math.max(500, data.maxHeight / slope + 1);
+    length = Math.max(
+      500,
+      data.maxHeight / slope + 1,
+      data.treeIndex ? 60 / slope + 1 : 0,
+    );
   const end = { x: p.x + v.x * length, y: p.y + v.y * length };
   let uncertain = false;
   // No known prism beyond this length can reach the ground point. Missing heights
@@ -39,6 +45,17 @@ export function classifyAt(
         return { exposure: "shade", reason: building.height.source };
       if (rayHeight <= building.height.high_m + 1e-4) uncertain = true;
     }
+  if (at !== undefined && data.treeIndex) {
+    for (const tree of data.treeIndex.ray(p, end)) {
+      if (!treeHasFoliage(tree, at)) continue;
+      const entry = firstInteriorDistance(p, end, tree.geometry);
+      const reverse = firstInteriorDistance(end, p, tree.geometry);
+      if (entry === null || reverse === null) continue;
+      const exit = length - reverse;
+      if (entry * slope < tree.height && exit * slope > tree.base)
+        return { exposure: "estimated_shade", reason: "estimated_tree_canopy" };
+    }
+  }
   // This bundled OSM pilot has no independent obstruction-completeness audit.
   // Absence of a modeled shadow is never automatically reported as direct sun.
   return {
@@ -51,4 +68,4 @@ export const exposureAt = (
   p: Point,
   at: number,
   known: boolean,
-) => classifyAt(data, p, solarPosition(at, unproject(p)), known);
+) => classifyAt(data, p, solarPosition(at, unproject(p)), known, at);

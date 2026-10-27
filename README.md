@@ -52,7 +52,7 @@ The PC must stay on and reachable for new routes, buildings and shadows. **There
 
 GPS origin/destination, chosen time and viewport are sent to the PC for calculation. The server does not write those requests to disk or request logs; bounded viewport-result caches exist in server memory. Map style, 3D, shadow visibility, selected date/time and detour preference are saved locally on the phone and restored on reopening. Map controls save automatically; the detour screen uses **Salvează**. **Acum** remains a live clock when selected. GPS, destination and routes are not persisted. OpenFreeMap also receives the server’s regional tile requests. Apple/Google handle native map/search requests. See [server architecture and privacy](docs/backend/mobile-server.md) and [data provenance](docs/mobile-data.md).
 
-Unknown heights, missing obstructions, trees, weather and terrain remain uncertain. Unmodeled exposure is not counted as shade. These are experimental geometric estimates, not field-validated temperature, UV or route-safety measurements.
+Mapped trees and rows appear as approximate green canopies when **Umbre** and **Estimări și copaci** are enabled. The server estimates tree shade and considers it with reduced weight when comparing routes; unknown height and canopy size use defaults. Deciduous and unknown trees have no modelled foliage November–March, while evergreen trees retain it. Coverage is incomplete; unmapped trees, weather and terrain remain uncertain. Unmodeled exposure is not counted as shade. These are experimental geometric estimates, not field-validated temperature, UV or route-safety measurements.
 
 ## Checks
 
@@ -88,6 +88,6 @@ Review coverage, height provenance and generated metadata before replacing the s
 Historical parking-camera documents remain in `docs/`; the previous README is in [the archive](docs/archive/README.previous.md).
 
 
-If shadows say **Repornește serverul de pe PC**, stop the old command with **Ctrl+C**, run `npm --prefix mobile start -- --clear`, and reload Expo Go. An old running backend cannot understand fields added by a freshly updated app. **Straturi** also shows the computed Sun elevation and azimuth. At night, daylight shadows remain empty.
+If shadows say **Repornește serverul de pe PC**, stop the old command with **Ctrl+C**, run `npm --prefix mobile start -- --clear`, and reload Expo Go. An old running backend cannot understand fields added by a freshly updated app. **Straturi** also shows the computed Sun elevation and azimuth. At night, daylight shadows remain empty; mapped tree canopies may remain visible.
 
 After an embedded-map update, use a complete **Reload in Expo Go**. The renderer is versioned by its bundled content and resets readiness during page reload, so it does not lose geometry commands before initialization. Long jumps between cities refresh the spatial index; nearby zoom/pan retains incremental updates.

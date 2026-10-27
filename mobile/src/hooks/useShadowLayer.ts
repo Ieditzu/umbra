@@ -114,7 +114,10 @@ export function useShadowLayer(
       ? {
           ...visible,
           polygons: visible.polygons.filter(
-            (p) => p.source !== "display_estimate",
+            (p) =>
+              !["display_estimate", "tree_canopy", "tree_estimate"].includes(
+                p.source,
+              ),
           ),
         }
       : visible;

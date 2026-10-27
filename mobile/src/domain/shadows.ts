@@ -4,7 +4,13 @@ import type { Coordinate } from "./routes.ts";
 export type Bounds = [number, number, number, number];
 export type ShadowPolygon = {
   id: string;
-  source: "osm_height" | "levels_estimate" | "display_estimate" | "unknown";
+  source:
+    | "osm_height"
+    | "levels_estimate"
+    | "display_estimate"
+    | "tree_canopy"
+    | "tree_estimate"
+    | "unknown";
   coordinates: Coordinate[];
   holes: Coordinate[][];
 };
@@ -72,6 +78,8 @@ export function parseShadowLayer(raw: unknown, instant: string): ShadowLayer {
         "osm_height",
         "levels_estimate",
         "display_estimate",
+        "tree_canopy",
+        "tree_estimate",
         "unknown",
       ].includes(source ?? "") ||
       !Array.isArray(geometry.coordinates) ||

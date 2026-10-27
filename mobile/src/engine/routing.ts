@@ -125,7 +125,7 @@ async function shortest(
   if (!distances.has(to))
     throw new Error("Nu există un traseu pietonal conectat în datele locale.");
   const path: number[] = [];
-  for (let current = to; current !== from; ) {
+  for (let current = to; current !== from;) {
     const i = previous.get(current);
     if (i === undefined || path.length > data.edges.length)
       throw new Error("Traseul local nu a putut fi reconstruit.");
@@ -177,7 +177,8 @@ async function evaluate(
           edge.position_known,
         );
         reasons.add(ex.reason);
-        if (ex.exposure !== "shade") upperSun += seconds;
+        if (ex.exposure === "estimated_shade") upperSun += seconds * 0.5;
+        else if (ex.exposure !== "shade") upperSun += seconds;
         const last = segments.at(-1);
         if (
           last &&
@@ -275,14 +276,13 @@ export async function compareLocalRoutes(
     let bad = 0;
     for (let j = 0; j < 3; j++) {
       const f = (j + 0.5) / 3;
-      if (
-        classify(
-          along(edge.geometry, f),
-          at + (travel + (edge.length / q.walking_speed_mps) * f) * 1000,
-          edge.position_known,
-        ).exposure !== "shade"
-      )
-        bad++;
+      const exposure = classify(
+        along(edge.geometry, f),
+        at + (travel + (edge.length / q.walking_speed_mps) * f) * 1000,
+        edge.position_known,
+      ).exposure;
+      bad +=
+        exposure === "shade" ? 0 : exposure === "estimated_shade" ? 0.5 : 1;
     }
     edgeExposure.set(i, bad / 3);
     return bad / 3;
@@ -366,9 +366,9 @@ export async function compareLocalRoutes(
       method: "on-device/bounded-candidates/traversal-ray-shadows/utm35/v1",
       routes: selected.map((v) => v.route),
       warnings: [
-        "Model geometric experimental pe teren plan; fără validare în teren. Arborii, norii, vremea și obstacolele necartografiate nu sunt deduse.",
+        "Model geometric experimental pe teren plan; fără validare în teren. Umbrele copacilor cartografiați sunt orientative. Norii, vremea și obstacolele necartografiate nu sunt deduse.",
         "Calcul local: poziția Soarelui este reevaluată la momentele parcurgerii, cu eșantioane de cel mult 10 m și 10 s. Căutarea de alternative este limitată și nu garantează optimul global.",
-        "Înălțimile din numărul etajelor sunt ipoteze de 2,5–3,5 m/etaj plus până la 3 m pentru acoperiș. Expunerea necunoscută nu este numărată ca umbră; absența unei umbre nu dovedește soare direct.",
+        "Înălțimile din numărul etajelor sunt ipoteze de 2,5–3,5 m/etaj plus până la 3 m pentru acoperiș. Umbra estimată a arborilor primește o pondere parțială la alegerea traseului. Expunerea necunoscută nu este numărată ca umbră; absența unei umbre nu dovedește soare direct.",
         `Acces la rețeaua pietonală: ${from.distance.toFixed(1)} m și ${to.distance.toFixed(1)} m; porțiunile din afara rețelei nu sunt incluse în durată. Verifică accesul și trecerile pe teren.`,
         ...(from.insideBuilding || to.insideBuilding
           ? [
@@ -378,7 +378,7 @@ export async function compareLocalRoutes(
         `Date locale ${data.pilot_id}, OSM ${data.metadata.osm_base_timestamp}. Inventarul obstacolelor nu este verificat complet.`,
         ...(selected.length === 1
           ? [
-              "Nu s-a găsit o alternativă distinctă cu mai puțin timp de soare plus incertitudine în ocolul acceptat.",
+              "Nu s-a găsit o alternativă distinctă cu mai puțină expunere estimată și incertitudine în ocolul acceptat.",
             ]
           : []),
         ...[...new Set(selected.flatMap((v) => [...v.reasons]))].map(

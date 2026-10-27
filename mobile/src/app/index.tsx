@@ -445,10 +445,10 @@ export default function MapScreen() {
             </Text>
           )}
           <View style={styles.layerHeader}>
-            <Text style={styles.panelTitle}>Umbre orientative</Text>
+            <Text style={styles.panelTitle}>Estimări și copaci</Text>
             <Pressable
               accessibilityRole="switch"
-              accessibilityLabel="Umbre din înălțimi orientative"
+              accessibilityLabel="Afișează umbrele orientative și copacii"
               accessibilityState={{ checked: estimatedShadows }}
               onPress={() =>
                 planner.changePreferences((p) => ({
@@ -466,8 +466,8 @@ export default function MapScreen() {
             </Pressable>
           </View>
           <Text style={styles.subtle}>
-            Înălțimi orientative ale hărții sau ipoteză de 6 m. Nu intră în
-            evaluarea traseului.
+            Coroanele copacilor și umbrele sunt orientative. Traseele folosesc
+            umbra estimată a copacilor cu o pondere redusă.
           </Text>
           {shadow.layer?.partialCoverage && (
             <Text style={styles.subtle}>

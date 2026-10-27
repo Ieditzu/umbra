@@ -20,6 +20,7 @@ import type { Sun } from "./solar.ts";
 import { isCoordinate } from "../domain/routes.ts";
 import type { Coordinate } from "../domain/routes.ts";
 import { task } from "./task.ts";
+import { treeHasFoliage } from "./trees.ts";
 
 export class OutsideCoverageError extends Error {}
 
@@ -178,7 +179,7 @@ export async function localShadows(
     polygons: [],
     attribution: [ATTRIBUTION],
     warnings: [
-      "Umbre geometrice locale pe teren plan, fără validare în teren. Arborii, norii și obstacolele necartografiate nu sunt modelate.",
+      "Umbre geometrice locale pe teren plan, fără validare în teren. Norii și obstacolele necartografiate nu sunt modelate.",
     ],
     truncated: false,
     partialCoverage,
@@ -188,9 +189,86 @@ export async function localShadows(
     result.warnings.push(
       "Datele disponibile acoperă doar o parte din zona vizibilă. Apropie harta.",
     );
-  if (result.state !== "available") return result;
   let vertices = 0,
     skipped = 0;
+  if (options.displayEstimates && data.treeIndex) {
+    const treeReach =
+      result.state === "available" ? 60 / Math.tan(rad(sun.elevation)) : 0;
+    const center = project(focus);
+    const nearbyTrees = data.treeIndex
+      .query(expand(viewBox, treeReach))
+      .sort(
+        (a, b) =>
+          ((a.box.west + a.box.east) / 2 - center.x) ** 2 +
+          ((a.box.south + a.box.north) / 2 - center.y) ** 2 -
+          ((b.box.west + b.box.east) / 2 - center.x) ** 2 -
+          ((b.box.south + b.box.north) / 2 - center.y) ** 2,
+      );
+    // Limit each response so dense tree data does not crowd out buildings or stall mobile rendering.
+    for (const tree of nearbyTrees.slice(0, 500)) {
+      await work.checkpoint();
+      const add = (
+        shape: MultiPolygon,
+        source: "tree_canopy" | "tree_estimate",
+      ) => {
+        for (const [part, polygon] of shape.entries()) {
+          const count = polygon.reduce((n, ring) => n + ring.length, 0);
+          if (
+            area([polygon]) < 0.01 ||
+            vertices + count > 60000 ||
+            result.polygons.length >= 2000
+          )
+            continue;
+          vertices += count;
+          const rings = polygon.map((ring) =>
+            ring.map(([x, y]) => unproject({ x, y })),
+          );
+          result.polygons.push({
+            id: `${tree.id}-${source}-${part}`,
+            source,
+            coordinates: rings[0],
+            holes: rings.slice(1),
+          });
+        }
+      };
+      try {
+        if (intersects(tree.box, viewBox))
+          add(
+            clipping.intersection(clipPoly(tree.geometry), clip),
+            "tree_canopy",
+          );
+        if (result.state !== "available" || !treeHasFoliage(tree, at)) continue;
+        const v = solarDirection(center, sun.azimuth),
+          slope = Math.tan(rad(sun.elevation));
+        const shifted = tree.geometry.map((ring) =>
+          ring.map((p) => ({
+            x: p.x - (v.x * tree.base) / slope,
+            y: p.y - (v.y * tree.base) / slope,
+          })),
+        );
+        const swept = castShadow(shifted, tree.height - tree.base, sun);
+        add(
+          clipping.intersection(
+            clipping.union(clipPoly(shifted), ...swept),
+            clip,
+          ),
+          "tree_estimate",
+        );
+      } catch {
+        skipped++;
+      }
+    }
+    if (nearbyTrees.length > 500) {
+      result.truncated = true;
+      result.warnings.push(
+        "Au fost afișați maximum 500 de arbori și segmente de rând din apropiere. Apropie harta.",
+      );
+    }
+    result.warnings.push(
+      "Copacii și rândurile OSM au coroane aproximative; umbra este orientativă. Arborii foioși și cei fără tip declarat sunt considerați fără frunze din noiembrie până în martie.",
+    );
+  }
+  if (result.state !== "available") return result;
   const nearby = data.index.query(
     expand(
       viewBox,
@@ -277,7 +355,7 @@ export async function localShadows(
   }
   work.check();
   result.warnings.push(
-    "Etajele folosesc limita inferioară de 2,5 m/etaj. Contururile fără înălțime sunt clădiri, nu umbre inventate.",
+    "Etajele folosesc limita inferioară de 2,5 m/etaj; înălțimile lipsă pot folosi estimări doar pentru afișare.",
   );
   if (options.displayEstimates)
     result.warnings.push(

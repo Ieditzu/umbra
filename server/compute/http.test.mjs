@@ -155,6 +155,8 @@ test(
     );
     assert.ok(shadows.polygons.length > 0);
     assert.ok(shadows.polygons.some((p) => p.source === "display_estimate"));
+    assert.ok(shadows.polygons.some((p) => p.source === "tree_canopy"));
+    assert.ok(shadows.polygons.some((p) => p.source === "tree_estimate"));
     assert.ok(shadows.sun.elevation > 0);
     const measuredOnly = parseShadowLayer(
       await (
@@ -167,7 +169,9 @@ test(
       at,
     );
     assert.ok(
-      !measuredOnly.polygons.some((p) => p.source === "display_estimate"),
+      !measuredOnly.polygons.some((p) =>
+        ["display_estimate", "tree_canopy", "tree_estimate"].includes(p.source),
+      ),
     );
     assert.ok(measuredOnly.polygons.length < shadows.polygons.length);
     const outside = await post(base, "/v1/shadows", {

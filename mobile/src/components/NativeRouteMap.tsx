@@ -20,13 +20,17 @@ function shadowElements(shadows: ShadowLayer | null) {
       coordinates={polygon.coordinates}
       holes={polygon.holes}
       fillColor={
-        polygon.source === "unknown"
-          ? "#8795940C"
-          : polygon.source === "display_estimate"
+        polygon.source === "tree_canopy"
+          ? "#5B9C6666"
+          : polygon.source === "tree_estimate"
             ? "#456D8833"
-            : polygon.source === "levels_estimate"
-              ? "#2539493B"
-              : "#1D2B3D70"
+            : polygon.source === "unknown"
+              ? "#8795940C"
+              : polygon.source === "display_estimate"
+                ? "#456D8833"
+                : polygon.source === "levels_estimate"
+                  ? "#2539493B"
+                  : "#1D2B3D70"
       }
       strokeColor={polygon.source === "unknown" ? "#8A94988A" : "#23374728"}
       strokeWidth={polygon.source === "unknown" ? 1 : 0.3}
@@ -286,9 +290,11 @@ export function RouteMap({
             strokeColor={
               segment.exposure === "shade"
                 ? colors.green
-                : segment.exposure === "sun"
-                  ? colors.sun
-                  : colors.unknown
+                : segment.exposure === "estimated_shade"
+                  ? "#8CAE71"
+                  : segment.exposure === "sun"
+                    ? colors.sun
+                    : colors.unknown
             }
             strokeWidth={6}
             zIndex={4}

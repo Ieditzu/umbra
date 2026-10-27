@@ -650,3 +650,30 @@ test("optional map-only shadows use 6 m missing-height volumes and report Sun at
   assert.equal(night.polygons.length, 0);
   assert.ok(night.sun.elevation < 0);
 });
+
+test("tree estimates can improve route selection without being reported as measured shade", async () => {
+  const raw = synthetic();
+  for (const node of raw.nodes)
+    if (node.point.y > p.y + 1) node.point.y = p.y + 20;
+  for (const edge of raw.edges)
+    for (const point of edge.geometry)
+      if (point.y > p.y + 1) point.y = p.y + 20;
+  const data = await initialize(raw);
+  const result = await compareLocalRoutes(data, request(), signal(), {
+    now: at,
+    classify: (point) => ({
+      exposure: point.y > p.y + 1 ? "estimated_shade" : "unknown",
+      reason: "estimated_tree_canopy",
+    }),
+  });
+  assert.equal(result.routes[0].kind, "fastest");
+  assert.equal(result.routes[1].kind, "shadiest");
+  assert.ok(
+    result.routes[1].segments.some(
+      (segment) => segment.exposure === "estimated_shade",
+    ),
+  );
+  assert.ok(
+    result.routes[1].segments.every((segment) => segment.exposure !== "shade"),
+  );
+});

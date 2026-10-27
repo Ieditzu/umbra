@@ -81,6 +81,7 @@ test("unknown exposure remains unknown and is never counted as shade", () => {
   const comparison = parseComparison(fixture(), request());
   assert.deepEqual(exposureTotals(comparison.routes[0]), {
     shade: 120,
+    estimated_shade: 0,
     sun: 0,
     unknown: 240,
   });
