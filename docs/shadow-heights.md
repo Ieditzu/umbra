@@ -250,7 +250,7 @@ The current README promises that coordinates are not sent to an Umbra server. Co
 
 ### 6.9 Competition setting
 
-The 2017 RoSEF rules required demonstrations to work without internet (see [competition notes](competition/README.md)); the team's check of the 2026 regulation is in [`RoSEF_2026_Cerinte_verificate.md`](../output/research/RoSEF_2026_Cerinte_verificate.md). The stand demo should not depend on internet access: the PC calculation server runs locally, measurements are stored locally, and the shared database is an online extra.
+The 2017 RoSEF rules required demonstrations to work without internet (see [competition notes](competition/README.md)); the team's check of the 2026 regulation is in `output/research/RoSEF_2026_Cerinte_verificate.md` on the [`research/smartroute`](https://github.com/Ieditzu/umbra/blob/research/smartroute/output/research/RoSEF_2026_Cerinte_verificate.md) branch. The stand demo should not depend on internet access: the PC calculation server runs locally, measurements are stored locally, and the shared database is an online extra.
 
 ## 7. Field study
 
