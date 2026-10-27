@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<title>Umbra — poster RoSEF 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=block" rel="stylesheet">
+<style>
+  /* 80 x 120 cm, vertical: the RoSEF 2026 maximum. Print at 100 %. */
+  @page { size: 800mm 1200mm; margin: 0; }
+  :root {
+    --ink: #0B2427;
+    --teal: #0F3D40;
+    --coral: #FF6F59;
+    --paper: #FBF8F2;
+    --sand: #E9E2D4;
+    --muted: #556566;
+    /* Cards cast hard shadows the same way the buildings do: away from the Sun (bottom right). */
+    --shadow: -7mm -13mm 0 rgba(11, 36, 39, 0.30);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 800mm; height: 1200mm; background: var(--sand); overflow: hidden; }
+  body {
+    color: var(--ink); font-family: "Inter", system-ui, sans-serif; font-size: 11mm; line-height: 1.3;
+    font-feature-settings: "cv08" 1; /* serifed capital I, so "Ieditzu" never reads as "leditzu" */
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .page { position: relative; width: 800mm; height: 1200mm; overflow: hidden; }
+  .map { position: absolute; inset: 0; width: 800mm; height: 1200mm; }
+  .card { position: absolute; background: var(--paper); padding: 13mm 15mm; border-radius: 3mm; box-shadow: var(--shadow); }
+  .kicker {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 9.5mm;
+    letter-spacing: 0.07em; text-transform: uppercase; color: var(--coral); margin-bottom: 3mm;
+  }
+  .kicker b { color: var(--ink); margin-right: 3mm; }
+  .stat { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; color: var(--coral); line-height: 0.92; letter-spacing: -0.025em; }
+  .small { font-size: 8.4mm; line-height: 1.32; color: var(--muted); }
+  p + p { margin-top: 4mm; }
+
+  .sun {
+    position: absolute; left: 505mm; top: 905mm; width: 520mm; height: 520mm; border-radius: 50%;
+    background: radial-gradient(circle at 38% 34%, #FFC08F 0%, #FF8A4C 36%, var(--coral) 70%);
+    box-shadow: 0 0 0 18mm rgba(255, 111, 89, 0.22), 0 0 0 38mm rgba(255, 111, 89, 0.11);
+  }
+  .sun-label {
+    position: absolute; left: 612mm; top: 1060mm; width: 170mm; color: #fff;
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 13.5mm; line-height: 1.05;
+  }
+  .sun-label span { display: block; font-family: "Inter"; font-weight: 500; font-size: 9mm; line-height: 1.3; margin-top: 3mm; }
+
+  .title {
+    position: absolute; left: 40mm; top: 40mm; width: 525mm; height: 322mm;
+    background: var(--ink); color: var(--paper); padding: 15mm 19mm; border-radius: 3mm; box-shadow: var(--shadow);
+  }
+  .tag { font-size: 7.4mm; letter-spacing: 0.14em; text-transform: uppercase; color: #9FC4C1; }
+  .word {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 152mm;
+    line-height: 0.8; letter-spacing: -0.045em; margin: 8mm 0 0 -5mm;
+  }
+  .word i { font-style: normal; color: var(--coral); }
+  .subtitle { font-family: "Bricolage Grotesque", sans-serif; font-weight: 600; font-size: 15mm; line-height: 1.08; margin-top: 9mm; }
+  .people { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7mm; margin-top: 12mm; padding-top: 8mm; border-top: 0.6mm solid rgba(251, 248, 242, 0.22); }
+  .people div { font-size: 7.2mm; line-height: 1.25; color: #A9C6C3; }
+  .people strong { display: block; color: var(--paper); font-family: "Bricolage Grotesque"; font-weight: 700; font-size: 9mm; }
+  .people-foot { margin-top: 5mm; font-size: 7mm; color: #A9C6C3; }
+  .people-foot b { color: var(--paper); font-weight: 600; }
+
+  .qr { left: 598mm; top: 40mm; width: 162mm; text-align: center; padding: 11mm; }
+  .qr img { width: 140mm; height: 140mm; display: block; image-rendering: pixelated; }
+  .qr div { font-size: 7.6mm; margin-top: 3mm; line-height: 1.25; }
+  .qr strong { font-family: "Bricolage Grotesque"; font-size: 8.8mm; }
+
+  .north { position: absolute; left: 650mm; top: 268mm; width: 70mm; text-align: center; color: var(--ink);
+    font-family: "Bricolage Grotesque"; font-weight: 800; font-size: 12mm; }
+  .north svg { width: 26mm; height: 34mm; display: block; margin: 0 auto 1mm; }
+
+  .problem { left: 40mm; top: 400mm; width: 345mm; height: 250mm; }
+  .problem .stat { font-size: 74mm; margin: 1mm 0 3mm -1.5mm; }
+  .bar { display: flex; height: 13mm; border-radius: 2mm; overflow: hidden; margin: 6mm 0 3mm; }
+  .bar span { display: block; height: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 2mm 6mm; font-size: 7mm; color: var(--muted); }
+  .sw { display: inline-block; width: 7mm; height: 7mm; vertical-align: -1mm; margin-right: 2mm; border-radius: 1mm; }
+
+  .idea { left: 415mm; top: 400mm; width: 345mm; height: 250mm; font-size: 11.6mm; }
+  .idea img { width: 100%; display: block; margin: 1mm 0 4mm; }
+
+  .results { left: 40mm; top: 688mm; width: 720mm; height: 327mm; display: grid; grid-template-columns: 1fr 1fr; gap: 13mm; }
+  .results .stat { font-size: 40mm; margin: 0 0 2mm -1mm; }
+  .results .cap { font-size: 8mm; line-height: 1.3; color: var(--muted); }
+  .results img { width: 100%; display: block; margin-top: 3mm; }
+  .divider { border-left: 0.8mm dashed rgba(11, 36, 39, 0.22); padding-left: 13mm; }
+
+  .concl { left: 40mm; top: 1052mm; width: 345mm; height: 118mm; padding: 11mm 14mm; }
+  .concl ul { list-style: none; font-size: 9mm; line-height: 1.24; }
+  .concl li { padding-left: 7mm; position: relative; }
+  .concl li + li { margin-top: 2.2mm; }
+  .concl li::before { content: ""; position: absolute; left: 0; top: 2.8mm; width: 3.2mm; height: 3.2mm; background: var(--coral); border-radius: 50%; }
+
+  .about { left: 410mm; top: 1052mm; width: 178mm; height: 118mm; padding: 10mm 12mm; font-size: 7mm; line-height: 1.28; color: var(--muted); }
+  .about strong { color: var(--ink); }
+  .scale { display: flex; align-items: center; gap: 3mm; margin: 3mm 0; font-size: 6.2mm; color: var(--ink); }
+  .scale i { display: block; width: 50mm; height: 3mm; background: linear-gradient(90deg, var(--ink) 50%, var(--paper) 50%); border: 0.5mm solid var(--ink); }
+  .refs { font-size: 5.6mm; line-height: 1.25; }
+</style>
+</head>
+<body>
+<div class="page">
+  <img class="map" src="map.svg" alt="">
+  <div class="sun"></div>
+  <div class="sun-label">Soarele acestei hărți<span>27 oct 2026, ora 10:00<br>e = 27,8° · azimut 150°</span></div>
+
+  <header class="title">
+    <div class="tag">RoSEF 2026 · Tehnologia Informației și Comunicațiilor</div>
+    <div class="word">UMBR<i>A</i></div>
+    <div class="subtitle">Măsurăm înălțimea clădirilor din umbra lor — ca aplicația să știe unde e umbră pe trotuar.</div>
+    <div class="people">
+      <div><strong>Eduard-Mihai Perjoc</strong>Liceul Tehnologic de Marină</div>
+      <div><strong>Eduard-Andrei Haivas</strong>Liceul Internațional de Informatică Constanța</div>
+      <div><strong>Cezar-Ștefan Manea</strong>Liceul Tehnologic de Electrotehnică și Telecomunicații</div>
+    </div>
+    <div class="people-foot"><b>clasa a X-a</b> · Coordonator: prof. Ramona Rădulescu · Contact: [adresa@email.com]</div>
+  </header>
+
+  <aside class="card qr">
+    <img src="qr-github.png" alt="Cod QR github.com/Ieditzu/umbra">
+    <div><strong>Cod sursă</strong><br>github.com/Ieditzu/umbra</div>
+  </aside>
+
+  <div class="north">
+    <svg viewBox="0 0 26 34"><path d="M13 0 L24 32 L13 25 L2 32 Z" fill="#0B2427"/><path d="M13 0 L13 25 L2 32 Z" fill="#FF6F59"/></svg>N
+  </div>
+
+  <section class="card problem">
+    <div class="kicker"><b>01</b>Problema</div>
+    <div class="stat">87,8%</div>
+    <p>din cele <strong>51.428</strong> de clădiri din Constanța nu au înălțime în OpenStreetMap. Fără înălțime, umbra nu se poate calcula.</p>
+    <div class="bar">
+      <span style="width:0.5%;background:#FF6F59"></span>
+      <span style="width:11.5%;background:#0F3D40"></span>
+      <span style="width:88%;background:repeating-linear-gradient(135deg,#E9E2D4 0 2mm,#D3CABA 2mm 4mm)"></span>
+    </div>
+    <div class="legend">
+      <span><i class="sw" style="background:#FF6F59"></i>înălțime: 0,5%</span>
+      <span><i class="sw" style="background:#0F3D40"></i>doar etaje: 11,5%</span>
+      <span><i class="sw" style="background:#D3CABA"></i>nimic: 87,8%</span>
+    </div>
+    <p class="small" style="margin-top:5mm">GlobalBuildingAtlas (AI din imagini satelitare) acoperă 79% dintre ele. Dar este corect?</p>
+  </section>
+
+  <section class="card idea">
+    <div class="kicker"><b>02</b>Ideea</div>
+    <img src="metoda.svg" alt="h = L · tan e">
+    <p>Aplicația știe exact unde este Soarele. Măsori doar <strong>lungimea umbrei L</strong> — înălțimea rezultă din trigonometrie.</p>
+  </section>
+
+  <section class="card results">
+    <div>
+      <div class="kicker"><b>03</b>AI-ul global ratează blocurile</div>
+      <div class="stat">1,36 m / etaj</div>
+      <div class="cap">mediana GlobalBuildingAtlas pentru blocurile cu 9–12 etaje (realist: 2,5–3,5 m). Clădirile de 20–40 m ies în medie cu <strong>15,7 m</strong> prea joase.</div>
+      <img src="gba-etaje.svg" alt="Înălțimea GBA după numărul de etaje">
+    </div>
+    <div class="divider">
+      <div class="kicker"><b>04</b>Umbra se poate măsura</div>
+      <div class="stat">85–90%</div>
+      <div class="cap">dintre clădiri au toamna un vârf de umbră liber de alte clădiri (60–71% pentru cele ≥ 20 m), din 38.913 contururi reale.</div>
+      <img src="masurabile.svg" alt="Procentul de clădiri măsurabile">
+      <div class="cap" style="margin-top:2mm">Cu telemetrul: eroare sub 1 m la orice oră. Cu GPS: ±3,2 m toamna, dar ±13,2 m vara la amiază → măsori cu Soarele jos.</div>
+    </div>
+  </section>
+
+  <section class="card concl">
+    <div class="kicker"><b>05</b>Concluzii</div>
+    <ul>
+      <li>GBA nu poate completa blocurile înalte: le-ar scurta umbrele la jumătate.</li>
+      <li>Soarele e un raportor gratuit: eroarea vine aproape numai din lungimea măsurată.</li>
+      <li>Urmează: măsurători pe teren (telemetru, dronă) și modul „Măsoară clădirea”.</li>
+    </ul>
+  </section>
+
+  <section class="card about">
+    <strong>Fundalul e o hartă reală:</strong> Tomis Nord, cu umbrele calculate de Umbra. Doar clădirile pline au înălțime, deci doar ele aruncă umbră.
+    <div class="scale"><i></i>100 m · scara 1:1000</div>
+    <div class="refs">[1] OpenStreetMap / Geofabrik, 2026 · [2] NOAA, Solar Calculation Details · [3] Zhu et al., GlobalBuildingAtlas, ESSD, 2025 · [4] Meeus, Astronomical Algorithms, 1998</div>
+  </section>
+</div>
+</body>
+</html>
