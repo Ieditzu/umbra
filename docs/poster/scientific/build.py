@@ -32,18 +32,19 @@ def ro(v,n=1):return f'{v:.{n}f}'.replace('.',',')
 # Larger architectural masthead inspired by the earlier 3D poster.
 text(.6,.24,'RoSEF 2026  /  TEHNOLOGIA INFORMAȚIEI ȘI COMUNICAȚIILOR',12,True,INK)
 text(.48,.44,'UMBRA',94,True,INK)
-text(9.45,.80,'Înălțimi din umbre.',25,True,COPPER)
-text(9.45,1.40,'Date, incertitudine și fezabilitate\nîn Constanța',15,False,MUTED)
+text(9.45,.70,'Trasee umbrite.\nÎnălțimi din umbre.',23,True,COPPER)
+text(9.45,1.84,'Aplicație mobilă + cercetare\nConstanța',13,False,MUTED)
 text(.65,2.22,'Eduard-Mihai Perjoc · Eduard-Andrei Haivas · Cezar-Ștefan Manea',15,True,INK)
 text(.65,2.56,'Clasa a X-a · Constanța     |     Coordonator: prof. Ramona Rădulescu',12,False,MUTED)
 rule(.6,2.91,14.8,INK,2.5)
 
-# Left introduction/method column.
-band(.6,3.05,4.65,'01  ÎNTREBAREA ȘTIINȚIFICĂ')
-text(.65,3.57,'Cât de precis putem estima înălțimea unei clădiri din umbră și cum alegem momentul măsurării?',16,True,width=42)
-text(.65,4.90,'Motivație. Umbra urbană depinde de înălțimea clădirilor. Investigăm geometria solară pentru completarea datelor lipsă.',13,width=43)
-text(.65,6.00,'Ipoteză de verificat pe teren',14,True,COPPER)
-text(.65,6.37,'Precizia depinde de lungimea măsurată și de ora aleasă.',13,width=44)
+# Lead with the actual application, alongside the research results.
+band(.6,3.05,4.65,'01  CE FACE APLICAȚIA UMBRA')
+text(.65,3.57,'Pe unde mergi cu mai puțin soare?',17,True,width=38)
+text(.65,4.30,'Alegi plecarea, destinația, ora și ocolul maxim acceptat.',13,width=44)
+text(.65,4.96,'Serverul modelează Soarele și umbrele și compară traseele. Telefonul afișează harta și ghidarea GPS.',13,width=44)
+text(.65,5.84,'«Măsoară clădirea»: GPS, ruletă/laser sau fotografie din dronă → înălțime și incertitudine.',13,True,width=44)
+text(.65,6.57,'Înălțimi confirmate → umbre și trasee.\nSalvare locală; partajare opțională.',11.5,color=COPPER)
 band(.6,7.12,4.65,'02  PRINCIPIU ȘI METODĂ')
 # Dedicated 3D illustration; text remains separate vector labels.
 from PIL import Image
@@ -99,7 +100,7 @@ text(8.37,16.16,'Limită superioară în model: ignoră arborii, mașinile și a
 
 # Table and reproducibility.
 band(.6,17.42,7.1,'06  COMPARAȚIA GBA CU OSM')
-band(8.2,17.42,7.2,'07  APLICAȚIA UMBRA')
+band(8.2,17.42,7.2,'07  CERCETAREA SUSȚINE APLICAȚIA')
 text(.65,17.95,'Tabelul 1  Diferențe GBA − înălțime etichetată OSM',14,True)
 a=axis(.72,18.42,6.8,1.42);a.axis('off')
 rows=[]
@@ -109,11 +110,11 @@ tab=a.table(cellText=rows,colLabels=['OSM','n','Bias (m)','MAE (m)','În ±3 m']
 for (i,j),cell in tab.get_celld().items():cell.set_edgecolor(WHITE);cell.set_linewidth(2);cell.set_facecolor(INK if i==0 else (PALE if i%2 else '#FAF8FC'));cell.set_text_props(color=WHITE if i==0 else INK,weight='bold' if i==0 else 'normal')
 text(.78,20.06,'Referințe OSM, neverificate pe teren. Total n = 88; 5 cazuri ≥40 m sunt omise aici și includ etichete OSM suspecte.',12.5,width=67,color=MUTED)
 text(.78,20.64,'Subset concordant cu etajele: n = 37; bias −5,0 m; MAE 6,1 m. Aceste diferențe nu stabilesc precizia absolută a GBA.',12.5,width=67,color=MUTED)
-text(8.35,17.95,'Funcții implementate',14,True)
-text(8.35,18.28,'Alegerea punctelor, ora plecării și ocolul acceptat: serverul calculează Soarele, umbrele și traseele; telefonul afișează harta.',13,width=65)
-text(8.35,19.28,'«Măsoară clădirea» — implementat',14,True,COPPER)
-text(8.35,19.65,'GPS, distanță cu ruleta/laserul sau fotografie din dronă → înălțime și incertitudine. Salvare locală și partajare opțională.',13,width=65)
-text(8.35,20.28,'Înălțimile confirmate de regulile aplicației sunt folosite la umbre și trasee. Validarea independentă pe teren rămâne de făcut.',13,True,width=65)
+text(8.35,17.95,'Întrebarea științifică',14,True)
+text(8.35,18.28,'Cât de precis putem estima înălțimea unei clădiri din umbră și cum alegem momentul măsurării?',14,True,width=61)
+text(8.35,19.28,'De la măsurare la recomandare',14,True,COPPER)
+text(8.35,19.65,'Lungimea umbrei + Soarele → înălțime estimată → verificări și confirmare în aplicație → actualizarea modelului de umbrire și a traseelor.',13,width=65)
+text(8.35,20.48,'Software implementat. Precizia fizică și câștigul real pe trasee necesită încă validare independentă pe teren.',13,True,width=65)
 
 # Evidence-status banner / references / institutional affiliations.
 fig.patches.append(Rectangle((.6/16,1-22.02/24),14.8/16,.48/24,transform=fig.transFigure,facecolor=COPPER))

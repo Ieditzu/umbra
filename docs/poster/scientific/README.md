@@ -39,7 +39,9 @@ The composition is rendered at a smaller working size, then the PDF page **and i
 
 The charts show OSM coverage, consistency between GlobalBuildingAtlas and OSM floor counts, a theoretical shadow-length error model, and simulated shadow-tip availability. Table values are comparisons against volunteered OSM height tags, not surveyed ground truth. Sample sizes and modeling assumptions are retained beside the figures.
 
-Section 07 describes the implemented application as checked against commit `d5a7eae`: routing/shadow calculation, GPS/tape/drone-photo height inputs, uncertainty, local storage, optional sharing, and incorporation of heights confirmed by the application's rules. Software confirmation is not independent validation of physical measurement accuracy.
+Section 01 prominently describes the implemented application as checked against commit `d5a7eae`: routing/shadow calculation, GPS/tape/drone-photo height inputs, uncertainty, local storage, optional sharing, and incorporation of heights confirmed by the application's rules. Software confirmation is not independent validation of physical measurement accuracy.
+
+Section 07 connects the scientific question to the measurement-to-height-to-shadow-to-route workflow. The masthead names both shaded routes and height estimation.
 
 No field measurements or demonstrated route improvements are invented. The stated GPS and tape/laser errors are assumptions in the simplified curve; the implementation also includes other uncertainty terms. The measured-height module's existence does not establish its field accuracy.
 
