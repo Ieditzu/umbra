@@ -302,10 +302,49 @@ export default function MapScreen() {
           accessibilityLabel="Stratul de umbre"
           onPress={() => setLayersOpen((value) => !value)}
           accessibilityState={{ expanded: layersOpen }}
-          style={[styles.round, layersOpen && styles.controlSelected]}
+          style={[
+            navigating ? styles.navigationMapControl : styles.round,
+            layersOpen && styles.controlSelected,
+          ]}
         >
           <Ionicons name="layers" size={23} color={MAP_ACCENT} />
         </Pressable>
+        {navigating && (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Vezi întregul traseu"
+              onPress={() => {
+                setFollowing(false);
+                setOverview((value) => value + 1);
+              }}
+              style={styles.navigationMapControl}
+            >
+              <Ionicons name="expand-outline" size={23} color={colors.ink} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Centrează pe locația mea"
+              accessibilityState={{ selected: following }}
+              onPress={() => {
+                setFollowing(true);
+                setRecenter((value) => value + 1);
+                if (!live.fix) live.retry();
+              }}
+              style={styles.navigationMapControl}
+            >
+              {live.status === "locating" ? (
+                <ActivityIndicator size="small" color={MAP_ACCENT} />
+              ) : (
+                <Ionicons
+                  name={following ? "navigate" : "locate-outline"}
+                  size={23}
+                  color={following ? MAP_ACCENT : colors.ink}
+                />
+              )}
+            </Pressable>
+          </>
+        )}
         {!navigating && (
           <Pressable
             accessibilityRole="button"
@@ -514,7 +553,13 @@ export default function MapScreen() {
       )}
       <View
         onLayout={(event) => setBottomHeight(event.nativeEvent.layout.height)}
-        style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, 16) }]}
+        style={[
+          styles.bottom,
+          {
+            paddingBottom: navigating ? 0 : Math.max(insets.bottom, 16),
+            paddingHorizontal: navigating ? 0 : 16,
+          },
+        ]}
       >
         {!!locationLabel && (
           <Pressable
@@ -540,7 +585,13 @@ export default function MapScreen() {
             <Ionicons name="chevron-forward" size={20} color={colors.muted} />
           </Pressable>
         ) : (
-          <View style={styles.routePanel}>
+          <View
+            style={[
+              styles.routePanel,
+              navigating && styles.activeRoutePanel,
+              navigating && { paddingBottom: Math.max(insets.bottom, 16) },
+            ]}
+          >
             {!navigating && (
               <View style={styles.destinationRow}>
                 <Pressable
@@ -601,7 +652,7 @@ export default function MapScreen() {
                           ? minutes(progress.remainingSeconds)
                           : "Pe traseu"}
                     </Text>
-                    <Text style={styles.subtle}>
+                    <Text style={styles.navigationDetail}>
                       {!live.fix
                         ? "Se așteaptă GPS-ul"
                         : !progress
@@ -623,53 +674,7 @@ export default function MapScreen() {
                     }}
                   >
                     <Ionicons name="close" size={18} color={colors.error} />
-                    <Text style={styles.stopRouteText}>Oprește</Text>
-                  </Pressable>
-                </View>
-                <View style={styles.navigationActions}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Vezi întregul traseu"
-                    style={styles.navigationAction}
-                    onPress={() => {
-                      setFollowing(false);
-                      setOverview((value) => value + 1);
-                    }}
-                  >
-                    <Ionicons
-                      name="scan-outline"
-                      size={19}
-                      color={MAP_ACCENT}
-                    />
-                    <Text style={styles.navigationActionText}>Ansamblu</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Centrează pe locația mea"
-                    accessibilityState={{ selected: following }}
-                    style={[
-                      styles.navigationAction,
-                      following && styles.navigationActionSelected,
-                    ]}
-                    onPress={() => {
-                      setFollowing(true);
-                      setRecenter((value) => value + 1);
-                      if (!live.fix) live.retry();
-                    }}
-                  >
-                    <Ionicons
-                      name="locate"
-                      size={19}
-                      color={following ? colors.white : MAP_ACCENT}
-                    />
-                    <Text
-                      style={[
-                        styles.navigationActionText,
-                        following && { color: colors.white },
-                      ]}
-                    >
-                      Pe mine
-                    </Text>
+                    <Text style={styles.stopRouteText}>Ieși</Text>
                   </Pressable>
                 </View>
               </View>
@@ -934,8 +939,8 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 18,
     borderRadius: 24,
-    backgroundColor: MAP_ACCENT,
-    boxShadow: "0 4px 15px #152C5526",
+    backgroundColor: "#18845A",
+    boxShadow: "0 3px 10px #183E2F33",
   },
   navigationIcon: {
     width: 44,
@@ -947,26 +952,34 @@ const styles = StyleSheet.create({
   },
   navigationHeading: { fontSize: 20, fontWeight: "700", color: colors.white },
   navigationDestination: { fontSize: 14, color: "#E2E8FF" },
-  navigationContent: { gap: 12 },
+  navigationContent: { gap: 0 },
   remainingTime: {
     fontSize: 28,
     fontWeight: "700",
     letterSpacing: -0.6,
-    color: MAP_ACCENT,
+    color: "#18845A",
   },
-  navigationActions: { flexDirection: "row", gap: 10 },
-  navigationAction: {
-    flex: 1,
-    minHeight: 46,
-    borderRadius: 15,
-    backgroundColor: "#F0F3FF",
-    flexDirection: "row",
+  navigationDetail: { fontSize: 14, lineHeight: 20, color: colors.muted },
+  navigationMapControl: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    elevation: 4,
+    boxShadow: "0 2px 8px #182B2429",
   },
-  navigationActionSelected: { backgroundColor: MAP_ACCENT },
-  navigationActionText: { fontSize: 14, fontWeight: "600", color: MAP_ACCENT },
+  activeRoutePanel: {
+    backgroundColor: colors.white,
+    borderWidth: 0,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 12,
+    boxShadow: "0 -2px 12px #182B241A",
+  },
   stopRoute: {
     flexDirection: "row",
     alignItems: "center",
