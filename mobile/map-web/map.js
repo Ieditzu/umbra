@@ -71,7 +71,11 @@
     saved[name] = value;
     const source = map.getSource(`umbra-${name}`);
     if (source) source.setData(value);
-    if (name === "shadows" && value.sun) applySun();
+    if (name === "shadows") {
+      window.umbraTreeFeatures = value.features;
+      window.umbraTreeLayer?.update(value.features);
+      if (value.sun) applySun();
+    }
   }
   function applySun() {
     const sun = saved.shadows.sun;
@@ -95,10 +99,11 @@
   }
   function applyTreeDimension() {
     const is3d = map.getPitch() > 2;
+    const hasModels = !!map.getLayer("umbra-tree-models");
     for (const [id, visible] of [
       ["umbra-tree-canopy", !is3d],
-      ["umbra-tree-volume", is3d],
-      ["umbra-tree-trunk", is3d],
+      ["umbra-tree-volume", is3d && !hasModels],
+      ["umbra-tree-trunk", is3d && !hasModels],
     ])
       if (map.getLayer(id))
         map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
@@ -238,6 +243,19 @@
           "fill-extrusion-opacity": 1,
         },
       });
+    if (!map.getLayer("umbra-tree-models") && window.umbraCreateTreeLayer) {
+      try {
+        window.umbraTreeFeatures = saved.shadows.features;
+        const treeLayer = window.umbraCreateTreeLayer(maplibregl);
+        map.addLayer(treeLayer);
+        window.umbraTreeLayer = treeLayer;
+      } catch (error) {
+        // Keep the simpler extrusion available if a device cannot initialize WebGL models.
+        window.umbraTreeLayer = null;
+        if (map.getLayer("umbra-tree-models"))
+          map.removeLayer("umbra-tree-models");
+      }
+    }
     applyTreeDimension();
     if (!map.getLayer("umbra-route"))
       map.addLayer({
@@ -524,6 +542,7 @@
       buildings: saved.buildings.features.length,
       shadows: saved.shadows.features.length,
       route: saved.route.features.length,
+      treeModels: window.umbraTreeLayer?.inspect().count ?? 0,
     });
     window.umbraMap.map = map;
   } catch (error) {

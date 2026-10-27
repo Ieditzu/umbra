@@ -121,3 +121,8 @@ The 4 m satellite-derived Constanța snapshot has 33,955 canopy polygons after m
 ## 3D tree visualization
 
 The shadow API supplies bounded canopy height/base values, which the iOS MapLibre renderer uses for simplified canopy extrusions; only individually mapped OSM tree nodes receive illustrative trunks. A real Chromium renderer near Tomis Mall at 55° pitch displayed 69 extruded canopy features, then switched back to flat canopies at zero pitch. The renderer unit tests cover the same tilt transition; iOS device rendering remains unverified. The Android and iOS satellite native map renderers still display flat polygons.
+
+
+## iOS tree models
+
+The iOS MapLibre renderer uses an offline-bundled Three.js custom layer to draw procedural, instanced tree meshes with trunks and rounded crowns. A 390 × 844 Chromium preview near Tomis Mall loaded 160 models; at 55° pitch the custom layer was active and the previous extruded canopy volumes were hidden. At zero pitch the flat canopy layer returned. Satellite canopy areas and OSM rows use representative positions, rather than identified individual trees. The real iPhone WebView and device performance still require testing.

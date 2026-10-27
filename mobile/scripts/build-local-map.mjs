@@ -20,18 +20,21 @@ const bundle = async (file, globalName) => {
   });
   return result.outputFiles[0].text;
 };
-const [library, worker, css, app, license] = await Promise.all([
-  bundle("node_modules/maplibre-gl/dist/maplibre-gl.mjs", "maplibregl"),
-  bundle("node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs", undefined),
-  readFile(
-    new URL("node_modules/maplibre-gl/dist/maplibre-gl.css", root),
-    "utf8",
-  ),
-  readFile(new URL("map-web/map.js", root), "utf8"),
-  readFile(new URL("node_modules/maplibre-gl/LICENSE.txt", root), "utf8"),
-]);
+const [library, worker, treeModels, css, app, license, threeLicense] =
+  await Promise.all([
+    bundle("node_modules/maplibre-gl/dist/maplibre-gl.mjs", "maplibregl"),
+    bundle("node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs", undefined),
+    bundle("map-web/tree-models.js", undefined),
+    readFile(
+      new URL("node_modules/maplibre-gl/dist/maplibre-gl.css", root),
+      "utf8",
+    ),
+    readFile(new URL("map-web/map.js", root), "utf8"),
+    readFile(new URL("node_modules/maplibre-gl/LICENSE.txt", root), "utf8"),
+    readFile(new URL("node_modules/three/LICENSE", root), "utf8"),
+  ]);
 const bootstrap = `maplibregl.setWorkerUrl(URL.createObjectURL(new Blob([${JSON.stringify(worker)}],{type:'text/javascript'})));maplibregl.setWorkerCount(2);`;
-const html = `<!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob:; worker-src blob:; connect-src https://*.openfreemap.org; img-src data: blob: https://*.openfreemap.org; style-src 'unsafe-inline'; font-src https://*.openfreemap.org blob:;"><style>${css}\nhtml,body,#map{width:100%;height:100%;margin:0;overflow:hidden;background:#eceee8}.maplibregl-ctrl-bottom-left{bottom:var(--bottom-clearance,105px);left:8px}.maplibregl-ctrl-attrib{font:10px sans-serif}.maplibregl-canvas{outline:none}</style></head><body><!--${license.replace(/-->/g, "--&gt;")}--><div id="map" aria-label="Harta Umbra"></div><script>${(library + "\n" + bootstrap).replace(/<\/script/gi, "<\\/script")}</script><script>${app.replace(/<\/script/gi, "<\\/script")}</script></body></html>`;
+const html = `<!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob:; worker-src blob:; connect-src https://*.openfreemap.org; img-src data: blob: https://*.openfreemap.org; style-src 'unsafe-inline'; font-src https://*.openfreemap.org blob:;"><style>${css}\nhtml,body,#map{width:100%;height:100%;margin:0;overflow:hidden;background:#eceee8}.maplibregl-ctrl-bottom-left{bottom:var(--bottom-clearance,105px);left:8px}.maplibregl-ctrl-attrib{font:10px sans-serif}.maplibregl-canvas{outline:none}</style></head><body><!--${(license + "\n" + threeLicense).replace(/-->/g, "--&gt;")}--><div id="map" aria-label="Harta Umbra"></div><script>${(library + "\n" + bootstrap).replace(/<\/script/gi, "<\\/script")}</script><script>${(treeModels + "\n" + app).replace(/<\/script/gi, "<\\/script")}</script></body></html>`;
 await mkdir(new URL("src/generated/", root), { recursive: true });
 await writeFile(
   new URL("src/generated/localMapHtml.ts", root),

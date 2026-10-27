@@ -33,6 +33,7 @@
     "eslint": "^9.39.5",
     "eslint-config-expo": "~58.0.4",
     "pbf": "5.1.2",
+    "three": "^0.186.1",
     "typescript": "~6.0.3"
   },
   "scripts": {

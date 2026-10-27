@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import test from "node:test";
 
-function renderer() {
+function renderer(models = false) {
   const messages = [],
     instances = [];
   class Map {
@@ -126,6 +126,19 @@ function renderer() {
     },
     addEventListener() {},
   };
+  if (models)
+    window.umbraCreateTreeLayer = () => ({
+      id: "umbra-tree-models",
+      type: "custom",
+      renderingMode: "3d",
+      updates: [],
+      update(features) {
+        this.updates.push(features);
+      },
+      inspect() {
+        return { count: this.updates.at(-1)?.length ?? 0 };
+      },
+    });
   vm.runInNewContext(
     readFileSync(new URL("../map-web/map.js", import.meta.url), "utf8"),
     {
@@ -402,4 +415,35 @@ test("tree canopies switch between flat and extruded layers as the map tilts", (
   map.emit("moveend");
   assert.equal(map.layers["umbra-tree-volume"].layout.visibility, "none");
   assert.equal(map.layers["umbra-tree-canopy"].layout.visibility, "visible");
+});
+
+test("tree model layer receives updates and replaces canopy blocks only while tilted", () => {
+  const { bridge, map } = renderer(true);
+  const model = map.layers["umbra-tree-models"];
+  const features = [
+    {
+      type: "Feature",
+      properties: { source: "tree_canopy" },
+      geometry: { type: "Polygon", coordinates: [] },
+    },
+  ];
+  bridge.receive({
+    type: "data",
+    name: "shadows",
+    value: { type: "FeatureCollection", features },
+  });
+  assert.equal(model.updates.at(-1).length, 1);
+  bridge.receive({ type: "tilt", value: true });
+  map.emit("moveend");
+  assert.equal(map.layers["umbra-tree-volume"].layout.visibility, "none");
+  assert.equal(map.layers["umbra-tree-canopy"].layout.visibility, "none");
+  bridge.receive({ type: "tilt", value: false });
+  map.emit("moveend");
+  assert.equal(map.layers["umbra-tree-canopy"].layout.visibility, "visible");
+  bridge.receive({
+    type: "data",
+    name: "shadows",
+    value: { type: "FeatureCollection", features: [] },
+  });
+  assert.equal(model.updates.at(-1).length, 0);
 });
