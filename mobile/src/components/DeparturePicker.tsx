@@ -29,6 +29,8 @@ export function DeparturePicker({
       mode={mode}
       minimumDate={mode === "date" ? new Date() : undefined}
       display={Platform.OS === "ios" ? "spinner" : "default"}
+      themeVariant="light"
+      textColor={colors.ink}
       locale="ro-RO"
       is24Hour
       onChange={(event, date) => {
@@ -100,7 +102,7 @@ export function DeparturePicker({
                   onPress={() => setMode(null)}
                   accessibilityRole="button"
                 >
-                  <Text>Anulează</Text>
+                  <Text style={styles.text}>Anulează</Text>
                 </Pressable>
                 <Pressable
                   style={[styles.chip, styles.selected]}
@@ -110,7 +112,7 @@ export function DeparturePicker({
                   }}
                   accessibilityRole="button"
                 >
-                  <Text>Confirmă</Text>
+                  <Text style={styles.text}>Confirmă</Text>
                 </Pressable>
               </View>
             </View>
