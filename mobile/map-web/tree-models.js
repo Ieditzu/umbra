@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { planTrees } from "./tree-placement.mjs";
+import { createObstacleIndex } from "./tree-obstacles.mjs";
 
 // Procedural low-poly trees are illustrative models, not surveyed tree geometry.
 // Instance meshes share geometry and keep phone GPU draw calls bounded.
@@ -11,7 +12,8 @@ window.umbraCreateTreeLayer = (maplibregl) => {
     camera,
     origin,
     objects = [],
-    count = 0;
+    count = 0,
+    obstacles = createObstacleIndex([], []);
   const disposeObjects = () => {
     for (const object of objects) {
       scene?.remove(object);
@@ -44,9 +46,9 @@ window.umbraCreateTreeLayer = (maplibregl) => {
     },
     update(features) {
       window.umbraTreeFeatures = features;
-      if (!scene) return;
+      if (!scene || !window.umbraBuildingsReady) return;
       disposeObjects();
-      const trees = planTrees(features, maxTrees);
+      const trees = planTrees(features, maxTrees, obstacles);
       if (!trees.length) {
         map?.triggerRepaint();
         return;
@@ -119,6 +121,10 @@ window.umbraCreateTreeLayer = (maplibregl) => {
       }
       count = trees.length;
       map.triggerRepaint();
+    },
+    setObstacles(buildings, roads) {
+      obstacles = createObstacleIndex(buildings, roads);
+      this.update(window.umbraTreeFeatures || []);
     },
     render(gl, args) {
       if (!count || !window.umbraTreeModelsEnabled || !origin) return;

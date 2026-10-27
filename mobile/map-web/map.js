@@ -19,10 +19,15 @@
     readySent = false,
     pressTimer,
     pressPoint,
-    lastTreeFocus;
+    lastTreeFocus,
+    obstacleTimer,
+    obstacleFingerprint = "",
+    buildingRevision = 0;
+  window.umbraBuildingsReady = false;
   function putBuildings(value) {
     // A rejected wide-view calculation must never erase already loaded geometry.
     if (!value.features.length && value.truncated) return;
+    window.umbraBuildingsReady = true;
     const oldPoint =
       saved.buildings.features[0]?.geometry?.coordinates?.[0]?.[0];
     const newPoint = value.features[0]?.geometry?.coordinates?.[0]?.[0];
@@ -34,7 +39,9 @@
     ) {
       // City jumps need a fresh tile index; keep incremental updates for local zoom/pan.
       saved.buildings = value;
+      buildingRevision++;
       map.getSource("umbra-buildings")?.setData(value);
+      scheduleObstacles();
       return;
     }
     const previous = new Map(saved.buildings.features.map((f) => [f.id, f]));
@@ -55,11 +62,16 @@
     }
     const add = [...retained.values()].filter((f) => !previous.has(f.id));
     const remove = [...previous.keys()].filter((id) => !retained.has(id));
-    if (!add.length && !remove.length) return;
+    if (!add.length && !remove.length) {
+      scheduleObstacles();
+      return;
+    }
     saved.buildings = {
       type: "FeatureCollection",
       features: [...retained.values()],
     };
+    buildingRevision++;
+    scheduleObstacles();
     const source = map.getSource("umbra-buildings");
     if (source) {
       // Stable IDs let MapLibre keep untouched geometry instead of rebuilding it all.
@@ -67,6 +79,48 @@
         source.setData(saved.buildings);
       });
     }
+  }
+  function scheduleObstacles() {
+    clearTimeout(obstacleTimer);
+    obstacleTimer = setTimeout(() => {
+      const layer = window.umbraTreeLayer;
+      if (!layer || typeof layer.setObstacles !== "function") return;
+      const roadSources = new Set(
+        (map.getStyle()?.layers ?? [])
+          .filter(
+            (item) => item["source-layer"] === "transportation" && item.source,
+          )
+          .map((item) => item.source),
+      );
+      const roads = [];
+      for (const source of roadSources) {
+        try {
+          roads.push(
+            ...map.querySourceFeatures(source, {
+              sourceLayer: "transportation",
+            }),
+          );
+        } catch {
+          /* Source tiles may still be loading; the next event retries. */
+        }
+      }
+      // idle is emitted after map repaint; skip identical inputs to avoid a repaint loop.
+      let hash = 2166136261;
+      for (const road of roads) {
+        const encoded = JSON.stringify([
+          road.id,
+          road.properties?.class,
+          road.properties?.brunnel,
+          road.geometry,
+        ]);
+        for (let i = 0; i < encoded.length; i++)
+          hash = Math.imul(hash ^ encoded.charCodeAt(i), 16777619);
+      }
+      const fingerprint = `${buildingRevision}:${roads.length}:${hash >>> 0}`;
+      if (fingerprint === obstacleFingerprint) return;
+      obstacleFingerprint = fingerprint;
+      layer.setObstacles(saved.buildings.features, roads);
+    }, 300);
   }
   const treeCache = new Map();
   const treeSource = (feature) =>
@@ -308,8 +362,10 @@
       try {
         window.umbraTreeFeatures = saved.shadows.features;
         const treeLayer = window.umbraCreateTreeLayer(maplibregl);
-        map.addLayer(treeLayer);
+        map.addLayer(treeLayer, before);
         window.umbraTreeLayer = treeLayer;
+        obstacleFingerprint = "";
+        scheduleObstacles();
       } catch (error) {
         // Keep the simpler extrusion available if a device cannot initialize WebGL models.
         window.umbraTreeLayer = null;
@@ -413,8 +469,21 @@
       "bottom-left",
     );
     map.on("style.load", installLayers);
+    map.on("idle", scheduleObstacles);
+    map.on("sourcedata", (event) => {
+      if (
+        event.sourceDataType === "content" &&
+        (map.getStyle()?.layers ?? []).some(
+          (layer) =>
+            layer["source-layer"] === "transportation" &&
+            layer.source === event.sourceId,
+        )
+      )
+        scheduleObstacles();
+    });
     map.on("moveend", () => {
       applyTreeDimension();
+      scheduleObstacles();
       const center = map.getCenter();
       if (
         treeCache.size &&
@@ -500,7 +569,13 @@
         const style = await response.json();
         // Only our height-provenance-aware local source supplies 3D buildings.
         style.layers = style.layers.filter(
-          (layer) => layer.type !== "fill-extrusion",
+          (layer) =>
+            layer.type !== "fill-extrusion" &&
+            !(
+              layer.type === "line" &&
+              layer["source-layer"] === "transportation" &&
+              /path_pedestrian/.test(layer.id)
+            ),
         );
         for (const layer of style.layers) {
           const id = layer.id.toLowerCase();

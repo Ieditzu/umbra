@@ -136,3 +136,8 @@ The iOS renderer places deterministic illustrative trees inside the modeled cano
 ## Top-down 3D models and tree retention
 
 The 3D building/model switch is independent of camera pitch, and the local MapLibre **Hartă** renderer is used on both Android and iOS. A 390 × 844 Chromium preview at pitch zero displayed 490 tree models with the 3D layer enabled. In the same preview, replacing the shadow payload with an empty refresh retained those models while removing time-dependent shadows. Regression tests cover layer toggling, canopy identity, cache retention, viewport priority, city changes and explicit clearing. Android and iOS device layout, map gestures and performance remain to be verified physically; native satellite/terrain maps do not use the custom tree models.
+
+
+## Tree clearance and hidden basemap paths
+
+Synthetic regression tests check building footprint and courtyard clearance, buffered road and footpath intersections, and underground-road handling. A Chromium MapLibre preview near Piața Unirii loaded 866 building parts and 391 transportation features, automatically updated 3D tree placements as tiles arrived, retained the selected-route layer, and exposed no `path_pedestrian` basemap layers. The source transportation data and the server walking graph remain in use. This verifies the mechanism against available map data, not every placement or physical iPhone/Android rendering.

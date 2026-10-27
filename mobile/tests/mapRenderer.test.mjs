@@ -13,6 +13,7 @@ function renderer(models = false) {
       this.layers = {};
       this.pitch = 0;
       this.zoom = 15;
+      this.roadFeatures = [];
       this.center = { lng: 28.64, lat: 44.175 };
       instances.push(this);
     }
@@ -26,6 +27,9 @@ function renderer(models = false) {
       this.events[name]?.(event);
     }
     addControl() {}
+    querySourceFeatures() {
+      return this.roadFeatures;
+    }
     triggerRepaint() {}
     getSource(id) {
       return this.sources[id];
@@ -134,6 +138,10 @@ function renderer(models = false) {
       type: "custom",
       renderingMode: "3d",
       updates: [],
+      obstacleUpdates: [],
+      setObstacles(buildings, roads) {
+        this.obstacleUpdates.push({ buildings, roads });
+      },
       update(features) {
         this.updates.push(features);
       },
@@ -522,4 +530,39 @@ test("tree cache survives empty refreshes prioritizes the current view and clear
   });
   assert.equal(map.getSource("umbra-shadows").data.features.length, 0);
   assert.equal(map.layers["umbra-tree-models"].updates.at(-1).length, 0);
+});
+
+test("tree clearance refreshes after road tiles load and ignores repeated idle events", async () => {
+  const { map } = renderer(true);
+  const layer = map.layers["umbra-tree-models"];
+  map.addLayer({
+    id: "road-street",
+    source: "openmaptiles",
+    "source-layer": "transportation",
+    type: "line",
+  });
+  const road = {
+    id: 12,
+    properties: { class: "minor" },
+    geometry: {
+      type: "LineString",
+      coordinates: [
+        [28.64, 44.17],
+        [28.64, 44.18],
+      ],
+    },
+  };
+  map.roadFeatures = [road];
+  map.emit("idle");
+  await new Promise((resolve) => setTimeout(resolve, 380));
+  assert.equal(layer.obstacleUpdates.length, 1);
+  assert.equal(layer.obstacleUpdates[0].roads.length, 1);
+  map.emit("idle");
+  await new Promise((resolve) => setTimeout(resolve, 380));
+  assert.equal(layer.obstacleUpdates.length, 1);
+  map.roadFeatures = [];
+  map.emit("idle");
+  await new Promise((resolve) => setTimeout(resolve, 380));
+  assert.equal(layer.obstacleUpdates.length, 2);
+  assert.equal(layer.obstacleUpdates[1].roads.length, 0);
 });

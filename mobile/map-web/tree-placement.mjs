@@ -133,8 +133,13 @@ export function placeCanopy(feature) {
     };
   });
 }
-export function planTrees(features, limit = 700) {
-  const groups = features.map(placeCanopy).filter((group) => group.length);
+export function planTrees(features, limit = 700, obstacles = null) {
+  const groups = features
+    .map(placeCanopy)
+    .map((group) =>
+      obstacles ? group.filter((tree) => !obstacles.blocked(tree)) : group,
+    )
+    .filter((group) => group.length);
   const result = [];
   // Give every visible canopy an initial model before filling the larger patches.
   for (let index = 0; result.length < limit; index++) {
