@@ -542,7 +542,18 @@ export default function MapScreen() {
           ]}
           contentContainerStyle={styles.layerContent}
         >
-          <Text style={styles.panelTitle}>Straturi</Text>
+          <View style={styles.layerHeader}>
+            <Text style={styles.panelTitle}>Straturi</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Închide straturile"
+              hitSlop={8}
+              onPress={() => setLayersOpen(false)}
+              style={[styles.close, { marginRight: -10, marginVertical: -8 }]}
+            >
+              <Ionicons name="close" size={22} color={colors.ink} />
+            </Pressable>
+          </View>
           <View style={styles.mapChoices}>
             {(
               [
