@@ -1,0 +1,193 @@
+{
+  "gba_file": "gba_e025_n45.json",
+  "romanian_osm_keys_in_gba_tile": 355800,
+  "bundle_buildings": 51428,
+  "coverage": {
+    "osm_height_tag": {
+      "buildings": 271,
+      "with_gba_height": 88,
+      "pct": 32.5
+    },
+    "estimated_from_levels": {
+      "buildings": 5913,
+      "with_gba_height": 4925,
+      "pct": 83.3
+    },
+    "missing": {
+      "buildings": 45159,
+      "with_gba_height": 35575,
+      "pct": 78.8
+    },
+    "unsupported_elevated": {
+      "buildings": 85,
+      "with_gba_height": 70,
+      "pct": 82.4
+    },
+    "all": {
+      "buildings": 51428,
+      "with_gba_height": 40658,
+      "pct": 79.1
+    }
+  },
+  "unmatched_ways_newer_than_newest_matched_way": {
+    "unmatched_ways": 10699,
+    "newer": 9962,
+    "newest_matched_way_id": 1316895070
+  },
+  "tagged": {
+    "n": 88,
+    "bias_m": -8.06,
+    "mae_m": 9.3,
+    "rmse_m": 27.87,
+    "median_abs_m": 3.74,
+    "within_3m_pct": 43.2,
+    "pearson_r": 0.26,
+    "gba_equals_tag_within_10cm": 2
+  },
+  "tagged_consistent_with_levels": {
+    "n": 37,
+    "bias_m": -5.0,
+    "mae_m": 6.09,
+    "rmse_m": 8.0,
+    "median_abs_m": 4.7,
+    "within_3m_pct": 32.4,
+    "tag_levels_pairs": 66
+  },
+  "tagged_by_height": {
+    "0-10 m": {
+      "n": 45,
+      "bias_m": -0.13,
+      "mae_m": 2.31,
+      "rmse_m": 3.12,
+      "median_abs_m": 2.13,
+      "within_3m_pct": 71.1
+    },
+    "10-20 m": {
+      "n": 28,
+      "bias_m": -5.14,
+      "mae_m": 5.52,
+      "rmse_m": 6.21,
+      "median_abs_m": 5.23,
+      "within_3m_pct": 17.9
+    },
+    "20-40 m": {
+      "n": 10,
+      "bias_m": -15.69,
+      "mae_m": 15.69,
+      "rmse_m": 17.27,
+      "median_abs_m": 16.74,
+      "within_3m_pct": 10.0
+    },
+    "40-1000 m": {
+      "n": 5,
+      "bias_m": -80.5,
+      "mae_m": 80.5,
+      "rmse_m": 113.01,
+      "median_abs_m": 38.46,
+      "within_3m_pct": 0.0
+    }
+  },
+  "tagged_var_check": {
+    "note": "GBA 'var' semantics unverified; both readings reported",
+    "within_1.96_sqrt_var_pct": 39.8,
+    "within_1.96_var_pct": 50.0
+  },
+  "levels": {
+    "n": 4925,
+    "gba_m_per_floor_median": 2.5,
+    "gba_m_per_floor_iqr": [
+      1.76,
+      4.22
+    ],
+    "inside_engine_bounds_pct": 41.7,
+    "below_bounds_pct": 49.9,
+    "above_bounds_pct": 8.3,
+    "vs_3m_per_floor": {
+      "n": 4925,
+      "bias_m": -2.54,
+      "mae_m": 4.51,
+      "rmse_m": 6.86,
+      "median_abs_m": 2.89,
+      "within_3m_pct": 52.0
+    }
+  },
+  "levels_by_count": {
+    "1-2 floors": {
+      "n": 2591,
+      "gba_m_per_floor_median": 3.96,
+      "inside_engine_bounds_pct": 63.7,
+      "vs_3m_per_floor": {
+        "n": 2591,
+        "bias_m": 1.27,
+        "mae_m": 2.27,
+        "rmse_m": 3.03,
+        "median_abs_m": 1.95,
+        "within_3m_pct": 73.1
+      }
+    },
+    "3-4 floors": {
+      "n": 965,
+      "gba_m_per_floor_median": 2.14,
+      "inside_engine_bounds_pct": 26.8,
+      "vs_3m_per_floor": {
+        "n": 965,
+        "bias_m": -2.89,
+        "mae_m": 3.26,
+        "rmse_m": 3.93,
+        "median_abs_m": 2.89,
+        "within_3m_pct": 53.2
+      }
+    },
+    "5-8 floors": {
+      "n": 1042,
+      "gba_m_per_floor_median": 1.79,
+      "inside_engine_bounds_pct": 12.7,
+      "vs_3m_per_floor": {
+        "n": 1042,
+        "bias_m": -7.06,
+        "mae_m": 7.25,
+        "rmse_m": 8.49,
+        "median_abs_m": 6.39,
+        "within_3m_pct": 13.8
+      }
+    },
+    "9-12 floors": {
+      "n": 309,
+      "gba_m_per_floor_median": 1.36,
+      "inside_engine_bounds_pct": 4.2,
+      "vs_3m_per_floor": {
+        "n": 309,
+        "bias_m": -16.77,
+        "mae_m": 16.77,
+        "rmse_m": 18.33,
+        "median_abs_m": 16.38,
+        "within_3m_pct": 2.6
+      }
+    },
+    "13-199 floors": {
+      "n": 18,
+      "gba_m_per_floor_median": 1.21,
+      "inside_engine_bounds_pct": 11.1,
+      "vs_3m_per_floor": {
+        "n": 18,
+        "bias_m": -25.86,
+        "mae_m": 25.86,
+        "rmse_m": 28.39,
+        "median_abs_m": 26.49,
+        "within_3m_pct": 0.0
+      }
+    }
+  },
+  "missing_filled_by_gba": {
+    "n": 35575,
+    "height_percentiles_m": {
+      "10": 2.3,
+      "25": 3.7,
+      "50": 5.1,
+      "75": 6.3,
+      "90": 7.7,
+      "99": 13.8
+    },
+    "median_area_m2": 120.5
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "buildings_with_height": 38913,
+  "height_basis": {
+    "tag": 261,
+    "levels": 5905,
+    "gba": 32747
+  },
+  "classes": {
+    "< 10 m": 35342,
+    "10–20 m": 2766,
+    "≥ 20 m": 805
+  },
+  "instants": {
+    "27 oct 10:00": {
+      "elevation_deg": 27.8,
+      "azimuth_deg": 149.6,
+      "measurable_pct": 87.9,
+      "by_height_pct": {
+        "< 10 m": 89.0,
+        "10–20 m": 81.3,
+        "≥ 20 m": 63.1
+      },
+      "shadow_length_m_for_15m": 28.4
+    },
+    "27 oct 12:00": {
+      "elevation_deg": 32.9,
+      "azimuth_deg": 183.1,
+      "measurable_pct": 90.1,
+      "by_height_pct": {
+        "< 10 m": 90.8,
+        "10–20 m": 85.7,
+        "≥ 20 m": 70.9
+      },
+      "shadow_length_m_for_15m": 23.2
+    },
+    "27 oct 14:00": {
+      "elevation_deg": 25.7,
+      "azimuth_deg": 215.7,
+      "measurable_pct": 85.2,
+      "by_height_pct": {
+        "< 10 m": 86.2,
+        "10–20 m": 80.7,
+        "≥ 20 m": 59.6
+      },
+      "shadow_length_m_for_15m": 31.2
+    },
+    "21 iun 09:00": {
+      "elevation_deg": 36.0,
+      "azimuth_deg": 91.2,
+      "measurable_pct": 91.3,
+      "by_height_pct": {
+        "< 10 m": 92.1,
+        "10–20 m": 86.9,
+        "≥ 20 m": 69.6
+      },
+      "shadow_length_m_for_15m": 20.6
+    },
+    "21 iun 13:00": {
+      "elevation_deg": 69.2,
+      "azimuth_deg": 175.3,
+      "measurable_pct": 96.0,
+      "by_height_pct": {
+        "< 10 m": 96.7,
+        "10–20 m": 90.9,
+        "≥ 20 m": 78.8
+      },
+      "shadow_length_m_for_15m": 5.7
+    },
+    "21 iun 17:00": {
+      "elevation_deg": 38.6,
+      "azimuth_deg": 266.2,
+      "measurable_pct": 91.7,
+      "by_height_pct": {
+        "< 10 m": 92.5,
+        "10–20 m": 88.4,
+        "≥ 20 m": 71.8
+      },
+      "shadow_length_m_for_15m": 18.8
+    }
+  }
+}
