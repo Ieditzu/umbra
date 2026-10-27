@@ -131,3 +131,8 @@ The iOS MapLibre renderer uses an offline-bundled Three.js custom layer to draw 
 ## Denser park models
 
 The iOS renderer places deterministic illustrative trees inside the modeled canopy patches and OSM rows, excluding polygon holes, while preserving one model per individually mapped tree. A round-robin budget distributes up to 700 across patches. Low-poly smooth crowns share instanced meshes. For a sample Parcul Tăbăcăriei viewport in Constanța, 129 returned canopy features generated 700 illustrative models; the Chromium preview displayed them at 3D tilt. This is a rendering test, not a tree census, source-data coverage audit, or physical iPhone performance measurement.
+
+
+## Top-down 3D models and tree retention
+
+The 3D building/model switch is independent of camera pitch, and the local MapLibre **Hartă** renderer is used on both Android and iOS. A 390 × 844 Chromium preview at pitch zero displayed 490 tree models with the 3D layer enabled. In the same preview, replacing the shadow payload with an empty refresh retained those models while removing time-dependent shadows. Regression tests cover layer toggling, canopy identity, cache retention, viewport priority, city changes and explicit clearing. Android and iOS device layout, map gestures and performance remain to be verified physically; native satellite/terrain maps do not use the custom tree models.

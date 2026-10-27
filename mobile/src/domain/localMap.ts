@@ -101,6 +101,7 @@ export function shadowFeatures(layer: ShadowLayer | null) {
         base = p.canopyBase ?? height * 0.4;
       const feature = {
         type: "Feature" as const,
+        id: p.id,
         geometry: {
           type: "Polygon" as const,
           coordinates: [p.coordinates, ...p.holes].map((ring) =>
@@ -138,6 +139,7 @@ export function shadowFeatures(layer: ShadowLayer | null) {
         feature,
         {
           type: "Feature" as const,
+          id: `${p.id}-trunk`,
           geometry: { type: "Polygon" as const, coordinates: [trunk] },
           properties: { source: "tree_trunk", height: base, base: 0 },
         },

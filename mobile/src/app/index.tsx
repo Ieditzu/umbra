@@ -28,7 +28,7 @@ import type { Coordinate } from "../domain/routes";
 import { shouldRefreshRoute } from "../domain/live";
 import type { RouteAttempt } from "../domain/live";
 import type { Bounds } from "../domain/shadows";
-import { shadowInstant } from "../domain/shadows";
+import { mapShadowVisibility, shadowInstant } from "../domain/shadows";
 import { useDeviceHeading } from "../hooks/useDeviceHeading";
 import { useLiveLocation } from "../hooks/useLiveLocation";
 import { useShadowLayer } from "../hooks/useShadowLayer";
@@ -79,6 +79,7 @@ export default function MapScreen() {
     }));
   const setMapStyle = (value: MapStyle) =>
     planner.changePreferences({ mapStyle: value });
+  const [tilted, setTilted] = useState(false);
   const [following, setFollowing] = useState(true);
   const [recenter, setRecenter] = useState(0);
   const [overview, setOverview] = useState(0);
@@ -132,9 +133,14 @@ export default function MapScreen() {
   const shadow = useShadowLayer(
     snapshotAt,
     bounds,
-    showShadows,
-    estimatedShadows,
+    showShadows || threeD,
+    estimatedShadows || threeD,
     view.focus,
+  );
+  const mapShadows = useMemo(
+    () =>
+      mapShadowVisibility(shadow.layer, showShadows, estimatedShadows, threeD),
+    [shadow.layer, showShadows, estimatedShadows, threeD],
   );
   const route =
     planner.comparison?.routes.find((item) => item.id === planner.selectedId) ??
@@ -219,7 +225,7 @@ export default function MapScreen() {
           heading={heading}
           destination={destination}
           route={route}
-          shadows={shadow.layer}
+          shadows={mapShadows}
           following={following}
           recenter={recenter}
           navigating={navigating}
@@ -231,7 +237,9 @@ export default function MapScreen() {
           }
           mapStyle={mapStyle}
           threeD={threeD}
-          onThreeDChange={setThreeD}
+          tilted={tilted}
+          treesEnabled={threeD || (showShadows && estimatedShadows)}
+          onTiltChange={setTilted}
         />
       )}
       {!navigating && (
@@ -333,21 +341,19 @@ export default function MapScreen() {
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={
-          threeD ? "Afișează harta 2D" : "Afișează clădirile 3D"
-        }
-        accessibilityState={{ selected: threeD }}
-        onPress={() => setThreeD((value) => !value)}
+        accessibilityLabel={tilted ? "Vedere de sus" : "Înclină harta"}
+        accessibilityState={{ selected: tilted }}
+        onPress={() => setTilted((value) => !value)}
         style={[
           styles.dimensionButton,
           {
             bottom: bottomHeight + 12,
           },
-          threeD && styles.controlSelected,
+          tilted && styles.controlSelected,
         ]}
       >
         <Ionicons name="cube" size={24} color={MAP_ACCENT} />
-        <Text style={styles.dimensionText}>{threeD ? "2D" : "3D"}</Text>
+        <Text style={styles.dimensionText}>{tilted ? "Sus" : "Înclină"}</Text>
       </Pressable>
       {layersOpen && (
         <ScrollView
@@ -413,7 +419,7 @@ export default function MapScreen() {
           </View>
           {threeD && (
             <Text style={styles.subtle}>
-              {Platform.OS === "ios" && mapStyle === "map"
+              {mapStyle === "map"
                 ? "Clădiri OSM. Înălțimile lipsă folosesc volume orientative."
                 : `Detaliile 3D depind de acoperirea ${Platform.OS === "ios" ? "Apple Maps" : "Google Maps"}.`}
             </Text>
@@ -436,7 +442,9 @@ export default function MapScreen() {
             </Pressable>
           </View>
           <Text style={styles.subtle}>
-            {shadowStatus[shadow.status] ?? "Indisponibile"}
+            {showShadows
+              ? (shadowStatus[shadow.status] ?? "Indisponibile")
+              : "Oprite"}
           </Text>
           {shadow.layer?.sun && (
             <Text style={styles.subtle}>

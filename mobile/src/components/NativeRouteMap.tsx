@@ -61,7 +61,8 @@ export function RouteMap({
   onBounds,
   mapStyle,
   threeD,
-  onThreeDChange,
+  tilted,
+  onTiltChange,
 }: {
   fix: LocationFix | null;
   heading: DeviceHeading | null;
@@ -77,14 +78,16 @@ export function RouteMap({
   onBounds: (bounds: Bounds, focus?: Coordinate) => void;
   mapStyle: MapStyle;
   threeD: boolean;
-  onThreeDChange: (value: boolean) => void;
+  tilted: boolean;
+  treesEnabled: boolean;
+  onTiltChange: (value: boolean) => void;
 }) {
   const map = useRef<MapView>(null);
   const fitted = useRef("");
   const ready = useRef(false);
   const [mapReady, setMapReady] = useState(false);
-  const appliedThreeD = useRef(threeD);
-  const pitch = useRef(threeD ? 55 : 0);
+  const appliedTilt = useRef(tilted);
+  const pitch = useRef(tilted ? 55 : 0);
   const manualGesture = useRef(false);
   const cameraRead = useRef(0);
   const restorePitch = useRef<number | null>(null);
@@ -94,23 +97,23 @@ export function RouteMap({
   const currentFix = useRef(fix);
   const polygons = useMemo(() => shadowElements(shadows), [shadows]);
   useEffect(() => {
-    if (!mapReady || appliedThreeD.current === threeD) return;
-    appliedThreeD.current = threeD;
+    if (!mapReady || appliedTilt.current === tilted) return;
+    appliedTilt.current = tilted;
     cameraRead.current++;
     manualGesture.current = false;
     restorePitch.current = null;
-    pitch.current = threeD ? 55 : 0;
+    pitch.current = tilted ? 55 : 0;
     map.current?.animateCamera(
       {
-        pitch: threeD ? 55 : 0,
-        ...(!threeD ? { heading: 0 } : {}),
-        ...(threeD
+        pitch: tilted ? 55 : 0,
+        ...(!tilted ? { heading: 0 } : {}),
+        ...(tilted
           ? { zoom: navigating ? 18 : 16, altitude: navigating ? 220 : 900 }
           : {}),
       },
       { duration: 450 },
     );
-  }, [threeD, mapReady, navigating]);
+  }, [tilted, mapReady, navigating]);
   useEffect(
     () => () => {
       cameraRead.current++;
@@ -215,8 +218,8 @@ export function RouteMap({
         if (fromGesture) {
           pitch.current = camera.pitch;
           const tilted = camera.pitch > 2;
-          appliedThreeD.current = tilted;
-          onThreeDChange(tilted);
+          appliedTilt.current = tilted;
+          onTiltChange(tilted);
         } else if (
           wantedPitch !== null &&
           Math.abs(camera.pitch - wantedPitch) > 1
@@ -243,8 +246,8 @@ export function RouteMap({
         onMapReady={() => {
           if (ready.current) return;
           ready.current = true;
-          pitch.current = threeD ? 55 : 0;
-          appliedThreeD.current = threeD;
+          pitch.current = tilted ? 55 : 0;
+          appliedTilt.current = tilted;
           setMapReady(true);
           const point = currentFix.current;
           if (point) {
@@ -261,7 +264,7 @@ export function RouteMap({
               },
               { duration: 450 },
             );
-          } else if (threeD) {
+          } else if (tilted) {
             map.current?.animateCamera(
               { pitch: 55, zoom: 16, altitude: 900 },
               { duration: 450 },
@@ -275,7 +278,7 @@ export function RouteMap({
         }}
         onLongPress={(event) => onPick(event.nativeEvent.coordinate)}
         mapType={nativeMapType(mapStyle, Platform.OS)}
-        showsBuildings
+        showsBuildings={threeD}
         pitchEnabled
         showsCompass={false}
         showsScale={false}

@@ -3,6 +3,7 @@ import test from "node:test";
 import { freshFix, shouldRefreshRoute } from "../src/domain/live.ts";
 import {
   parseShadowLayer,
+  mapShadowVisibility,
   shadowInstant,
   visibleShadowLayer,
 } from "../src/domain/shadows.ts";
@@ -192,4 +193,47 @@ test("old shadow snapshots and malformed map geometry cannot be displayed", () =
   ];
   assert.throws(() => parseShadowLayer(open, at));
   assert.throws(() => parseShadowLayer({ ...fixture(), attribution: [] }, at));
+});
+
+test("tree identity survives changes in feature ordering", () => {
+  const data = fixture();
+  const feature = data.features[0];
+  feature.properties.height_source = "tree_canopy";
+  feature.properties.building_id = "tree-123-canopy";
+  const other = structuredClone(feature);
+  other.properties.building_id = "tree-456-canopy";
+  data.features = [feature, other];
+  const first = parseShadowLayer(data, at);
+  data.features.reverse();
+  const second = parseShadowLayer(data, at);
+  assert.equal(first.polygons[0].id, second.polygons[1].id);
+  assert.equal(first.polygons[1].id, second.polygons[0].id);
+});
+
+test("tree models stay available when shadows or illustrative shadows are switched off", () => {
+  const layer = {
+    polygons: [
+      { source: "tree_canopy" },
+      { source: "satellite_canopy" },
+      { source: "tree_estimate" },
+      { source: "display_estimate" },
+      { source: "osm_height" },
+    ],
+  };
+  assert.deepEqual(
+    mapShadowVisibility(layer, false, false, true).polygons.map(
+      (p) => p.source,
+    ),
+    ["tree_canopy", "satellite_canopy"],
+  );
+  assert.deepEqual(
+    mapShadowVisibility(layer, true, false, true).polygons.map((p) => p.source),
+    ["tree_canopy", "satellite_canopy", "osm_height"],
+  );
+  assert.deepEqual(
+    mapShadowVisibility(layer, true, false, false).polygons.map(
+      (p) => p.source,
+    ),
+    ["osm_height"],
+  );
 });

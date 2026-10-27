@@ -121,7 +121,7 @@ window.umbraCreateTreeLayer = (maplibregl) => {
       map.triggerRepaint();
     },
     render(gl, args) {
-      if (!count || map.getPitch() <= 2 || !origin) return;
+      if (!count || !window.umbraTreeModelsEnabled || !origin) return;
       const meter = origin.meterInMercatorCoordinateUnits();
       const projection = new THREE.Matrix4().fromArray(
         args.defaultProjectionData.mainMatrix,

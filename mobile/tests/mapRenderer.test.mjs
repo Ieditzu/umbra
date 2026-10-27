@@ -13,6 +13,7 @@ function renderer(models = false) {
       this.layers = {};
       this.pitch = 0;
       this.zoom = 15;
+      this.center = { lng: 28.64, lat: 44.175 };
       instances.push(this);
     }
     on(name, fn) {
@@ -25,6 +26,7 @@ function renderer(models = false) {
       this.events[name]?.(event);
     }
     addControl() {}
+    triggerRepaint() {}
     getSource(id) {
       return this.sources[id];
     }
@@ -77,7 +79,7 @@ function renderer(models = false) {
       };
     }
     getCenter() {
-      return { lng: 28.64, lat: 44.175 };
+      return this.center;
     }
     getPitch() {
       return this.pitch;
@@ -402,27 +404,32 @@ test("navigation recentres close to the walker and preserves manual zoom on GPS 
   assert.equal(instances.length, 1);
 });
 
-test("tree canopies switch between flat and extruded layers as the map tilts", () => {
+test("the building layer controls canopies independently of camera tilt", () => {
   const { bridge, map } = renderer();
   assert.equal(map.layers["umbra-tree-canopy"].layout.visibility, "visible");
-  assert.equal(map.layers["umbra-tree-volume"].layout.visibility, "none");
-  bridge.receive({ type: "tilt", value: true });
-  map.emit("moveend");
+  bridge.receive({ type: "models", value: true });
+  assert.equal(map.getPitch(), 0);
   assert.equal(map.layers["umbra-tree-canopy"].layout.visibility, "none");
   assert.equal(map.layers["umbra-tree-volume"].layout.visibility, "visible");
-  assert.equal(map.layers["umbra-tree-trunk"].layout.visibility, "visible");
+  assert.equal(map.layers["umbra-buildings"].layout.visibility, "visible");
+  bridge.receive({ type: "tilt", value: true });
+  map.emit("moveend");
   bridge.receive({ type: "tilt", value: false });
   map.emit("moveend");
-  assert.equal(map.layers["umbra-tree-volume"].layout.visibility, "none");
+  assert.equal(map.layers["umbra-tree-volume"].layout.visibility, "visible");
+  bridge.receive({ type: "models", value: false });
   assert.equal(map.layers["umbra-tree-canopy"].layout.visibility, "visible");
+  assert.equal(map.layers["umbra-tree-volume"].layout.visibility, "none");
+  assert.equal(map.layers["umbra-buildings"].layout.visibility, "none");
 });
 
-test("tree model layer receives updates and replaces canopy blocks only while tilted", () => {
+test("tree model layer follows the layer setting and survives camera changes", () => {
   const { bridge, map } = renderer(true);
   const model = map.layers["umbra-tree-models"];
   const features = [
     {
       type: "Feature",
+      id: "tree-1",
       properties: { source: "tree_canopy" },
       geometry: { type: "Polygon", coordinates: [] },
     },
@@ -433,17 +440,86 @@ test("tree model layer receives updates and replaces canopy blocks only while ti
     value: { type: "FeatureCollection", features },
   });
   assert.equal(model.updates.at(-1).length, 1);
+  bridge.receive({ type: "models", value: true });
   bridge.receive({ type: "tilt", value: true });
   map.emit("moveend");
   assert.equal(map.layers["umbra-tree-volume"].layout.visibility, "none");
   assert.equal(map.layers["umbra-tree-canopy"].layout.visibility, "none");
   bridge.receive({ type: "tilt", value: false });
   map.emit("moveend");
+  assert.equal(map.layers["umbra-tree-canopy"].layout.visibility, "none");
+  bridge.receive({ type: "models", value: false });
   assert.equal(map.layers["umbra-tree-canopy"].layout.visibility, "visible");
   bridge.receive({
     type: "data",
     name: "shadows",
+    retainTrees: false,
     value: { type: "FeatureCollection", features: [] },
   });
   assert.equal(model.updates.at(-1).length, 0);
+});
+
+test("tree cache survives empty refreshes prioritizes the current view and clears when disabled", () => {
+  const { bridge, map } = renderer(true);
+  const tree = (id, lon) => ({
+    type: "Feature",
+    id,
+    properties: { source: "tree_canopy" },
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [lon, 44.175],
+          [lon + 0.001, 44.175],
+          [lon, 44.176],
+          [lon, 44.175],
+        ],
+      ],
+    },
+  });
+  bridge.receive({
+    type: "data",
+    name: "shadows",
+    retainTrees: true,
+    value: {
+      type: "FeatureCollection",
+      features: [tree("far", 28.67), tree("near", 28.64)],
+    },
+  });
+  assert.equal(map.layers["umbra-tree-models"].updates.at(-1)[0].id, "near");
+  map.center = { lng: 28.67, lat: 44.175 };
+  map.emit("moveend");
+  assert.equal(map.layers["umbra-tree-models"].updates.at(-1)[0].id, "far");
+  bridge.receive({
+    type: "data",
+    name: "shadows",
+    retainTrees: true,
+    value: { type: "FeatureCollection", features: [] },
+  });
+  assert.equal(map.getSource("umbra-shadows").data.features.length, 2);
+  assert.equal(map.layers["umbra-tree-models"].updates.at(-1).length, 2);
+  bridge.receive({
+    type: "data",
+    name: "shadows",
+    retainTrees: true,
+    value: { type: "FeatureCollection", features: [tree("new", 28.641)] },
+  });
+  assert.equal(map.getSource("umbra-shadows").data.features.length, 3);
+  map.center = { lng: 26.1, lat: 44.435 };
+  bridge.receive({
+    type: "data",
+    name: "shadows",
+    retainTrees: true,
+    value: { type: "FeatureCollection", features: [tree("bucharest", 26.1)] },
+  });
+  assert.equal(map.getSource("umbra-shadows").data.features.length, 1);
+  assert.equal(map.getSource("umbra-shadows").data.features[0].id, "bucharest");
+  bridge.receive({
+    type: "data",
+    name: "shadows",
+    retainTrees: false,
+    value: { type: "FeatureCollection", features: [] },
+  });
+  assert.equal(map.getSource("umbra-shadows").data.features.length, 0);
+  assert.equal(map.layers["umbra-tree-models"].updates.at(-1).length, 0);
 });

@@ -29,6 +29,32 @@ export type ShadowLayer = {
   sun?: { elevation: number; azimuth: number; location: Coordinate };
 };
 
+/** Show canopy models independently from daylight-shadow display controls. */
+export function mapShadowVisibility(
+  layer: ShadowLayer | null,
+  showShadows: boolean,
+  showEstimates: boolean,
+  showModels: boolean,
+): ShadowLayer | null {
+  if (!layer) return null;
+  return {
+    ...layer,
+    polygons: layer.polygons.filter((p) => {
+      if (p.source === "tree_canopy" || p.source === "satellite_canopy")
+        return showModels || (showShadows && showEstimates);
+      if (!showShadows) return false;
+      if (
+        !showEstimates &&
+        ["display_estimate", "tree_estimate", "satellite_estimate"].includes(
+          p.source,
+        )
+      )
+        return false;
+      return true;
+    }),
+  };
+}
+
 /** Keep overlapping geometry during a viewport refresh, never for another instant. */
 export function visibleShadowLayer(
   snapshot: { layer: ShadowLayer | null; bounds: Bounds | null },
@@ -134,7 +160,10 @@ export function parseShadowLayer(raw: unknown, instant: string): ShadowLayer {
     return {
       canopyHeight,
       canopyBase,
-      id: `${feature.properties?.building_id ?? "building"}-${index}`,
+      id:
+        source === "tree_canopy" || source === "satellite_canopy"
+          ? (feature.properties?.building_id ?? `canopy-${index}`)
+          : `${feature.properties?.building_id ?? "building"}-${index}`,
       source: source as ShadowPolygon["source"],
       coordinates: rings[0],
       holes: rings.slice(1),

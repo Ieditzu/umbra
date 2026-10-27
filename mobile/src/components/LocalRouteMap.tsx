@@ -112,8 +112,9 @@ export function LocalRouteMap(props: RouteMapProps) {
         type: "data",
         name: "shadows",
         value: shadowFeatures(props.shadows),
+        retainTrees: props.treesEnabled,
       });
-  }, [ready, props.shadows, send]);
+  }, [ready, props.shadows, props.treesEnabled, send]);
   useEffect(() => {
     if (ready)
       send({ type: "data", name: "route", value: routeFeatures(props.route) });
@@ -157,10 +158,13 @@ export function LocalRouteMap(props: RouteMapProps) {
     if (ready) send({ type: "destination", place: props.destination });
   }, [ready, props.destination, send]);
   useEffect(() => {
-    if (!ready || nativePitch.current === props.threeD) return;
-    nativePitch.current = props.threeD;
-    send({ type: "tilt", value: props.threeD, navigating: props.navigating });
-  }, [ready, props.threeD, props.navigating, send]);
+    if (!ready || nativePitch.current === props.tilted) return;
+    nativePitch.current = props.tilted;
+    send({ type: "tilt", value: props.tilted, navigating: props.navigating });
+  }, [ready, props.tilted, props.navigating, send]);
+  useEffect(() => {
+    if (ready) send({ type: "models", value: props.threeD });
+  }, [ready, props.threeD, send]);
   useEffect(() => {
     if (ready) send({ type: "navigation", active: props.navigating });
   }, [ready, props.navigating, send]);
@@ -228,28 +232,29 @@ export function LocalRouteMap(props: RouteMapProps) {
           if (message.type === "ready") {
             setReady(true);
             setError("");
+            send({ type: "models", value: current.current.threeD });
             const previous = lastCamera.current;
             if (previous)
               send({
                 ...previous,
                 type: "camera",
-                pitch: current.current.threeD
+                pitch: current.current.tilted
                   ? previous.pitch > 2
                     ? previous.pitch
                     : 55
                   : 0,
               });
-            send({ type: "tilt", value: current.current.threeD });
+            send({ type: "tilt", value: current.current.tilted });
           } else if (message.type === "viewport") {
             lastCamera.current = message;
             setView({ bounds: message.bounds, center: message.center });
             current.current.onBounds(message.bounds, message.center);
             const tilted = message.pitch > 2;
-            if (!pitchInitialized.current && tilted !== current.current.threeD)
+            if (!pitchInitialized.current && tilted !== current.current.tilted)
               return;
             pitchInitialized.current = true;
             nativePitch.current = tilted;
-            current.current.onThreeDChange(tilted);
+            current.current.onTiltChange(tilted);
           } else if (message.type === "gesture") {
             pitchInitialized.current = true;
             current.current.onPan();

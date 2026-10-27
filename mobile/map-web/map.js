@@ -15,9 +15,11 @@
   };
   let map,
     destination,
+    modelsEnabled = false,
     readySent = false,
     pressTimer,
-    pressPoint;
+    pressPoint,
+    lastTreeFocus;
   function putBuildings(value) {
     // A rejected wide-view calculation must never erase already loaded geometry.
     if (!value.features.length && value.truncated) return;
@@ -66,16 +68,71 @@
       });
     }
   }
-  function put(name, value) {
+  const treeCache = new Map();
+  const treeSource = (feature) =>
+    ["tree_canopy", "satellite_canopy", "tree_trunk"].includes(
+      feature.properties?.source,
+    );
+  function orderedTrees() {
+    const center = map.getCenter();
+    const distance = (feature) => {
+      const point = feature.geometry?.coordinates?.[0]?.[0];
+      return point
+        ? (point[0] - center.lng) ** 2 + (point[1] - center.lat) ** 2
+        : Infinity;
+    };
+    return [...treeCache.values()].sort((a, b) => distance(a) - distance(b));
+  }
+  function put(name, value, retainTrees = true) {
     if (name === "buildings") return putBuildings(value);
+    if (name === "shadows") {
+      if (!retainTrees) treeCache.clear();
+      const incoming = value.features.filter(treeSource);
+      const oldPoint = treeCache.values().next().value?.geometry
+        ?.coordinates?.[0]?.[0];
+      const newPoint = incoming[0]?.geometry?.coordinates?.[0]?.[0];
+      if (
+        oldPoint &&
+        newPoint &&
+        (Math.abs(oldPoint[0] - newPoint[0]) > 0.25 ||
+          Math.abs(oldPoint[1] - newPoint[1]) > 0.25)
+      )
+        treeCache.clear();
+      if (retainTrees)
+        for (const feature of incoming) {
+          if (typeof feature.id !== "string") continue;
+          treeCache.delete(feature.id);
+          treeCache.set(feature.id, feature);
+        }
+      const nearest = orderedTrees();
+      let vertices = 0;
+      const keep = [];
+      for (const feature of nearest) {
+        const size =
+          feature.geometry?.coordinates?.reduce(
+            (n, ring) => n + ring.length,
+            0,
+          ) ?? 0;
+        if (keep.length >= 1500 || vertices + size > 75000) continue;
+        keep.push(feature);
+        vertices += size;
+      }
+      treeCache.clear();
+      for (const feature of keep) treeCache.set(feature.id, feature);
+      value = {
+        ...value,
+        features: [...value.features.filter((f) => !treeSource(f)), ...keep],
+      };
+      window.umbraTreeFeatures = keep;
+      window.umbraTreeLayer?.update(keep);
+      if (value.sun) {
+        saved.shadows = value;
+        applySun();
+      }
+    }
     saved[name] = value;
     const source = map.getSource(`umbra-${name}`);
     if (source) source.setData(value);
-    if (name === "shadows") {
-      window.umbraTreeFeatures = value.features;
-      window.umbraTreeLayer?.update(value.features);
-      if (value.sun) applySun();
-    }
   }
   function applySun() {
     const sun = saved.shadows.sun;
@@ -98,15 +155,19 @@
     });
   }
   function applyTreeDimension() {
-    const is3d = map.getPitch() > 2;
+    const is3d = modelsEnabled;
+    window.umbraTreeModelsEnabled = is3d;
     const hasModels = !!map.getLayer("umbra-tree-models");
     for (const [id, visible] of [
+      ["umbra-buildings", is3d],
+      ["umbra-unknown", is3d],
       ["umbra-tree-canopy", !is3d],
       ["umbra-tree-volume", is3d && !hasModels],
       ["umbra-tree-trunk", is3d && !hasModels],
     ])
       if (map.getLayer(id))
         map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
+    map.triggerRepaint();
   }
   function installLayers() {
     for (const name of Object.keys(saved))
@@ -354,6 +415,18 @@
     map.on("style.load", installLayers);
     map.on("moveend", () => {
       applyTreeDimension();
+      const center = map.getCenter();
+      if (
+        treeCache.size &&
+        (!lastTreeFocus ||
+          Math.hypot(
+            (center.lng - lastTreeFocus.lng) * 0.72,
+            center.lat - lastTreeFocus.lat,
+          ) > 0.0002)
+      ) {
+        lastTreeFocus = { lng: center.lng, lat: center.lat };
+        window.umbraTreeLayer?.update(orderedTrees());
+      }
       viewport();
     });
     map.on("dragstart", startGesture);
@@ -451,7 +524,7 @@
       receive(message) {
         switch (message.type) {
           case "data":
-            put(message.name, message.value);
+            put(message.name, message.value, message.retainTrees !== false);
             break;
           case "camera":
             map.jumpTo({
@@ -460,6 +533,10 @@
               pitch: message.pitch,
               bearing: message.bearing,
             });
+            break;
+          case "models":
+            modelsEnabled = message.value === true;
+            applyTreeDimension();
             break;
           case "tilt":
             if (map.getPitch() > 2 !== message.value)
