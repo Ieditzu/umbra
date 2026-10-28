@@ -53,7 +53,7 @@ def runs(paragraph, text: str, size: float = 12) -> None:
 
 
 def para(doc, text: str = "", *, align=WD_ALIGN_PARAGRAPH.JUSTIFY, size: float = 12,
-         before: float = 0, after: float = 6, keep: bool = False, spacing: float = 1.15):
+         before: float = 0, after: float = 4, keep: bool = False, spacing: float = 1.15):
     p = doc.add_paragraph()
     f = p.paragraph_format
     f.alignment, f.space_before, f.space_after = align, Pt(before), Pt(after)
@@ -67,7 +67,7 @@ def heading(doc, text: str) -> None:
 
 
 def caption(doc, text: str, keep: bool = False) -> None:
-    para(doc, text, align=WD_ALIGN_PARAGRAPH.CENTER, size=10, before=2, after=8, keep=keep, spacing=1.0)
+    para(doc, text, align=WD_ALIGN_PARAGRAPH.CENTER, size=10, before=2, after=6, keep=keep, spacing=1.0)
 
 
 def figure(doc, image: Path, width_cm: float) -> None:
@@ -184,11 +184,17 @@ def build(model: Path, output: Path) -> None:
 
     heading(doc, "1. INTRODUCERE")
     para(doc, (
-        "În zilele caniculare, umbra clădirilor face mersul pe jos mai suportabil. Am realizat Umbra, o aplicație "
-        "mobilă care compară trasee după plecare, destinație, oră și ocolul acceptat. Un server pe calculator "
-        "calculează Soarele, umbrele și traseele; telefonul afișează harta și ghidează prin GPS. "
-        "Sistemul folosește contururile clădirilor și rețeaua de alei din OpenStreetMap (OSM) [1] și ecuațiile "
-        "NOAA pentru poziția Soarelui [2]."
+        "**Evoluția proiectului.** Varianta înscrisă la RoSEF urmărea avertizarea asupra apropierii unei "
+        "persoane ascunse după un colț, detectând umbra pe pavaj înaintea intrării persoanei în cadrul "
+        "camerei [9]. Am reorientat proiectul spre trasee pietonale umbrite la 24 octombrie 2026, iar la "
+        "27 octombrie am adăugat măsurarea înălțimilor clădirilor. Am păstrat legătura dintre lumină, "
+        "geometrie și umbră: de la umbra ca indiciu al apropierii unei persoane, la estimarea înălțimilor "
+        "și folosirea umbrelor urbane pentru deplasare."
+    ))
+    para(doc, (
+        "Umbra compară trasee după plecare, destinație, oră și ocolul acceptat. Serverul calculează "
+        "Soarele, umbrele și traseele; telefonul afișează harta și ghidează prin GPS. Folosim contururile "
+        "clădirilor și rețeaua pietonală din OpenStreetMap (OSM) [1] și ecuațiile NOAA pentru poziția Soarelui [2]."
     ))
     para(doc, (
         "Umbra unei clădiri poate fi calculată numai dacă îi cunoaștem înălțimea. Din cele 51.428 de clădiri din "
@@ -290,15 +296,12 @@ def build(model: Path, output: Path) -> None:
     table(doc, rows, [3.2, 2.0, 3.0, 4.0, 2.2])
     newer = GBA["unmatched_ways_newer_than_newest_matched_way"]
     para(doc, (
-        "Figura 2 arată tendința la clădirile înalte. Din cele 88 de asocieri, Tabelul 1 prezintă 83 cu "
-        "etichete sub 40 m; celelalte cinci includ valori suspecte. "
-        f"Dintre cele {num(newer['unmatched_ways'], 0)} de căi OSM fără asociere GBA, {num(newer['newer'], 0)} au "
-        "identificatori mai mari decât cel mai mare identificator asociat, compatibil cu o diferență temporală "
-        "între surse; nu am verificat datele individuale de cartare."
+        "Figura 2 compară GBA cu OSM. Tabelul 1 omite cinci etichete suspecte de cel puțin 40 m. "
+        f"Dintre cele {num(newer['unmatched_ways'], 0)} de căi fără asociere GBA, {num(newer['newer'], 0)} au "
+        "identificatori mai mari decât cel mai mare identificator asociat, sugerând o diferență temporală între surse."
     ), keep=True)
-    figure(doc, ROOT / "docs/research/gba-heights/gba-vs-osm-tag.png", 8.5)
-    caption(doc, "Figura 2. Înălțimea GBA față de înălțimea etichetată în OSM; punctele pline sunt clădirile "
-                 "la care înălțimea concordă cu numărul de etaje")
+    figure(doc, ROOT / "docs/research/gba-heights/gba-vs-osm-tag.png", 7.0)
+    caption(doc, "Figura 2. GBA față de OSM; punctele pline indică înălțimi OSM concordante cu numărul de etaje")
     para(doc, (
         "Numărul de etaje oferă o verificare de consistență (Figura 3). Mediana înălțimii GBA pe etaj scade de la "
         f"{num(lv['1-2 floors']['gba_m_per_floor_median'], 2)} m pentru clădirile cu 1–2 etaje la "
@@ -381,6 +384,8 @@ def build(model: Path, output: Path) -> None:
         "Earth System Science Data, nr. 16(11), 2024, essd.copernicus.org/articles/16/5357/2024, accesat la 27.10.2026.",
         "[8] Milojevic-Dupont, N. și colab., „EUBUCCO v0.1: European building stock characteristics in a common "
         "and open database for 200+ million individual buildings”, Scientific Data, nr. 10, 2023.",
+        "[9] Echipa Umbra, Fișa de înscriere RoSEF, 21.09.2026; istoricul proiectului, "
+        "github.com/Ieditzu/umbra, reviziile 2d33818 (24.10.2026) și d5a7eae (27.10.2026).",
     ]:
         para(doc, ref, align=WD_ALIGN_PARAGRAPH.LEFT, size=10, after=2, spacing=1.0)
 
