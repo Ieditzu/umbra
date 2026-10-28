@@ -17,6 +17,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DeparturePicker } from "../components/DeparturePicker";
 import { PlaceSearch } from "../components/PlaceSearch";
 import { RouteCard } from "../components/RouteCard";
+import { WeatherSummary } from "../components/WeatherSummary";
+import { solarPosition } from "../engine/solar";
 import { MeasurePanel } from "../components/MeasurePanel";
 import { buildMeasureOverlay } from "../domain/measureOverlay";
 import type { MeasureTarget } from "../engine/measureTarget";
@@ -847,11 +849,16 @@ export default function MapScreen() {
             ) : (
               <>
                 {planner.comparison?.weather && (
-                  <Text style={styles.weatherNote}>
-                    {planner.comparison.weather.status === "available"
-                      ? `Prognoză regională · nori ${planner.comparison.weather.cloud_percent}% · soare direct ${planner.comparison.weather.direct_wm2} W/m² · Open-Meteo`
-                      : "Prognoza nu este disponibilă · trasee calculate fără vreme"}
-                  </Text>
+                  <WeatherSummary
+                    weather={planner.comparison.weather}
+                    night={
+                      !!planner.origin &&
+                      solarPosition(
+                        Date.parse(planner.comparison.departure_at),
+                        planner.origin.coordinate,
+                      ).elevation < -0.833
+                    }
+                  />
                 )}
                 <ScrollView
                   style={styles.routeList}
@@ -1090,7 +1097,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   routeList: { maxHeight: 180, marginTop: 8 },
-  weatherNote: { color: colors.muted, fontSize: 12, marginTop: 6 },
   startRoute: {
     minHeight: 48,
     borderRadius: 15,
