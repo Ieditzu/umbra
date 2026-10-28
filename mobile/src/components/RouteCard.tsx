@@ -38,7 +38,9 @@ export function RouteCard({
         {distanceLabel(route.distance_m)} ·{" "}
         {totals.unknown >= route.duration_s - 1
           ? "Expunere necunoscută"
-          : `${minutes(totals.shade + totals.estimated_shade)} umbră modelată`}
+          : totals.shade + totals.estimated_shade < 1
+            ? "Nicio umbră identificată"
+            : `${minutes(totals.shade + totals.estimated_shade)} umbră modelată`}
       </Text>
       <View style={styles.bar}>
         {totals.shade > 0 && (
@@ -52,6 +54,14 @@ export function RouteCard({
         {totals.sun > 0 && (
           <View style={{ flex: totals.sun, backgroundColor: colors.sun }} />
         )}
+        {totals.unshaded_estimate > 0 && (
+          <View
+            style={{
+              flex: totals.unshaded_estimate,
+              backgroundColor: "#D5A34B",
+            }}
+          />
+        )}
         {totals.unknown > 0 && (
           <View
             style={{ flex: totals.unknown, backgroundColor: colors.unknown }}
@@ -61,6 +71,12 @@ export function RouteCard({
       {totals.estimated_shade > 0 && (
         <Text style={styles.detail}>
           {minutes(totals.estimated_shade)} umbră de copaci estimată
+        </Text>
+      )}
+      {totals.unshaded_estimate > 0 && (
+        <Text style={styles.detail}>
+          {minutes(totals.unshaded_estimate)} fără umbră identificată · date
+          incomplete, vremea poate schimba rezultatul
         </Text>
       )}
       {totals.unknown > 0 && (

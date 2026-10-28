@@ -349,14 +349,18 @@ export function RouteMap({
                 ? colors.green
                 : segment.exposure === "estimated_shade"
                   ? "#8CAE71"
-                  : segment.exposure === "sun"
+                  : segment.exposure === "sun" ||
+                      segment.exposure === "unshaded_estimate"
                     ? colors.sun
                     : colors.unknown
             }
             strokeWidth={6}
             zIndex={4}
             lineDashPattern={
-              segment.exposure === "unknown" ? [6, 5] : undefined
+              segment.exposure === "unknown" ||
+              segment.exposure === "unshaded_estimate"
+                ? [6, 5]
+                : undefined
             }
           />
         ))}

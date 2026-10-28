@@ -409,6 +409,8 @@
             "#8cae71",
             "sun",
             "#d58d26",
+            "unshaded_estimate",
+            "#d5a34b",
             "#7b8587",
           ],
         },

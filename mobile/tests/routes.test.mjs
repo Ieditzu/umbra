@@ -82,6 +82,7 @@ test("unknown exposure remains unknown and is never counted as shade", () => {
   assert.deepEqual(exposureTotals(comparison.routes[0]), {
     shade: 120,
     estimated_shade: 0,
+    unshaded_estimate: 0,
     sun: 0,
     unknown: 240,
   });

@@ -62,12 +62,11 @@ export function classifyAt(
         };
     }
   }
-  // This bundled OSM pilot has no independent obstruction-completeness audit.
-  // Absence of a modeled shadow is never automatically reported as direct sun.
-  return {
-    exposure: "unknown",
-    reason: uncertain ? "height_uncertainty" : "inventory_not_audited",
-  };
+  // No mapped shade is not proof of direct sun: missing obstacles and clouds
+  // still matter. Keep a separate, explicitly tentative display category.
+  return uncertain
+    ? { exposure: "unknown", reason: "height_uncertainty" }
+    : { exposure: "unshaded_estimate", reason: "inventory_not_audited" };
 }
 export const exposureAt = (
   data: Dataset,

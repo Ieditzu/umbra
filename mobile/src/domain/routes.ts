@@ -1,5 +1,6 @@
 export type Coordinate = { latitude: number; longitude: number };
-export type Exposure = "shade" | "estimated_shade" | "sun" | "unknown";
+export type Exposure =
+  "shade" | "estimated_shade" | "unshaded_estimate" | "sun" | "unknown";
 export type RouteKind = "fastest" | "balanced" | "shadiest";
 export type RouteSegment = {
   coordinates: Coordinate[];
@@ -119,7 +120,7 @@ export function exposureTotals(route: WalkingRoute): Record<Exposure, number> {
       ...totals,
       [segment.exposure]: totals[segment.exposure] + segment.duration_s,
     }),
-    { shade: 0, estimated_shade: 0, sun: 0, unknown: 0 },
+    { shade: 0, estimated_shade: 0, unshaded_estimate: 0, sun: 0, unknown: 0 },
   );
 }
 
@@ -176,9 +177,13 @@ export function parseComparison(
     const segments = route.segments.map((rawSegment) => {
       const segment = object(rawSegment);
       if (
-        !["shade", "estimated_shade", "sun", "unknown"].includes(
-          segment.exposure as string,
-        ) ||
+        ![
+          "shade",
+          "estimated_shade",
+          "unshaded_estimate",
+          "sun",
+          "unknown",
+        ].includes(segment.exposure as string) ||
         !positive(segment.duration_s) ||
         !Array.isArray(segment.coordinates) ||
         segment.coordinates.length < 2 ||
