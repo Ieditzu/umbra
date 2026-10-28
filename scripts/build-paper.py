@@ -23,7 +23,7 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Cm, Mm, Pt
+from docx.shared import Cm, Mm, Pt, RGBColor
 
 ROOT = Path(__file__).resolve().parent.parent
 PAPER = ROOT / "docs/paper"
@@ -125,6 +125,7 @@ def start(model: Path):
             body.remove(child)
     normal = doc.styles.default(WD_STYLE_TYPE.PARAGRAPH)
     normal.font.name, normal.font.size = FONT, Pt(12)
+    normal.font.color.rgb = RGBColor(0, 0, 0)
     section = doc.sections[0]
     section.page_width, section.page_height = Mm(210), Mm(297)
     for side in ["left_margin", "right_margin", "top_margin", "bottom_margin"]:
@@ -146,31 +147,38 @@ def build(model: Path, output: Path) -> None:
     tall_oct = [instants[k]["by_height_pct"]["≥ 20 m"] for k in instants if k.startswith("27 oct")]
 
     doc = start(model)
-    para(doc, "**Măsurarea înălțimii clădirilor din umbra lor pentru trasee pietonale umbrite în Constanța**",
+    title = para(doc, "**Măsurarea înălțimii clădirilor din umbra lor pentru trasee pietonale umbrite în Constanța**",
          align=WD_ALIGN_PARAGRAPH.CENTER, size=16, after=8, spacing=1.0)
+    title.style = doc.styles["Title"]
+    doc.styles["Title"].font.name = FONT
+    doc.styles["Title"].font.size = Pt(16)
+    doc.styles["Title"].font.color.rgb = RGBColor(0, 0, 0)
+    doc.core_properties.title = title.text
+    doc.core_properties.author = "Eduard-Mihai Perjoc; Eduard-Andrei Haivas; Cezar-Ștefan Manea"
+    doc.core_properties.subject = "Umbra — aplicație și studiu computațional asupra înălțimilor din umbre"
     for line, after in [
         ("Eduard-Mihai PERJOC (elev)^1^, Eduard-Andrei HAIVAS (elev)^2^, Cezar-Ștefan MANEA (elev)^3^", 0),
         ("Profesor coordonator: Ramona RĂDULESCU^4^", 0),
         ("^1^ Clasa a X-a, Liceul Tehnologic de Marină, Constanța, județul Constanța", 0),
         ("^2^ Clasa a X-a, Liceul Internațional de Informatică Constanța, județul Constanța", 0),
         ("^3^ Clasa a X-a, Liceul Tehnologic de Electrotehnică și Telecomunicații, Constanța, județul Constanța", 0),
-        ("^4^ Catedra de …, [Liceul / Colegiul …], Constanța, județul Constanța", 0),
-        ("Contact: [adresa@email.com]", 10),
+        ("^4^ Informatică pentru Viitor (IPV)", 0),
+        ("Contact: radramra@gmail.com", 10),
     ]:
         para(doc, line, align=WD_ALIGN_PARAGRAPH.CENTER, size=11, after=after, spacing=1.0)
 
     para(doc, "**Rezumat**", align=WD_ALIGN_PARAGRAPH.LEFT, after=2, keep=True)
     para(doc, (
-        "Aplicația noastră, Umbra, recomandă trasee pietonale prin umbra clădirilor, dar umbra poate fi calculată "
-        "numai pentru clădirile cu înălțime cunoscută. În Constanța, 87,8% dintre cele 51.428 de clădiri din "
-        "OpenStreetMap nu au nicio informație despre înălțime. Am evaluat setul global GlobalBuildingAtlas și am "
-        "constatat că subestimează sistematic blocurile înalte: pentru blocurile cu 9–12 etaje rezultă o valoare "
-        f"mediană de {num(lv['9-12 floors']['gba_m_per_floor_median'], 2)} m pe etaj. Propunem măsurarea înălțimii din lungimea "
-        "umbrei, după relația h = L · tan e, unde unghiul Soarelui e este calculat de aplicație. Modelul erorilor arată "
-        "că precizia depinde aproape numai de măsurarea lungimii, iar măsurătorile trebuie făcute cu Soarele jos. "
-        f"Pe contururile reale ale orașului, la 27 octombrie, {num(min(measurable_oct), 0)}–{num(max(measurable_oct), 0)}% "
-        "dintre clădiri au un vârf de umbră neobstrucționat de alte clădiri. Metoda poate completa datele lipsă "
-        "prin măsurători făcute de utilizatori."
+        "Umbra compară trasee pietonale după expunerea geometrică estimată și ocolul acceptat. "
+        "În instantaneul OSM al Constanței, 87,8% dintre cele 51.428 de clădiri nu au înălțime sau etaje. "
+        "Am comparat GlobalBuildingAtlas (GBA) cu etichetele OSM: pentru clădirile cu 9–12 etaje, "
+        f"mediana raportului GBA/etaje este {num(lv['9-12 floors']['gba_m_per_floor_median'], 2)} m, sugerând o subestimare. "
+        "Am implementat modul «Măsoară clădirea», bazat pe h = L · tan e, cu incertitudine, stocare locală "
+        "și partajare opțională. Înălțimile confirmate de regulile aplicației intră în calculul umbrelor și traseelor. "
+        "Modelul erorilor arată dependența de lungimea măsurată și de elevația Soarelui. "
+        f"La trei momente din 27 octombrie, simularea indică {num(min(measurable_oct), 0)}–{num(max(measurable_oct), 0)}% "
+        "vârfuri de umbră neblocate de alte clădiri. Rezultatele sunt analize de date și simulări; "
+        "precizia pe teren și câștigul real pe trasee nu sunt încă validate."
     ), after=4)
     para(doc, "**Cuvinte-cheie:** înălțimea clădirilor, umbre, poziția Soarelui, OpenStreetMap, trasee pietonale",
          align=WD_ALIGN_PARAGRAPH.LEFT, after=4)
@@ -178,8 +186,8 @@ def build(model: Path, output: Path) -> None:
     heading(doc, "1. INTRODUCERE")
     para(doc, (
         "În zilele caniculare, umbra clădirilor face mersul pe jos mai suportabil. Am realizat Umbra, o aplicație "
-        "mobilă care recomandă trasee pietonale cu mai multă umbră. Un server care rulează pe calculator "
-        "calculează poziția Soarelui, umbrele și traseele, iar telefonul afișează harta și citește GPS-ul. "
+        "mobilă care compară trasee după plecare, destinație, oră și ocolul acceptat. Un server pe calculator "
+        "calculează Soarele, umbrele și traseele; telefonul afișează harta și ghidează prin GPS. "
         "Sistemul folosește contururile clădirilor și rețeaua de alei din OpenStreetMap (OSM) [1] și ecuațiile "
         "NOAA pentru poziția Soarelui [2]."
     ))
@@ -191,18 +199,15 @@ def build(model: Path, output: Path) -> None:
         "românesc nu era cunoscută."
     ))
     para(doc, (
-        "Există mai multe seturi globale de înălțimi. GBA raportează erori pătratice medii între 1,5 și 8,9 m, "
-        "în funcție de continent [3]; 3D-GloBFP raportează între 1,9 și 14,6 m [7]; EUBUCCO armonizează datele "
-        "europene, dar preia înălțimile din surse naționale sau din OSM [8]. Toate sunt estimate din imagini de "
-        "satelit sau compilate din alte surse, iar precizia lor variază mult de la o regiune la alta."
+        "Seturi precum GBA [3], 3D-GloBFP [7] și EUBUCCO [8] estimează sau armonizează înălțimi la scară "
+        "largă. Performanța globală nu stabilește însă precizia locală în Constanța."
     ))
     para(doc, (
-        "Calcularea înălțimii din umbră este cunoscută în teledetecție, unde se aplică imaginilor din satelit [4]. "
-        "Noi propunem folosirea ei la sol, cu telefonul: aplicația calculează unghiul Soarelui, iar utilizatorul "
-        "măsoară doar lungimea umbrei. Scopul lucrării este (1) să evaluăm GBA pe clădirile din Constanța, "
-        "(2) să stabilim, printr-un model al erorilor, în ce condiții metoda umbrei este precisă și (3) să estimăm "
-        "câte clădiri pot fi măsurate astfel. Ipoteza noastră este că măsurarea umbrei poate fi mai precisă decât "
-        "GBA pentru blocurile înalte, deoarece eroarea ei depinde aproape numai de lungimea măsurată."
+        "Calcularea înălțimii din umbră este cunoscută în teledetecție [4]. Am integrat-o într-un flux de "
+        "măsurare cu telefonul. Întrebarea științifică este: cât de precis poate fi estimată înălțimea din umbră "
+        "și cum alegem momentul măsurării? Evaluăm consistența GBA cu OSM, sensibilitatea la erori și "
+        "fezabilitatea geometrică. Ipoteza unei precizii mai bune decât GBA la blocuri înalte rămâne de "
+        "verificat cu referințe independente pe teren."
     ))
 
     heading(doc, "2. MATERIALE ȘI METODE")
@@ -215,14 +220,23 @@ def build(model: Path, output: Path) -> None:
         "clădire are un interval de înălțime: o înălțime etichetată dă un interval îngust, iar numărul de etaje "
         "N dă intervalul 2,5·N – 3,5·N + 3 m. Un punct al traseului este considerat umbrit numai dacă raza "
         "Soarelui trece sub limita inferioară; între cele două limite rezultatul este „necunoscut”, iar clădirile "
-        "fără înălțime nu produc umbră. De aceea, fiecare înălțime măsurată transformă porțiuni necunoscute ale "
-        "traseelor în porțiuni cu rezultat cert."
+        "fără înălțime nu susțin o clasificare sigură. Expunerea este evaluată la momentele parcurgerii. "
+        "Căutarea compară un set limitat de candidați, fără garanția optimului global."
+    ))
+    para(doc, (
+        "**Măsoară clădirea.** Utilizatorul selectează clădirea și un colț al acoperișului pe rigla umbrei. "
+        "Introduce distanța măsurată cu ruleta/laserul, folosește GPS-ul sau datele unei fotografii verticale "
+        "din dronă. Aplicația calculează h și incertitudinea la momentul măsurării, verifică terenul și "
+        "obstacolele declarate și salvează local încercările. Partajarea este opțională; serverul recalculează "
+        "rezultatul și păstrează măsurătorile în SQLite. O citire cu ruleta/laserul ori din dronă, sau două "
+        "citiri independente concordante, pot confirma o clădire conform regulilor software. Intervalele "
+        "confirmate intră în calculul umbrelor și traseelor. Confirmarea software nu este validare fizică."
     ))
     para(doc, (
         "**Date.** Am folosit extrasul OSM din 25.10.2026 inclus în aplicație [1] și fișierul GBA pentru regiunea "
         "25–30° E, 40–45° N [3]. GBA folosește identificatorii OSM ai clădirilor, așa că am asociat clădirile "
         f"direct, după identificator: {num(cov['all']['with_gba_height'], 0)} de clădiri "
-        f"({num(cov['all']['pct'])}%) au o înălțime GBA. Ca referință am folosit înălțimile din OSM "
+        f"({num(cov['all']['pct'])}%) au o înălțime GBA. Ca surse de comparație, fără verificare pe teren, am folosit înălțimile OSM "
         f"({tag['0-10 m']['n'] + tag['10-20 m']['n'] + tag['20-40 m']['n'] + tag['40-1000 m']['n']} de clădiri "
         f"asociate) și numărul de etaje ({num(GBA['levels']['n'], 0)} de clădiri). Analizele sunt scrise în "
         "Python și pot fi repetate cu scripturile din proiect."
@@ -238,14 +252,12 @@ def build(model: Path, output: Path) -> None:
     figure(doc, PAPER / "principiu.png", 12.5)
     caption(doc, "Figura 1. Principiul metodei: înălțimea rezultă din lungimea umbrei și unghiul Soarelui")
     para(doc, (
-        "**Modelul erorilor.** Prin diferențierea relației obținem δh = tan e · δL + L · δe / cos²e. "
-        "Testele aplicației limitează diferența față de algoritmul SPA la 0,03°; împreună cu refracția atmosferică, "
-        "nemodelată (circa 0,035° la 25°), aceasta adaugă cel mult aproximativ 0,3% la eroarea înălțimii. "
-        "Practic, întreaga eroare provine din măsurarea lungimii: fiecare metru greșit în L produce tan e metri de "
-        "eroare în h. Marginea umbrei nu este netă, deoarece discul Soarelui are 0,53°; lățimea zonei de penumbră "
-        "este aproximativ h · 0,0093 / sin²e. Am considerat două metode de măsurare a lungimii: poziția GPS a "
-        "telefonului în vârful umbrei (eroare presupusă ±5 m) și ruleta sau telemetrul laser (eroare presupusă "
-        "±0,3 m). Aceste valori trebuie verificate pe teren."
+        "**Modelul erorilor.** Pentru variații mici, dh = tan e · dL + L · de / cos²e, cu de în radiani. "
+        "Tabelul 2 izolează termenul lungimii: δh ≈ tan e · δL, presupunând δL = ±5 m pentru GPS și "
+        "±0,3 m pentru ruletă/telemetru. Sunt ipoteze, nu precizii măsurate. Implementarea combină în "
+        "cuadratură termenii lungimii și unghiului, cu σe = 0,065°, și include citirea penumbrei: "
+        "w ≈ h · 0,0093 / sin²e și σL = √(σinstrument² + w²/12). Pentru GPS folosește și acuratețea "
+        "raportată de telefon. Testele numerice față de SPA [6] nu validează senzorii sau scena reală."
     ))
     para(doc, (
         "**Câte clădiri pot fi măsurate.** Vârful umbrei poate cădea pe o altă clădire sau în umbra ei. Am "
@@ -253,44 +265,42 @@ def build(model: Path, output: Path) -> None:
         "umbre, linia de la colț la vârf nu traversează altă clădire, iar vârful nu cade pe altă clădire sau în "
         f"umbra ei. Am analizat {num(MEASURE['buildings_with_height'], 0)} de clădiri, cu înălțimea din OSM, "
         "3 m pe etaj sau, în lipsă, din GBA, la șase momente (ora României), cu poziția Soarelui calculată de "
-        "aplicație. Copacii, mașinile și panta nu există în date, deci rezultatul este o limită superioară."
+        "aplicație. În această simulare nu includem copacii, mașinile, panta sau accesul fizic; rezultatul este o limită superioară condiționată de înălțimile de intrare."
     ))
     para(doc, (
-        "**Protocolul de validare propus.** Pentru verificarea pe teren am stabilit dinainte următorii pași: "
-        "cel puțin 30 de clădiri, de la case cu 1–2 etaje la blocuri cu peste 10 etaje, alese înainte de "
-        "măsurare; o înălțime de referință pentru fiecare, măsurată cu telemetrul laser sau cu drona; măsurarea "
-        "umbrei la cel puțin trei ore diferite, cu GPS-ul telefonului și cu ruleta sau telemetrul; cel puțin doi "
-        "observatori, care nu cunosc înălțimea de referință. Vom raporta eroarea medie, eroarea absolută medie, "
-        "procentul de clădiri în ±3 m (un etaj) și variația erorii cu unghiul Soarelui, inclusiv măsurătorile "
-        "eșuate."
+        "**Validare propusă.** Studiul pe teren nu a fost efectuat. Protocolul prevede cel puțin 30 de "
+        "clădiri alese înainte de măsurare, trei ore și doi observatori fără acces la referința independentă. "
+        "Aplicația include mod orb, referințe separate și export JSON/CSV. Scriptul de analiză calculează "
+        "bias, MAE, RMSE și proporția în ±3 m; un alt script compară efectul surselor de înălțime asupra "
+        "traseelor. Existența acestor instrumente nu constituie un rezultat de teren sau un câștig demonstrat."
     ))
 
     heading(doc, "3. REZULTATE")
     para(doc, (
-        "**Evaluarea GBA.** Pentru clădirile joase, GBA este apropiat de înălțimile din OSM, dar eroarea crește "
-        "rapid cu înălțimea și este aproape mereu negativă (Tabelul 1). Pentru cele "
+        "**Evaluarea GBA.** În eșantion, diferența față de etichetele OSM crește "
+        "cu înălțimea și este predominant negativă (Tabelul 1). Pentru cele "
         f"{GBA['tagged_consistent_with_levels']['n']} de clădiri la care înălțimea din OSM concordă cu numărul "
-        f"de etaje, eroarea medie este {num(GBA['tagged_consistent_with_levels']['bias_m'])} m."
+        f"de etaje, diferența medie este {num(GBA['tagged_consistent_with_levels']['bias_m'])} m."
     ), keep=True)
     caption(doc, "Tabelul 1. Diferența GBA − OSM, după înălțimea înregistrată în OSM", keep=True)
-    rows = [["Înălțime OSM", "Clădiri", "Eroare medie", "Eroare absolută medie", "În ±3 m"]]
+    rows = [["Înălțime OSM", "Clădiri", "Diferență medie", "Diferență absolută medie", "În ±3 m"]]
     for key, label in [("0-10 m", "0–10 m"), ("10-20 m", "10–20 m"), ("20-40 m", "20–40 m")]:
         s = tag[key]
         rows.append([label, str(s["n"]), f"{num(s['bias_m'])} m", f"{num(s['mae_m'])} m", f"{num(s['within_3m_pct'], 0)}%"])
     table(doc, rows, [3.2, 2.0, 3.0, 4.0, 2.2])
     newer = GBA["unmatched_ways_newer_than_newest_matched_way"]
     para(doc, (
-        "Figura 3 arată că aproape toate clădirile cu peste 20 m se află mult sub dreapta de egalitate. Am observat și că "
-        f"GBA folosește o versiune mai veche a OSM: {num(newer['newer'], 0)} dintre cele "
-        f"{num(newer['unmatched_ways'], 0)} de clădiri fără înălțime GBA au fost cartate după cea mai recentă "
-        "clădire prezentă în GBA. Din același motiv, doar 88 dintre cele 271 de clădiri cu înălțime etichetată "
-        "au putut fi comparate."
+        "Figura 2 arată tendința la clădirile înalte. Din cele 88 de asocieri, Tabelul 1 prezintă 83 cu "
+        "etichete sub 40 m; celelalte cinci includ valori suspecte. Diferențele nu stabilesc precizia absolută. "
+        f"Dintre cele {num(newer['unmatched_ways'], 0)} de căi OSM fără asociere GBA, {num(newer['newer'], 0)} au "
+        "identificatori mai mari decât cel mai mare identificator asociat, compatibil cu o diferență temporală "
+        "între surse; nu am verificat datele individuale de cartare."
     ), keep=True)
     figure(doc, ROOT / "docs/research/gba-heights/gba-vs-osm-tag.png", 8.5)
-    caption(doc, "Figura 3. Înălțimea GBA față de înălțimea etichetată în OSM; punctele pline sunt clădirile "
+    caption(doc, "Figura 2. Înălțimea GBA față de înălțimea etichetată în OSM; punctele pline sunt clădirile "
                  "la care înălțimea concordă cu numărul de etaje")
     para(doc, (
-        "Numărul de etaje confirmă tendința (Figura 2). Mediana înălțimii GBA pe etaj scade de la "
+        "Numărul de etaje oferă o verificare de consistență (Figura 3). Mediana înălțimii GBA pe etaj scade de la "
         f"{num(lv['1-2 floors']['gba_m_per_floor_median'], 2)} m pentru clădirile cu 1–2 etaje la "
         f"{num(lv['5-8 floors']['gba_m_per_floor_median'], 2)} m pentru 5–8 etaje și "
         f"{num(lv['9-12 floors']['gba_m_per_floor_median'], 2)} m pentru 9–12 etaje. Doar "
@@ -298,15 +308,15 @@ def build(model: Path, output: Path) -> None:
         "înălțime în intervalul folosit de aplicație (2,5–3,5 m pe etaj, plus 3 m)."
     ), keep=True)
     figure(doc, ROOT / "docs/research/gba-heights/gba-vs-levels.png", 12.5)
-    caption(doc, "Figura 2. Înălțimea GBA în funcție de numărul de etaje din OSM; liniile punctate arată 2,5 m "
+    caption(doc, "Figura 3. Înălțimea GBA în funcție de numărul de etaje din OSM; liniile punctate arată 2,5 m "
                  "și 3,5 m pe etaj (plus 3 m)")
     para(doc, (
-        "**Precizie și măsurabilitate.** Tabelul 2 prezintă, pentru fiecare moment, unghiul Soarelui, lungimea "
+        "**Predicții și fezabilitate.** Tabelul 2 prezintă, pentru fiecare moment, unghiul Soarelui, lungimea "
         "umbrei unei clădiri de 15 m, eroarea prevăzută a înălțimii pentru cele două metode de măsurare și "
         "procentul de clădiri cu vârful umbrei neobstrucționat."
     ), keep=True)
     caption(doc, "Tabelul 2. Eroarea prevăzută a înălțimii pentru o eroare a lungimii de ±5 m (GPS) și ±0,3 m "
-                 "(telemetru) și procentul de clădiri măsurabile", keep=True)
+                 "(telemetru) și proporția geometric eligibilă în simulare", keep=True)
     rows = [["Moment", "Unghiul Soarelui", "Umbra la 15 m", "Eroare GPS", "Eroare telemetru",
              "Măsurabile", "Măsurabile ≥ 20 m"]]
     for label, s in instants.items():
@@ -318,42 +328,37 @@ def build(model: Path, output: Path) -> None:
 
     heading(doc, "4. DISCUȚII ȘI CONCLUZII")
     para(doc, (
-        "GBA nu poate completa înălțimile lipsă din Constanța pentru blocurile înalte. Folosit în aplicație, ar "
-        "scurta aproximativ la jumătate umbrele blocurilor cu 9–12 etaje, adică exact umbrele care acoperă "
-        "trotuarele. Pentru clădirile sub 10 m, GBA rămâne o estimare utilizabilă."
+        "Comparațiile indică subestimarea înălțimilor GBA față de OSM la blocurile înalte din eșantion. "
+        "Aceasta poate scurta umbrele modelate. Etichetele voluntare și numărul de etaje nu sunt însă "
+        "înălțimi de referință măsurate; nici utilizabilitatea GBA la clădiri joase nu este validată pe teren."
     ))
     para(doc, (
-        "Modelul erorilor arată că metoda umbrei poate fi precisă dacă lungimea este măsurată corect: cu ruleta sau "
+        "În modelul simplificat al Tabelului 2, pentru eroarea presupusă a lungimii, cu ruleta sau "
         "telemetrul, eroarea prevăzută rămâne sub 1 m la toate momentele analizate. Cu GPS-ul telefonului, eroarea "
         f"este de ±{num(5 * math.tan(math.radians(oct_noon['elevation_deg'])))} m la amiază pe 27 octombrie, dar "
-        "crește mult vara la amiază, când Soarele este sus. Prin urmare, aplicația trebuie să recomande ora "
-        "măsurării. Analiza măsurabilității arată că, din punctul de vedere al clădirilor vecine, "
-        f"{num(min(measurable_oct), 0)}–{num(max(measurable_oct), 0)}% dintre clădiri pot fi măsurate toamna și "
+        "crește mult vara la amiază, când Soarele este sus. Aplicația afișează ferestre de elevație de 15–40° și refuză măsurătorile sub 10°. Analiza măsurabilității arată că, din punctul de vedere al clădirilor vecine, "
+        f"{num(min(measurable_oct), 0)}–{num(max(measurable_oct), 0)}% dintre clădiri sunt geometric eligibile toamna și "
         f"{num(min(measurable_jun), 0)}–{num(max(measurable_jun), 0)}% vara. Pentru clădirile de cel puțin 20 m, "
         f"procentul scade la {num(min(tall_oct), 0)}–{num(max(tall_oct), 0)}% toamna, deoarece umbrele lor lungi "
         "ajung mai des pe alte clădiri."
     ))
     para(doc, (
-        "Din aceste rezultate rezultă câteva reguli practice pentru aplicație. Măsurătorile cu GPS ar trebui făcute "
-        "când Soarele are între aproximativ 20° și 40°: mai sus, eroarea crește rapid; mai jos, umbrele devin "
-        "foarte lungi, ajung pe alte clădiri, iar penumbra se lățește (aproape 1 m pentru un bloc de 30 m la 33°). "
-        "Utilizatorul trebuie să marcheze mijlocul penumbrei și să aleagă un colț al acoperișului, nu camera "
-        "liftului de pe terasă, care aruncă umbra cea mai lungă. Mai multe măsurători independente ale aceleiași "
-        "clădiri, făcute la ore diferite sau de persoane diferite, pot fi combinate printr-o medie ponderată cu "
-        "precizia fiecărei metode."
+        "Fluxul implementat stochează metoda, momentul, incertitudinea și încercările respinse. "
+        "Măsurătorile concordante sunt combinate ponderat, iar valorile partajate sunt reverificate pe "
+        "server. Selecția colțului, penumbra, panta, erorile GPS corelate și obstacolele pot afecta rezultatul; "
+        "regulile software nu elimină aceste surse de eroare. AR nu este implementat."
     ))
     para(doc, (
-        "Ipoteza noastră este susținută de analiză, dar nu este încă confirmată experimental: măsurătorile pe "
-        "teren nu au fost efectuate. Studiul are și alte limite. Referințele din OSM sunt introduse de voluntari "
-        "și conțin erori evidente; analiza măsurabilității ignoră copacii, mașinile și panta; am folosit o singură "
-        "poziție a Soarelui pentru întreg orașul."
+        "Studiul raportează analize pe date publice și simulări proprii, nu măsurători pe teren. "
+        "Ipoteza superiorității față de GBA și reducerea reală a expunerii pe trasee rămân netestate. "
+        "OSM conține erori, simularea ignoră obstacole nemapate și folosește o singură poziție solară pentru "
+        "oraș. Umbra geometrică nu măsoară temperatura, doza UV sau siguranța medicală."
     ))
     para(doc, (
-        "**Concluzii:** (1) 87,8% dintre clădirile din Constanța nu au înălțime în OSM, iar GBA subestimează "
-        "sistematic blocurile înalte; (2) metoda umbrei depinde aproape numai de măsurarea lungimii și trebuie "
-        "aplicată cu Soarele jos; (3) majoritatea clădirilor au cel puțin un colț a cărui umbră poate fi măsurată. "
-        "Continuăm cu măsurători pe teren față de înălțimi de referință (telemetru și dronă), cu modul „Măsoară "
-        "clădirea” în aplicație și cu o bază de date comună a înălțimilor măsurate de utilizatori."
+        "**Concluzii:** (1) Datele de înălțime sunt incomplete, iar comparația locală GBA–OSM justifică "
+        "verificări independente; (2) modelul erorilor și simularea ajută la alegerea momentului și a "
+        "clădirilor de măsurat; (3) modul «Măsoară clădirea» și baza comună sunt implementate și conectate "
+        "la umbre și trasee. Urmează validarea pe teren și evaluarea efectului asupra recomandărilor."
     ))
 
     heading(doc, "MULȚUMIRI")
@@ -368,7 +373,7 @@ def build(model: Path, output: Path) -> None:
         "[3] Zhu, X. X., Chen, S., Zhang, F., Shi, Y., Wang, Y., „GlobalBuildingAtlas: an open global and complete "
         "dataset of building polygons, heights and LoD1 3D models”, Earth System Science Data, nr. 17(12), 2025, "
         "pp. 6647–6668.",
-        "[4] Chaudhry, Qureshi, Jabbar, Taj, „Building Height Estimation Using Shadow Length in Satellite Imagery”, "
+        "[4] Qureshi, M., Chaudhry, S., Jabba, S., Taj, M., „Building Height Estimation Using Shadow Length in Satellite Imagery”, "
         "arXiv:2411.09411, 2024.",
         "[5] Meeus, J., Astronomical Algorithms, ed. a 2-a, Willmann-Bell, 1998.",
         "[6] Reda, I., Andreas, A., „Solar position algorithm for solar radiation applications”, Solar Energy, "
