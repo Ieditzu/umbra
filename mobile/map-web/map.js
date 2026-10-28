@@ -230,9 +230,17 @@
     for (const name of Object.keys(saved))
       if (!map.getSource(`umbra-${name}`))
         map.addSource(`umbra-${name}`, { type: "geojson", data: saved[name] });
-    const before = map
-      .getStyle()
-      .layers.find((layer) => layer.type === "symbol")?.id;
+    const layers = map.getStyle().layers;
+    // Liberty has one-way arrow symbols before bridge roads. Inserting before
+    // the first symbol puts those roads on top of our 3D geometry.
+    let lastRoad = -1;
+    layers.forEach((layer, index) => {
+      if (layer["source-layer"] === "transportation" && layer.type !== "symbol")
+        lastRoad = index;
+    });
+    const before = layers.find(
+      (layer, index) => index > lastRoad && layer.type === "symbol",
+    )?.id;
     if (!map.getLayer("umbra-shadows"))
       map.addLayer(
         {
@@ -334,7 +342,7 @@
           "fill-opacity": 0.55,
           "fill-outline-color": "#3d8050",
         },
-      });
+      }, before);
     if (!map.getLayer("umbra-tree-volume"))
       map.addLayer({
         id: "umbra-tree-volume",
@@ -351,7 +359,7 @@
           "fill-extrusion-base": ["coalesce", ["get", "base"], 3.2],
           "fill-extrusion-opacity": 0.86,
         },
-      });
+      }, before);
     if (!map.getLayer("umbra-tree-trunk"))
       map.addLayer({
         id: "umbra-tree-trunk",
@@ -364,7 +372,7 @@
           "fill-extrusion-base": 0,
           "fill-extrusion-opacity": 1,
         },
-      });
+      }, before);
     if (!map.getLayer("umbra-tree-models") && window.umbraCreateTreeLayer) {
       try {
         window.umbraTreeFeatures = saved.shadows.features;
