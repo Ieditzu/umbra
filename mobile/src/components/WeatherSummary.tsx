@@ -18,9 +18,11 @@ type Weather = NonNullable<RouteComparison["weather"]>;
 export function WeatherSummary({
   weather,
   night,
+  showIcon,
 }: {
   weather: Weather;
   night: boolean;
+  showIcon: boolean;
 }) {
   const [movement] = useState(() => new Animated.Value(0));
   const [reducedMotion, setReducedMotion] = useState(true);
@@ -47,7 +49,8 @@ export function WeatherSummary({
   }, []);
   useEffect(() => {
     movement.setValue(0);
-    if (reducedMotion || !active || weather.status !== "available") return;
+    if (reducedMotion || !active || !showIcon || weather.status !== "available")
+      return;
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(movement, {
@@ -68,11 +71,17 @@ export function WeatherSummary({
     );
     animation.start();
     return () => animation.stop();
-  }, [movement, reducedMotion, active, weather.status]);
+  }, [movement, reducedMotion, active, showIcon, weather.status]);
   if (weather.status === "unavailable")
     return (
       <View style={styles.row}>
-        <Ionicons name="cloud-offline-outline" size={19} color={colors.muted} />
+        {showIcon && (
+          <Ionicons
+            name="cloud-offline-outline"
+            size={19}
+            color={colors.muted}
+          />
+        )}
         <Text style={styles.text}>
           Prognoza nu este disponibilă · trasee calculate fără vreme
         </Text>
@@ -91,47 +100,52 @@ export function WeatherSummary({
       accessible
       accessibilityLabel={`${description}, nori ${weather.cloud_percent} la sută, soare direct estimat ${weather.direct_wm2} wați pe metru pătrat. Prognoză regională Open-Meteo.`}
     >
-      <View style={styles.icon} importantForAccessibility="no-hide-descendants">
-        {!cloudy && (
-          <Animated.View
-            style={[
-              partlyCloudy && styles.sun,
-              {
+      {showIcon && (
+        <View
+          style={styles.icon}
+          importantForAccessibility="no-hide-descendants"
+        >
+          {!cloudy && (
+            <Animated.View
+              style={[
+                partlyCloudy && styles.sun,
+                {
+                  transform: [
+                    {
+                      scale: movement.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [1, 1.08],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <Ionicons
+                name={night ? "moon" : "sunny"}
+                size={partlyCloudy ? 19 : 22}
+                color={colors.sun}
+              />
+            </Animated.View>
+          )}
+          {(cloudy || partlyCloudy) && (
+            <Animated.View
+              style={{
                 transform: [
                   {
-                    scale: movement.interpolate({
+                    translateX: movement.interpolate({
                       inputRange: [0, 1],
-                      outputRange: [1, 1.08],
+                      outputRange: [-2, 3],
                     }),
                   },
                 ],
-              },
-            ]}
-          >
-            <Ionicons
-              name={night ? "moon" : "sunny"}
-              size={partlyCloudy ? 19 : 22}
-              color={colors.sun}
-            />
-          </Animated.View>
-        )}
-        {(cloudy || partlyCloudy) && (
-          <Animated.View
-            style={{
-              transform: [
-                {
-                  translateX: movement.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-2, 3],
-                  }),
-                },
-              ],
-            }}
-          >
-            <Ionicons name="cloud" size={cloudy ? 25 : 21} color="#8497A0" />
-          </Animated.View>
-        )}
-      </View>
+              }}
+            >
+              <Ionicons name="cloud" size={cloudy ? 25 : 21} color="#8497A0" />
+            </Animated.View>
+          )}
+        </View>
+      )}
       <View style={styles.copy}>
         <Text style={styles.title}>
           {description} · nori {weather.cloud_percent}%

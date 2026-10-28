@@ -617,6 +617,33 @@ export default function MapScreen() {
             </Text>
           )}
           <View style={styles.layerHeader}>
+            <Text style={styles.panelTitle}>Nori</Text>
+            <Pressable
+              accessibilityRole="switch"
+              accessibilityLabel="Afișează pictograma meteo"
+              accessibilityState={{ checked: planner.settings.showWeatherIcon }}
+              onPress={() =>
+                planner.changePreferences((p) => ({
+                  showWeatherIcon: !p.showWeatherIcon,
+                }))
+              }
+              style={[
+                styles.toggle,
+                planner.settings.showWeatherIcon && styles.toggleOn,
+              ]}
+            >
+              <View
+                style={[
+                  styles.toggleDot,
+                  planner.settings.showWeatherIcon && { alignSelf: "flex-end" },
+                ]}
+              />
+            </Pressable>
+          </View>
+          <Text style={styles.subtle}>
+            Pictograma meteo animată din trasee. Prognoza rămâne activă.
+          </Text>
+          <View style={styles.layerHeader}>
             <Text style={styles.panelTitle}>Umbre</Text>
             <Pressable
               accessibilityRole="switch"
@@ -851,6 +878,7 @@ export default function MapScreen() {
                 {planner.comparison?.weather && (
                   <WeatherSummary
                     weather={planner.comparison.weather}
+                    showIcon={planner.settings.showWeatherIcon}
                     night={
                       !!planner.origin &&
                       solarPosition(
