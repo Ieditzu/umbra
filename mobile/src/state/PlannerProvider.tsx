@@ -122,9 +122,9 @@ function usePlannerState() {
     generation.current++;
     pending.current?.abort();
     setMessage("");
-    const preferredKind =
-      comparison?.routes.find((route) => route.id === selectedId)?.kind ??
-      "balanced";
+    const preferredKind = comparison?.routes.find(
+      (route) => route.id === selectedId,
+    )?.kind;
     const controller = new AbortController();
     pending.current = controller;
     const ticket = generation.current;
@@ -147,9 +147,15 @@ function usePlannerState() {
       const result = await calculateRoutes(request, controller.signal);
       if (ticket !== generation.current || controller.signal.aborted) return;
       setComparison(result);
+      const recommendation =
+        result.weather?.status === "available"
+          ? result.weather.recommended_id
+          : null;
       setSelectedId(
         (
           result.routes.find((route) => route.kind === preferredKind) ??
+          result.routes.find((route) => route.id === recommendation) ??
+          result.routes.find((route) => route.kind === "balanced") ??
           result.routes[0]
         ).id,
       );

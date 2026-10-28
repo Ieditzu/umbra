@@ -11,10 +11,12 @@ const names = {
 export function RouteCard({
   route,
   selected,
+  recommended = false,
   onPress,
 }: {
   route: WalkingRoute;
   selected: boolean;
+  recommended?: boolean;
   onPress: () => void;
 }) {
   const totals = exposureTotals(route);
@@ -26,7 +28,10 @@ export function RouteCard({
       style={[styles.card, selected && styles.selected]}
     >
       <View style={styles.heading}>
-        <Text style={styles.name}>{names[route.kind]}</Text>
+        <Text style={styles.name}>
+          {names[route.kind]}
+          {recommended ? " · Recomandat" : ""}
+        </Text>
         <Text style={styles.time}>{minutes(route.duration_s)}</Text>
       </View>
       <Text style={styles.detail}>

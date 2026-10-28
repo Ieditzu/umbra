@@ -846,6 +846,13 @@ export default function MapScreen() {
               </View>
             ) : (
               <>
+                {planner.comparison?.weather && (
+                  <Text style={styles.weatherNote}>
+                    {planner.comparison.weather.status === "available"
+                      ? `Prognoză regională · nori ${planner.comparison.weather.cloud_percent}% · soare direct ${planner.comparison.weather.direct_wm2} W/m² · Open-Meteo`
+                      : "Prognoza nu este disponibilă · trasee calculate fără vreme"}
+                  </Text>
+                )}
                 <ScrollView
                   style={styles.routeList}
                   showsVerticalScrollIndicator={false}
@@ -855,6 +862,10 @@ export default function MapScreen() {
                       key={item.id}
                       route={item}
                       selected={item.id === planner.selectedId}
+                      recommended={
+                        planner.comparison?.weather?.status === "available" &&
+                        planner.comparison.weather.recommended_id === item.id
+                      }
                       onPress={() => {
                         planner.setSelectedId(item.id);
                         setFollowing(false);
@@ -1079,6 +1090,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   routeList: { maxHeight: 180, marginTop: 8 },
+  weatherNote: { color: colors.muted, fontSize: 12, marginTop: 6 },
   startRoute: {
     minHeight: 48,
     borderRadius: 15,

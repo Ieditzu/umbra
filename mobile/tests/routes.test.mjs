@@ -242,3 +242,29 @@ test("malformed and oversized service bodies are rejected before parsing", async
     /prea mare/,
   );
 });
+
+test("weather recommendation is validated without changing route exposure", () => {
+  const data = fixture();
+  data.weather = {
+    status: "available",
+    recommended_id: "fast",
+    direct_wm2: 30,
+    cloud_percent: 85,
+    fetched_at: now.toISOString(),
+    source: "Open-Meteo",
+  };
+  const parsed = parseComparison(data, request());
+  assert.equal(parsed.weather.recommended_id, "fast");
+  assert.equal(parsed.routes[0].segments[1].exposure, "unknown");
+  assert.throws(() =>
+    parseComparison(
+      { ...data, weather: { ...data.weather, recommended_id: "missing" } },
+      request(),
+    ),
+  );
+  assert.equal(
+    parseComparison({ ...data, weather: { status: "unavailable" } }, request())
+      .weather.status,
+    "unavailable",
+  );
+});

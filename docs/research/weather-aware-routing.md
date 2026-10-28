@@ -1,6 +1,8 @@
 # Trasee adaptate la nori și vreme
 
-**Stadiu: propunere de cercetare, neimplementată și nevalidată.**
+**Stadiu: prototip implementat, nevalidat în teren.**
+
+Serverul compară alternativele deja generate folosind prognoza Open-Meteo pentru mijlocul aproximativ al traseului. Scorul experimental adună timpul de mers și radiația directă modelată împărțită la 150 W/m²; valoarea este o alegere provizorie, nu un prag validat. Folosește interpolare orară, un cache de 20 de minute și revine la calculul anterior când prognoza lipsește. Nu estimează poziția norilor pe străzi și nu calculează doza UV. Experimentele de mai jos rămân de făcut.
 
 ## Ideea pe înțelesul tuturor
 
