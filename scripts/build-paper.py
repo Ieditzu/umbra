@@ -147,7 +147,7 @@ def build(model: Path, output: Path) -> None:
     tall_oct = [instants[k]["by_height_pct"]["≥ 20 m"] for k in instants if k.startswith("27 oct")]
 
     doc = start(model)
-    title = para(doc, "**Măsurarea înălțimii clădirilor din umbra lor pentru trasee pietonale umbrite în Constanța**",
+    title = para(doc, "**Umbra urbană pentru estimarea înălțimilor și rutare pietonală**",
          align=WD_ALIGN_PARAGRAPH.CENTER, size=16, after=8, spacing=1.0)
     title.style = doc.styles["Title"]
     doc.styles["Title"].font.name = FONT
@@ -184,20 +184,12 @@ def build(model: Path, output: Path) -> None:
 
     heading(doc, "1. INTRODUCERE")
     para(doc, (
-        "**Evoluția proiectului.** Varianta înscrisă la RoSEF urmărea avertizarea asupra apropierii unei "
-        "persoane ascunse după un colț, detectând umbra pe pavaj înaintea intrării persoanei în cadrul "
-        "camerei [9]. Am reorientat proiectul spre trasee pietonale umbrite la 24 octombrie 2026, iar la "
-        "27 octombrie am adăugat măsurarea înălțimilor clădirilor. Am păstrat legătura dintre lumină, "
-        "geometrie și umbră: de la umbra ca indiciu al apropierii unei persoane, la estimarea înălțimilor "
-        "și folosirea umbrelor urbane pentru deplasare."
-    ))
-    para(doc, (
         "Umbra compară trasee după plecare, destinație, oră și ocolul acceptat. Serverul calculează "
         "Soarele, umbrele și traseele; telefonul afișează harta și ghidează prin GPS. Folosim contururile "
         "clădirilor și rețeaua pietonală din OpenStreetMap (OSM) [1] și ecuațiile NOAA pentru poziția Soarelui [2]."
     ))
     para(doc, (
-        "Umbra unei clădiri poate fi calculată numai dacă îi cunoaștem înălțimea. Din cele 51.428 de clădiri din "
+        "Modelarea umbrei unei clădiri necesită o estimare a înălțimii acesteia. Din cele 51.428 de clădiri din "
         "datele aplicației (Constanța, Mamaia și Palazu Mare), doar 271 (0,5%) au înălțimea înregistrată în OSM și "
         "5.913 (11,5%) au numărul de etaje; 45.159 (87,8%) nu au nicio informație. Seturile globale obținute prin "
         "învățare automată, precum GlobalBuildingAtlas (GBA) [3], par o soluție, dar precizia lor într-un oraș "
@@ -384,8 +376,6 @@ def build(model: Path, output: Path) -> None:
         "Earth System Science Data, nr. 16(11), 2024, essd.copernicus.org/articles/16/5357/2024, accesat la 27.10.2026.",
         "[8] Milojevic-Dupont, N. și colab., „EUBUCCO v0.1: European building stock characteristics in a common "
         "and open database for 200+ million individual buildings”, Scientific Data, nr. 10, 2023.",
-        "[9] Echipa Umbra, Fișa de înscriere RoSEF, 21.09.2026; istoricul proiectului, "
-        "github.com/Ieditzu/umbra, reviziile 2d33818 (24.10.2026) și d5a7eae (27.10.2026).",
     ]:
         para(doc, ref, align=WD_ALIGN_PARAGRAPH.LEFT, size=10, after=2, spacing=1.0)
 
