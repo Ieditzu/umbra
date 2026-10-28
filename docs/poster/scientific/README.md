@@ -1,67 +1,79 @@
-# Current scientific poster — RoSEF 2026
+# Scientific poster — RoSEF 2026
 
-**Print `umbra-poster-print.pdf` at 100% / actual size: 80 × 120 cm, portrait.** Do not print the older PDF in the parent folder by mistake. This is the combined poster with the large UMBRA masthead, detailed 3D building, four plots, comparison table and implemented-app section.
+Print `umbra-poster-print.pdf` at actual size: **80 × 120 cm, portrait**.
 
-- `umbra-poster-print.pdf`: single-page print file, exact 800 × 1200 mm. Fonts are embedded; graphs and text are vector. The 3D building is an illustrative raster image, not measured evidence.
-- `umbra-poster.svg`: scalable artwork used for the Canva layout, with text outlined to preserve Romanian glyphs.
-- `umbra-poster-preview.png`: preview image.
-- `building-3d.png`: AI-assisted illustrative building diagram. It is not a measured building or experimental result.
-- `build.py`: reproducible poster and PDF generation.
+## Current editable Canva poster
 
-Saved Canva design: **UMBRA — poster combinat — 3D și rezultate**, design ID `DAHZM0B_Iyg`.
+**UMBRA — poster final — texte și grafice editabile**
+Design ID: `DAHZTc_T4ks`
+Editor: https://www.canva.com/d/YRDor-B05Sn05q4
 
-Editor: https://www.canva.com/d/nYV9ZMQQaxolPKv
+This saved design replaces the damaged image-to-design conversion. Importing the
+editable source preserved 117 text elements. The bar rectangles, axes, curve line
+segments, section bands and table cells are individual vector elements. Only the
+3D building illustration is an image. The graphs use editable drawing elements;
+they are not Canva spreadsheet-backed chart widgets.
 
-The Canva artwork is grouped vector content rather than separate typed text boxes. Change scientific content in `build.py`, rebuild, and replace the Canva artwork when revising it.
+`canva-layout.json` records the saved design and verification counts. Earlier
+Canva designs are preserved so the team's previous work remains accessible.
 
-An additional native-text Canva draft is prepared as design `DAHZSUWM3uM`.
-It contains 47 editable text elements and six separate figures. Only the section
-bands and rules form the page background. Saving the draft awaits preview approval
-as required by the Canva connector. The original design above is preserved.
+## Files
+
+- `umbra-poster-editable.pptx`: editable source, 314 shape elements including text,
+  and one illustration image. Import this file into Canva without image conversion.
+- `build-editable.cjs`: creates the editable source directly from the analysis JSON.
+- `export-editable.py`: scales its exported PDF to the required print dimensions
+  and renders the preview with Poppler.
+- `umbra-poster-print.pdf`: current single-page print file, exactly 800 × 1200 mm.
+- `umbra-poster-preview.png`: current print preview.
+- `building-3d.png`: AI-assisted illustration, not a measured building.
+- `build.py` and `umbra-poster.svg`: retained earlier Matplotlib composition;
+  these do not rebuild the current editable Canva poster.
 
 ## Rebuild
 
-From the repository root, with `uv` installed:
+Requires Node.js with `pptxgenjs`, Noto Sans regular and bold, LibreOffice,
+Python with `pypdf`, and Poppler (`pdftoppm`). Run from the repository root:
 
 ```bash
-uv run --no-project --python 3.12 \
-  --with matplotlib==3.10.7 \
-  --with numpy==2.3.4 \
-  --with pypdf==6.12.0 \
-  python docs/poster/scientific/build.py
+node docs/poster/scientific/build-editable.cjs
+mkdir -p /tmp/umbra-poster-export
+libreoffice -env:UserInstallation=file:///tmp/umbra-poster-lo-profile \
+  --headless --convert-to pdf --outdir /tmp/umbra-poster-export \
+  docs/poster/scientific/umbra-poster-editable.pptx
+python docs/poster/scientific/export-editable.py \
+  /tmp/umbra-poster-export/umbra-poster-editable.pdf
 ```
 
-The script reads these existing tracked analysis outputs:
+If `pptxgenjs` is installed outside Node's normal module search paths, set
+`NODE_PATH` to that package directory. The PDF export step uses a separate
+LibreOffice profile so it can run alongside a desktop LibreOffice session.
 
-- `docs/research/gba-heights/summary.json`
-- `docs/paper/measurability.json`
+For a Canva revision, import the resulting PPTX and inspect the saved page.
+Do not run image-to-design on a full-page screenshot: that conversion introduced
+OCR errors and duplicate graph labels in the earlier poster.
 
-It expects Noto Sans regular and bold at `/usr/share/fonts/noto/NotoSans-Regular.ttf` and `/usr/share/fonts/noto/NotoSans-Bold.ttf`. On other systems, change the two font paths in the script to the installed Noto Sans files. Matplotlib's DejaVu Sans supplies mathematical symbols absent from Noto Sans. Neither font needs internet access during generation.
+## Data and interpretation
 
-The composition is rendered at a smaller working size, then the PDF page **and its vector content** are scaled together to 800 × 1200 mm with pypdf. The final file has no crop marks or extra bleed; confirm any printer-specific finishing requirements with the print shop.
+The reproducible inputs are:
 
-## Scientific scope
+- `docs/research/gba-heights/summary.json`: OSM coverage, GBA associations,
+  height-per-floor medians and differences against OSM height tags.
+- `docs/paper/measurability.json`: six simulated instants for 38,913 buildings.
 
-The charts show OSM coverage, consistency between GlobalBuildingAtlas and OSM floor counts, a theoretical shadow-length error model, and simulated shadow-tip availability. Table values are comparisons against volunteered OSM height tags, not surveyed ground truth. Sample sizes and modeling assumptions are retained beside the figures.
+Fig. 3 is the theoretical relation δh ≈ tan(e) · δL, using assumed length
+errors of 5 m and 0.3 m. Fig. 4 considers obstruction by other buildings;
+trees, vehicles, ground slope and physical access are outside that simulation.
+OSM height tags are comparison data, not surveyed ground truth. No field sample
+size or accuracy statistic was added.
 
-Section 01 prominently describes the implemented application as checked against commit `d5a7eae`: routing/shadow calculation, GPS/tape/drone-photo height inputs, uncertainty, local storage, optional sharing, and incorporation of heights confirmed by the application's rules. Software confirmation is not independent validation of physical measurement accuracy.
-
-Section 07 connects the scientific question to the measurement-to-height-to-shadow-to-route workflow. The masthead names both shaded routes and height estimation.
-
-No field measurements or demonstrated route improvements are invented. The stated GPS and tape/laser errors are assumptions in the simplified curve; the implementation also includes other uncertainty terms. The measured-height module's existence does not establish its field accuracy.
-
-On 28 October 2026 the team confirmed that the application had been tested on site
-in Constanța. The paper and poster include that statement. Field records were not
-provided for this revision, so no field sample sizes or accuracy statistics were
-added; all numerical figures retain the computational sources described above.
+The team confirmed on 28 October 2026 that the application had been tested
+in Constanța. The poster includes that statement; numerical charts retain their
+computational sources. Temperature and UV dose are not study outputs.
 
 ## Verification
 
-On 27 October 2026:
-
-- `pdfinfo`: one page, approximately 2267.72 × 3401.57 pt (800 × 1200 mm).
-- `pdffonts`: Noto Sans and DejaVu Sans are embedded with Unicode mappings.
-- The PDF was rendered with Poppler and visually inspected.
-- Text extraction confirmed the implemented-app section and principal data values.
-
-The reference scientific-poster example/template supplied by the team informed the emphasis on numbered figures, axes, sample sizes, methods and limitations. Their sample projects and data were not copied.
+On 28 October 2026 the PPTX and PDF were rendered and visually reviewed after
+correcting axis units and legend spacing. The saved Canva import was checked:
+117 native text elements and only one image, the building illustration. The
+print PDF has one page and a media box of 2267.72 × 3401.57 pt (800 × 1200 mm).
