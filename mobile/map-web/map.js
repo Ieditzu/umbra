@@ -231,15 +231,18 @@
       if (!map.getSource(`umbra-${name}`))
         map.addSource(`umbra-${name}`, { type: "geojson", data: saved[name] });
     const layers = map.getStyle().layers;
-    // Liberty has one-way arrow symbols before bridge roads. Inserting before
-    // the first symbol puts those roads on top of our 3D geometry.
-    let lastRoad = -1;
+    // Roads and their names belong on the ground. Liberty also has one-way
+    // symbols before bridge roads, so the first symbol is not a safe anchor.
+    let lastGroundLayer = -1;
     layers.forEach((layer, index) => {
-      if (layer["source-layer"] === "transportation" && layer.type !== "symbol")
-        lastRoad = index;
+      if (
+        (layer["source-layer"] === "transportation" && layer.type !== "symbol") ||
+        (layer["source-layer"] === "transportation_name" && layer.type === "symbol")
+      )
+        lastGroundLayer = index;
     });
     const before = layers.find(
-      (layer, index) => index > lastRoad && layer.type === "symbol",
+      (layer, index) => index > lastGroundLayer && layer.type === "symbol",
     )?.id;
     if (!map.getLayer("umbra-shadows"))
       map.addLayer(

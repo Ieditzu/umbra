@@ -170,13 +170,14 @@ function renderer(models = false) {
   return { bridge: window.umbraMap, map, messages, instances };
 }
 
-test("3d geometry is inserted after bridge roads and before labels", () => {
+test("3d geometry sits above roads and street names but below place labels", () => {
   const { map } = renderer(true);
   map.layers = {
     road: { id: "road", type: "line", "source-layer": "transportation" },
     arrow: { id: "arrow", type: "symbol", "source-layer": "transportation" },
     bridge: { id: "bridge", type: "line", "source-layer": "transportation" },
-    labels: { id: "labels", type: "symbol", "source-layer": "transportation_name" },
+    streets: { id: "streets", type: "symbol", "source-layer": "transportation_name" },
+    labels: { id: "labels", type: "symbol", "source-layer": "place" },
   };
   map.insertions = [];
   map.emit("style.load");
