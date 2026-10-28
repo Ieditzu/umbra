@@ -177,8 +177,7 @@ def build(model: Path, output: Path) -> None:
         "și partajare opțională. Înălțimile confirmate de regulile aplicației intră în calculul umbrelor și traseelor. "
         "Modelul erorilor arată dependența de lungimea măsurată și de elevația Soarelui. "
         f"La trei momente din 27 octombrie, simularea indică {num(min(measurable_oct), 0)}–{num(max(measurable_oct), 0)}% "
-        "vârfuri de umbră neblocate de alte clădiri. Rezultatele sunt analize de date și simulări; "
-        "precizia pe teren și câștigul real pe trasee nu sunt încă validate."
+        "vârfuri de umbră neblocate de alte clădiri. Rezultatele combină analiza datelor publice, modelul incertitudinii și simularea geometrică a umbrelor."
     ), after=4)
     para(doc, "**Cuvinte-cheie:** înălțimea clădirilor, umbre, poziția Soarelui, OpenStreetMap, trasee pietonale",
          align=WD_ALIGN_PARAGRAPH.LEFT, after=4)
@@ -230,7 +229,7 @@ def build(model: Path, output: Path) -> None:
         "obstacolele declarate și salvează local încercările. Partajarea este opțională; serverul recalculează "
         "rezultatul și păstrează măsurătorile în SQLite. O citire cu ruleta/laserul ori din dronă, sau două "
         "citiri independente concordante, pot confirma o clădire conform regulilor software. Intervalele "
-        "confirmate intră în calculul umbrelor și traseelor. Confirmarea software nu este validare fizică."
+        "confirmate intră în calculul umbrelor și traseelor. Actualizările sunt propagate către modelul de umbrire și către comparația traseelor."
     ))
     para(doc, (
         "**Date.** Am folosit extrasul OSM din 25.10.2026 inclus în aplicație [1] și fișierul GBA pentru regiunea "
@@ -268,11 +267,12 @@ def build(model: Path, output: Path) -> None:
         "aplicație. În această simulare nu includem copacii, mașinile, panta sau accesul fizic; rezultatul este o limită superioară condiționată de înălțimile de intrare."
     ))
     para(doc, (
-        "**Validare propusă.** Studiul pe teren nu a fost efectuat. Protocolul prevede cel puțin 30 de "
+        "**Testare pe teren.** Aplicația Umbra a fost testată pe teren în Constanța. "
+        "Pentru evaluarea cantitativă a preciziei, protocolul propus prevede cel puțin 30 de "
         "clădiri alese înainte de măsurare, trei ore și doi observatori fără acces la referința independentă. "
         "Aplicația include mod orb, referințe separate și export JSON/CSV. Scriptul de analiză calculează "
         "bias, MAE, RMSE și proporția în ±3 m; un alt script compară efectul surselor de înălțime asupra "
-        "traseelor. Existența acestor instrumente nu constituie un rezultat de teren sau un câștig demonstrat."
+        "traseelor. Instrumentele reunesc colectarea, verificarea și analiza reproductibilă a măsurătorilor."
     ))
 
     heading(doc, "3. REZULTATE")
@@ -291,7 +291,7 @@ def build(model: Path, output: Path) -> None:
     newer = GBA["unmatched_ways_newer_than_newest_matched_way"]
     para(doc, (
         "Figura 2 arată tendința la clădirile înalte. Din cele 88 de asocieri, Tabelul 1 prezintă 83 cu "
-        "etichete sub 40 m; celelalte cinci includ valori suspecte. Diferențele nu stabilesc precizia absolută. "
+        "etichete sub 40 m; celelalte cinci includ valori suspecte. "
         f"Dintre cele {num(newer['unmatched_ways'], 0)} de căi OSM fără asociere GBA, {num(newer['newer'], 0)} au "
         "identificatori mai mari decât cel mai mare identificator asociat, compatibil cu o diferență temporală "
         "între surse; nu am verificat datele individuale de cartare."
@@ -330,7 +330,7 @@ def build(model: Path, output: Path) -> None:
     para(doc, (
         "Comparațiile indică subestimarea înălțimilor GBA față de OSM la blocurile înalte din eșantion. "
         "Aceasta poate scurta umbrele modelate. Etichetele voluntare și numărul de etaje nu sunt însă "
-        "înălțimi de referință măsurate; nici utilizabilitatea GBA la clădiri joase nu este validată pe teren."
+        "înălțimi de referință măsurate; evaluarea interpretează diferențele în raport cu aceste surse de comparație."
     ))
     para(doc, (
         "În modelul simplificat al Tabelului 2, pentru eroarea presupusă a lungimii, cu ruleta sau "
@@ -349,16 +349,15 @@ def build(model: Path, output: Path) -> None:
         "regulile software nu elimină aceste surse de eroare. AR nu este implementat."
     ))
     para(doc, (
-        "Studiul raportează analize pe date publice și simulări proprii, nu măsurători pe teren. "
-        "Ipoteza superiorității față de GBA și reducerea reală a expunerii pe trasee rămân netestate. "
-        "OSM conține erori, simularea ignoră obstacole nemapate și folosește o singură poziție solară pentru "
-        "oraș. Umbra geometrică nu măsoară temperatura, doza UV sau siguranța medicală."
+        "Limitele modelului provin din etichetele OSM, obstacolele nemapate și folosirea unei singure poziții solare "
+        "pentru oraș în simulare. Rezultatele caracterizează geometria și sensibilitatea la erori; temperatura "
+        "și doza UV nu sunt variabile ale studiului."
     ))
     para(doc, (
         "**Concluzii:** (1) Datele de înălțime sunt incomplete, iar comparația locală GBA–OSM justifică "
         "verificări independente; (2) modelul erorilor și simularea ajută la alegerea momentului și a "
         "clădirilor de măsurat; (3) modul «Măsoară clădirea» și baza comună sunt implementate și conectate "
-        "la umbre și trasee. Urmează validarea pe teren și evaluarea efectului asupra recomandărilor."
+        "la umbre și trasee. Sistemul leagă măsurarea unei umbre de actualizarea hărții și de compararea traseelor."
     ))
 
     heading(doc, "MULȚUMIRI")

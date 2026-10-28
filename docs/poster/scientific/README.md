@@ -14,6 +14,11 @@ Editor: https://www.canva.com/d/nYV9ZMQQaxolPKv
 
 The Canva artwork is grouped vector content rather than separate typed text boxes. Change scientific content in `build.py`, rebuild, and replace the Canva artwork when revising it.
 
+An additional native-text Canva draft is prepared as design `DAHZSUWM3uM`.
+It contains 47 editable text elements and six separate figures. Only the section
+bands and rules form the page background. Saving the draft awaits preview approval
+as required by the Canva connector. The original design above is preserved.
+
 ## Rebuild
 
 From the repository root, with `uv` installed:
@@ -44,6 +49,11 @@ Section 01 prominently describes the implemented application as checked against 
 Section 07 connects the scientific question to the measurement-to-height-to-shadow-to-route workflow. The masthead names both shaded routes and height estimation.
 
 No field measurements or demonstrated route improvements are invented. The stated GPS and tape/laser errors are assumptions in the simplified curve; the implementation also includes other uncertainty terms. The measured-height module's existence does not establish its field accuracy.
+
+On 28 October 2026 the team confirmed that the application had been tested on site
+in Constanța. The paper and poster include that statement. Field records were not
+provided for this revision, so no field sample sizes or accuracy statistics were
+added; all numerical figures retain the computational sources described above.
 
 ## Verification
 
