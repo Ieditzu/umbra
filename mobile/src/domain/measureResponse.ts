@@ -5,6 +5,7 @@ import { BUILDING_ID } from "./measurements.ts";
 const SOURCES = [
   "osm_height_tag",
   "estimated_from_levels",
+  "copernicus_2012",
   "missing",
   "unsupported_elevated",
   "measured_shadow",

@@ -14,7 +14,7 @@ test(
   "route-effect compares height sources on reproducible real-city trips",
   { timeout: 120000 },
   async () => {
-    const data = await loadCity().dataPromise;
+    const data = await loadCity({ copernicus: false }).dataPromise;
     const a = rng(7),
       b = rng(7);
     assert.deepEqual([a(), a(), a()], [b(), b(), b()]);

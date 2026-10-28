@@ -907,6 +907,15 @@ export default function MapScreen() {
                       }}
                     />
                   ))}
+                  {planner.comparison?.attribution
+                    .filter((item) =>
+                      item.includes("Copernicus Land Monitoring"),
+                    )
+                    .map((item) => (
+                      <Text key={item} style={styles.attribution}>
+                        {item}
+                      </Text>
+                    ))}
                 </ScrollView>
                 {route && (
                   <Pressable

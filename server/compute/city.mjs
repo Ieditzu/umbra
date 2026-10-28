@@ -1,6 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { gunzipSync } from "node:zlib";
-import { initializeDataset } from "../../mobile/src/engine/data.ts";
+import {
+  initializeDataset,
+  withCopernicusHeights,
+} from "../../mobile/src/engine/data.ts";
 import {
   withTrees,
   withSatelliteCanopies,
@@ -10,7 +13,7 @@ import { TreeCatalog } from "./tree-catalog.mjs";
 
 // Bundled Constanța snapshot with mapped trees and satellite canopies.
 // Shared by the compute worker and offline analyses (route-effect.mjs).
-export function loadCity() {
+export function loadCity({ copernicus = true } = {}) {
   const treePromise = (async () => {
     const packed = JSON.parse(
       await readFile(
@@ -73,8 +76,30 @@ export function loadCity() {
       treePromise,
       canopyPromise,
     ]);
+    const raster = copernicus
+      ? JSON.parse(
+          await readFile(
+            new URL(
+              "../../mobile/assets/data/constanta-heights-2012.json",
+              import.meta.url,
+            ),
+            "utf8",
+          ),
+        )
+      : null;
+    if (
+      raster &&
+      (raster.schema_version !== 1 ||
+        !raster.values ||
+        typeof raster.values !== "object" ||
+        Array.isArray(raster.values))
+    )
+      throw Error("Invalid Copernicus heights");
     return withSatelliteCanopies(
-      withTrees(data, catalog.forArea(data.imported_m)),
+      withTrees(
+        raster ? withCopernicusHeights(data, raster.values) : data,
+        catalog.forArea(data.imported_m),
+      ),
       canopies,
     );
   })();

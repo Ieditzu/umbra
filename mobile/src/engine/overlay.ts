@@ -1,7 +1,7 @@
 import clipping from "polygon-clipping";
 import type { MultiPolygon, Polygon as ClipPolygon } from "polygon-clipping";
 import type { Bounds, ShadowLayer, ShadowPolygon } from "../domain/shadows.ts";
-import { ATTRIBUTION } from "./data.ts";
+import { ATTRIBUTION, COPERNICUS_ATTRIBUTION } from "./data.ts";
 import type { Dataset } from "./data.ts";
 import {
   bounds,
@@ -177,9 +177,17 @@ export async function localShadows(
           ? "low_sun"
           : "available",
     polygons: [],
-    attribution: [ATTRIBUTION],
+    attribution: [
+      ATTRIBUTION,
+      ...(data.metadata.copernicus_heights ? [COPERNICUS_ATTRIBUTION] : []),
+    ],
     warnings: [
       "Umbre geometrice locale pe teren plan, fără validare în teren. Norii și obstacolele necartografiate nu sunt modelate.",
+      ...(data.metadata.copernicus_heights
+        ? [
+            "Înălțimile Copernicus sunt estimări din jurul anului 2012; clădirile s-ar fi putut schimba.",
+          ]
+        : []),
     ],
     truncated: false,
     partialCoverage,
@@ -313,20 +321,24 @@ export async function localShadows(
           ? "osm_height"
           : b.height.source === "estimated_from_levels"
             ? "levels_estimate"
-            : options.displayEstimates && b.height.source === "missing"
+            : options.displayEstimates && b.height.source === "copernicus_2012"
               ? "display_estimate"
-              : "unknown";
+              : options.displayEstimates && b.height.source === "missing"
+                ? "display_estimate"
+                : "unknown";
     if (source === "unknown" && options.includeNeutralFootprints === false)
       continue;
     const renderHeight = Number(b.tags["umbra:render_height"]);
     const height =
-      source === "display_estimate"
-        ? Number.isFinite(renderHeight) &&
-          renderHeight > 0 &&
-          renderHeight <= 1000
-          ? renderHeight
-          : 6
-        : b.height.low_m;
+      b.height.source === "copernicus_2012"
+        ? b.height.high_m - 10
+        : source === "display_estimate"
+          ? Number.isFinite(renderHeight) &&
+            renderHeight > 0 &&
+            renderHeight <= 1000
+            ? renderHeight
+            : 6
+          : b.height.low_m;
     const reach =
       source === "unknown" ? 0 : height / Math.tan(rad(sun.elevation));
     if (!intersects(expand(b.box, reach), viewBox)) continue;

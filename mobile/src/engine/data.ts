@@ -5,12 +5,15 @@ import type { Tree } from "./trees.ts";
 
 export const ATTRIBUTION =
   "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright";
+export const COPERNICUS_ATTRIBUTION =
+  "© European Union, Copernicus Land Monitoring Service 2022, European Environment Agency (EEA)";
 export type Height = {
   low_m: number;
   high_m: number;
   source:
     | "osm_height_tag"
     | "estimated_from_levels"
+    | "copernicus_2012"
     | "missing"
     | "unsupported_elevated"
     | "measured_shadow";
@@ -261,6 +264,38 @@ export async function initializeDataset(
 }
 
 export type MeasuredHeight = { id: string; low_m: number; high_m: number };
+/** Old raster-derived heights are estimates; OSM and measured heights take priority. */
+export function withCopernicusHeights(
+  data: Dataset,
+  values: Record<string, number>,
+): Dataset {
+  const buildings = data.buildings.map((b) => {
+    const h = values[b.id];
+    if (
+      b.height.source !== "missing" ||
+      !Number.isFinite(h) ||
+      h < 3 ||
+      h > 200
+    )
+      return b;
+    // shortcut: the ±5/10 m envelope is heuristic; replace with validated local uncertainty.
+    return {
+      ...b,
+      height: {
+        low_m: Math.max(0, h - 5),
+        high_m: h + 10,
+        source: "copernicus_2012" as const,
+      },
+    };
+  });
+  return {
+    ...data,
+    buildings,
+    metadata: { ...data.metadata, copernicus_heights: "2012" },
+    index: data.index.withItems(buildings),
+    maxHeight: buildings.reduce((h, b) => Math.max(h, b.height.high_m), 0),
+  };
+}
 /** Request-scoped copy with confirmed shadow measurements; the shared dataset is not mutated. */
 export function withMeasuredHeights(
   data: Dataset,

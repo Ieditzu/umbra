@@ -215,7 +215,7 @@ async function main() {
       out: { type: "string" },
     },
   });
-  const data = await loadCity().dataPromise;
+  const data = await loadCity({ copernicus: false }).dataPromise;
   const measured = values.heights
     ? readHeights(JSON.parse(await readFile(values.heights, "utf8")))
     : [];

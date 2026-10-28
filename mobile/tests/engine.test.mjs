@@ -6,6 +6,8 @@ import {
   ATTRIBUTION,
   buildingHeight,
   initializeDataset,
+  withCopernicusHeights,
+  withMeasuredHeights,
 } from "../src/engine/data.ts";
 import {
   bounds,
@@ -256,14 +258,36 @@ test("ray exposure respects roofs, uncertainty, night and unknown road position"
   );
   raw.buildings = [roof({})];
   const missing = await initialize(raw);
-  assert.equal(
-    classifyAt(missing, p, sun, true).reason,
-    "assumed_building_height",
-  );
-  assert.equal(classifyAt(missing, p, sun, true).exposure, "estimated_shade");
+  assert.equal(classifyAt(missing, p, sun, true).reason, "height_uncertainty");
+  assert.equal(classifyAt(missing, p, sun, true).exposure, "unknown");
   assert.equal(
     classifyAt(missing, { ...p, y: p.y - 10 }, sun, true).reason,
     "height_uncertainty",
+  );
+});
+
+test("Copernicus heights fill missing values as uncertain satellite estimates", async () => {
+  const raw = synthetic();
+  raw.buildings = [roof({})];
+  const original = await initialize(raw);
+  const data = withCopernicusHeights(original, { "synthetic-building": 20 });
+  const result = classifyAt(data, p, { elevation: 45, azimuth: 0 }, true);
+  assert.deepEqual(result, {
+    exposure: "estimated_shade",
+    reason: "copernicus_2012",
+  });
+  assert.equal(original.buildings[0].height.source, "missing");
+  assert.equal(
+    withMeasuredHeights(data, [
+      { id: "synthetic-building", low_m: 30, high_m: 32 },
+    ]).buildings[0].height.source,
+    "measured_shadow",
+  );
+  const tagged = await initialize({ ...raw, buildings: [roof()] });
+  assert.equal(
+    withCopernicusHeights(tagged, { "synthetic-building": 20 }).buildings[0]
+      .height.source,
+    "osm_height_tag",
   );
 });
 

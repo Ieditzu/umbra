@@ -138,10 +138,23 @@ test(
     const raw = JSON.parse(
       gunzipSync(Buffer.from(packed.payload, "base64")).toString("utf8"),
     );
+    const estimates = JSON.parse(
+      await readFile(
+        new URL(
+          "../../mobile/assets/data/constanta-heights-2012.json",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    ).values;
     // A building with no height near the test viewport, tapped at an interior point.
     let chosen = null;
     for (const b of raw.buildings) {
-      if (!/^way\//.test(b.id) || buildingHeight(b.tags).source !== "missing")
+      if (
+        !/^way\//.test(b.id) ||
+        buildingHeight(b.tags).source !== "missing" ||
+        !(b.id in estimates)
+      )
         continue;
       const ring = b.geometry[0][0];
       const c = ring.slice(0, -1).reduce(
@@ -179,7 +192,7 @@ test(
     );
     assert.equal(target.id, chosen.id);
     assert.equal(target.measurable, true);
-    assert.equal(target.height.source, "missing");
+    assert.equal(target.height.source, "copernicus_2012");
     assert.ok(target.corners.length > 0);
     assert.ok(target.sun.elevation > 60);
     const measured = [{ id: chosen.id, low_m: 24, high_m: 26 }];
