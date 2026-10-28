@@ -255,8 +255,14 @@ test("ray exposure respects roofs, uncertainty, night and unknown road position"
     "road_or_grade_position",
   );
   raw.buildings = [roof({})];
+  const missing = await initialize(raw);
   assert.equal(
-    classifyAt(await initialize(raw), p, sun, true).reason,
+    classifyAt(missing, p, sun, true).reason,
+    "assumed_building_height",
+  );
+  assert.equal(classifyAt(missing, p, sun, true).exposure, "estimated_shade");
+  assert.equal(
+    classifyAt(missing, { ...p, y: p.y - 10 }, sun, true).reason,
     "height_uncertainty",
   );
 });

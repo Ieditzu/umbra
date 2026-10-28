@@ -37,7 +37,7 @@ export function RouteCard({
       <Text style={styles.detail}>
         {distanceLabel(route.distance_m)} ·{" "}
         {totals.unknown >= route.duration_s - 1
-          ? "Expunere necunoscută"
+          ? "Date insuficiente pentru estimare"
           : totals.shade + totals.estimated_shade < 1
             ? "Nicio umbră identificată"
             : `${minutes(totals.shade + totals.estimated_shade)} umbră modelată`}
@@ -70,7 +70,7 @@ export function RouteCard({
       </View>
       {totals.estimated_shade > 0 && (
         <Text style={styles.detail}>
-          {minutes(totals.estimated_shade)} umbră de copaci estimată
+          {minutes(totals.estimated_shade)} umbră estimată · copaci sau clădiri cu înălțime presupusă
         </Text>
       )}
       {totals.unshaded_estimate > 0 && (
@@ -81,7 +81,7 @@ export function RouteCard({
       )}
       {totals.unknown > 0 && (
         <Text style={styles.detail}>
-          {minutes(totals.unknown)} cu expunere necunoscută
+          {minutes(totals.unknown)} cu date insuficiente
         </Text>
       )}
     </Pressable>

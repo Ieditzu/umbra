@@ -26,7 +26,8 @@ export function classifyAt(
       data.treeIndex ? 60 / slope + 1 : 0,
     );
   const end = { x: p.x + v.x * length, y: p.y + v.y * length };
-  let uncertain = false;
+  let uncertain = false,
+    assumedBuildingShadow = false;
   // No known prism beyond this length can reach the ground point. Missing heights
   // beyond the corridor still leave exposure unknown because no inventory audit exists.
   for (const building of data.index.ray(p, end))
@@ -38,6 +39,9 @@ export function classifyAt(
         building.height.source === "unsupported_elevated"
       ) {
         uncertain = true;
+        // shortcut: 6 m assumes an ordinary building; replace with measured heights when available.
+        if (building.height.source === "missing" && entry * slope < 6)
+          assumedBuildingShadow = true;
         continue;
       }
       const rayHeight = entry * slope;
@@ -45,6 +49,8 @@ export function classifyAt(
         return { exposure: "shade", reason: building.height.source };
       if (rayHeight <= building.height.high_m + 1e-4) uncertain = true;
     }
+  if (assumedBuildingShadow)
+    return { exposure: "estimated_shade", reason: "assumed_building_height" };
   if (at !== undefined && data.treeIndex) {
     for (const tree of data.treeIndex.ray(p, end)) {
       if (!treeHasFoliage(tree, at)) continue;

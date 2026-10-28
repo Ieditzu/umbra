@@ -368,7 +368,7 @@ export async function compareLocalRoutes(
       warnings: [
         "Model geometric experimental pe teren plan; fără validare în teren. Umbrele copacilor cartografiați și ale coroanelor estimate din imagini satelitare din 2019–2020 sunt orientative. Norii, vremea și obstacolele necartografiate nu sunt deduse.",
         "Calcul local: poziția Soarelui este reevaluată la momentele parcurgerii, cu eșantioane de cel mult 10 m și 10 s. Căutarea de alternative este limitată și nu garantează optimul global.",
-        "Înălțimile din numărul etajelor sunt ipoteze de 2,5–3,5 m/etaj plus până la 3 m pentru acoperiș. Umbra estimată a arborilor primește o pondere parțială la alegerea traseului. «Fără umbră identificată» este o estimare pe date incomplete, nu dovedește soare direct; norii și obstacolele lipsă pot schimba rezultatul.",
+        "Înălțimile din numărul etajelor sunt ipoteze de 2,5–3,5 m/etaj plus până la 3 m pentru acoperiș. Clădirile fără înălțime folosesc o ipoteză orientativă de 6 m pentru umbră estimată. Umbra estimată a arborilor și a acestor clădiri primește o pondere parțială. «Fără umbră identificată» nu dovedește soare direct; norii și obstacolele lipsă pot schimba rezultatul.",
         `Acces la rețeaua pietonală: ${from.distance.toFixed(1)} m și ${to.distance.toFixed(1)} m; porțiunile din afara rețelei nu sunt incluse în durată. Verifică accesul și trecerile pe teren.`,
         ...(from.insideBuilding || to.insideBuilding
           ? [
