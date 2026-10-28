@@ -244,3 +244,50 @@ test(
     assert.ok(route.routes[0].distance_m > 200);
   },
 );
+
+test("route responses include weather recommendations and fall back when unavailable", async (t) => {
+  const at = Date.parse("2026-06-01T10:00:00Z");
+  const route = {
+    attribution: ["OSM"],
+    routes: [
+      {
+        id: "fast",
+        duration_s: 600,
+        segments: [{ duration_s: 600, exposure: "unknown" }],
+      },
+      {
+        id: "shade",
+        duration_s: 720,
+        segments: [{ duration_s: 720, exposure: "shade" }],
+      },
+    ],
+  };
+  let enabled = true;
+  const pool = {
+    ready: true,
+    run: async () => JSON.stringify(route),
+    close: async () => {},
+  };
+  const app = createComputeServer({
+    pool,
+    weather: async () =>
+      enabled
+        ? {
+            fetchedAt: at,
+            points: [
+              { at, direct: 600, cloud: 10 },
+              { at: at + 3600000, direct: 600, cloud: 10 },
+            ],
+          }
+        : null,
+  });
+  const base = await listen(app.server);
+  t.after(() => app.close());
+  const q = { departure_at: new Date(at).toISOString() };
+  const first = await (await post(base, "/v1/routes/compare", q)).json();
+  assert.equal(first.weather.recommended_id, "shade");
+  enabled = false;
+  const second = await (await post(base, "/v1/routes/compare", q)).json();
+  assert.equal(second.weather.status, "unavailable");
+  assert.deepEqual(second.routes, route.routes);
+});

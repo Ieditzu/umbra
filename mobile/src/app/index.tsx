@@ -17,6 +17,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DeparturePicker } from "../components/DeparturePicker";
 import { PlaceSearch } from "../components/PlaceSearch";
 import { RouteCard } from "../components/RouteCard";
+import { WeatherSummary } from "../components/WeatherSummary";
+import { solarPosition } from "../engine/solar";
 import { MeasurePanel } from "../components/MeasurePanel";
 import { buildMeasureOverlay } from "../domain/measureOverlay";
 import type { MeasureTarget } from "../engine/measureTarget";
@@ -615,6 +617,33 @@ export default function MapScreen() {
             </Text>
           )}
           <View style={styles.layerHeader}>
+            <Text style={styles.panelTitle}>Nori</Text>
+            <Pressable
+              accessibilityRole="switch"
+              accessibilityLabel="Afișează pictograma meteo"
+              accessibilityState={{ checked: planner.settings.showWeatherIcon }}
+              onPress={() =>
+                planner.changePreferences((p) => ({
+                  showWeatherIcon: !p.showWeatherIcon,
+                }))
+              }
+              style={[
+                styles.toggle,
+                planner.settings.showWeatherIcon && styles.toggleOn,
+              ]}
+            >
+              <View
+                style={[
+                  styles.toggleDot,
+                  planner.settings.showWeatherIcon && { alignSelf: "flex-end" },
+                ]}
+              />
+            </Pressable>
+          </View>
+          <Text style={styles.subtle}>
+            Pictograma meteo animată din trasee. Prognoza rămâne activă.
+          </Text>
+          <View style={styles.layerHeader}>
             <Text style={styles.panelTitle}>Umbre</Text>
             <Pressable
               accessibilityRole="switch"
@@ -846,6 +875,19 @@ export default function MapScreen() {
               </View>
             ) : (
               <>
+                {planner.comparison?.weather && (
+                  <WeatherSummary
+                    weather={planner.comparison.weather}
+                    showIcon={planner.settings.showWeatherIcon}
+                    night={
+                      !!planner.origin &&
+                      solarPosition(
+                        Date.parse(planner.comparison.departure_at),
+                        planner.origin.coordinate,
+                      ).elevation < -0.833
+                    }
+                  />
+                )}
                 <ScrollView
                   style={styles.routeList}
                   showsVerticalScrollIndicator={false}
@@ -855,6 +897,10 @@ export default function MapScreen() {
                       key={item.id}
                       route={item}
                       selected={item.id === planner.selectedId}
+                      recommended={
+                        planner.comparison?.weather?.status === "available" &&
+                        planner.comparison.weather.recommended_id === item.id
+                      }
                       onPress={() => {
                         planner.setSelectedId(item.id);
                         setFollowing(false);

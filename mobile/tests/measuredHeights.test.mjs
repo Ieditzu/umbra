@@ -78,7 +78,10 @@ test("a confirmed measurement turns a missing height into modelled shade", async
   const short = withMeasuredHeights(data, [
     { id: "way/100", low_m: 2, high_m: 3 },
   ]);
-  assert.equal(classifyAt(short, point, sun, true).exposure, "unknown");
+  assert.equal(
+    classifyAt(short, point, sun, true).exposure,
+    "unshaded_estimate",
+  );
 });
 
 test("measured heights draw their own shadow source and building colour", async () => {

@@ -1,5 +1,6 @@
 export type Coordinate = { latitude: number; longitude: number };
-export type Exposure = "shade" | "estimated_shade" | "sun" | "unknown";
+export type Exposure =
+  "shade" | "estimated_shade" | "unshaded_estimate" | "sun" | "unknown";
 export type RouteKind = "fastest" | "balanced" | "shadiest";
 export type RouteSegment = {
   coordinates: Coordinate[];
@@ -30,6 +31,16 @@ export type RouteComparison = {
   routes: WalkingRoute[];
   warnings: string[];
   attribution: string[];
+  weather?:
+    | { status: "unavailable" }
+    | {
+        status: "available";
+        recommended_id: string;
+        direct_wm2: number;
+        cloud_percent: number;
+        fetched_at: string;
+        source: string;
+      };
 };
 
 export const CONSTANȚA = {
@@ -109,7 +120,7 @@ export function exposureTotals(route: WalkingRoute): Record<Exposure, number> {
       ...totals,
       [segment.exposure]: totals[segment.exposure] + segment.duration_s,
     }),
-    { shade: 0, estimated_shade: 0, sun: 0, unknown: 0 },
+    { shade: 0, estimated_shade: 0, unshaded_estimate: 0, sun: 0, unknown: 0 },
   );
 }
 
@@ -166,9 +177,13 @@ export function parseComparison(
     const segments = route.segments.map((rawSegment) => {
       const segment = object(rawSegment);
       if (
-        !["shade", "estimated_shade", "sun", "unknown"].includes(
-          segment.exposure as string,
-        ) ||
+        ![
+          "shade",
+          "estimated_shade",
+          "unshaded_estimate",
+          "sun",
+          "unknown",
+        ].includes(segment.exposure as string) ||
         !positive(segment.duration_s) ||
         !Array.isArray(segment.coordinates) ||
         segment.coordinates.length < 2 ||
@@ -237,6 +252,36 @@ export function parseComparison(
   const attribution = stringList(result.attribution);
   if (!attribution.length)
     throw new Error("Lipsește atribuirea datelor cartografice.");
+  let weather: RouteComparison["weather"];
+  if (result.weather !== undefined) {
+    const w = object(result.weather);
+    if (w.status === "unavailable") weather = { status: "unavailable" };
+    else if (
+      w.status === "available" &&
+      typeof w.recommended_id === "string" &&
+      ids.has(w.recommended_id) &&
+      typeof w.direct_wm2 === "number" &&
+      Number.isFinite(w.direct_wm2) &&
+      w.direct_wm2 >= 0 &&
+      w.direct_wm2 <= 1500 &&
+      typeof w.cloud_percent === "number" &&
+      Number.isFinite(w.cloud_percent) &&
+      w.cloud_percent >= 0 &&
+      w.cloud_percent <= 100 &&
+      typeof w.fetched_at === "string" &&
+      Number.isFinite(Date.parse(w.fetched_at)) &&
+      w.source === "Open-Meteo"
+    ) {
+      weather = {
+        status: "available",
+        recommended_id: w.recommended_id,
+        direct_wm2: w.direct_wm2,
+        cloud_percent: w.cloud_percent,
+        fetched_at: w.fetched_at,
+        source: w.source,
+      };
+    } else throw new Error("Prognoza traseului este invalidă.");
+  }
   return {
     schema_version: 1,
     departure_at: result.departure_at as string,
@@ -245,6 +290,7 @@ export function parseComparison(
     routes,
     warnings: stringList(result.warnings),
     attribution,
+    weather,
   };
 }
 

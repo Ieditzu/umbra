@@ -195,7 +195,7 @@ test("city ray length still reaches tall buildings whose low-sun shadows exceed 
   );
   assert.equal(
     classifyAt(data, p, { elevation: 45, azimuth: 0 }, true).exposure,
-    "unknown",
+    "unshaded_estimate",
   );
 });
 
@@ -240,7 +240,7 @@ test("ray exposure respects roofs, uncertainty, night and unknown road position"
   assert.equal(classifyAt(data, p, sun, true).exposure, "shade");
   assert.equal(
     classifyAt(data, { ...p, y: p.y - 30 }, sun, true).exposure,
-    "unknown",
+    "unshaded_estimate",
   );
   assert.equal(
     classifyAt(data, p, { ...sun, elevation: -10 }, true).reason,
@@ -255,8 +255,14 @@ test("ray exposure respects roofs, uncertainty, night and unknown road position"
     "road_or_grade_position",
   );
   raw.buildings = [roof({})];
+  const missing = await initialize(raw);
   assert.equal(
-    classifyAt(await initialize(raw), p, sun, true).reason,
+    classifyAt(missing, p, sun, true).reason,
+    "assumed_building_height",
+  );
+  assert.equal(classifyAt(missing, p, sun, true).exposure, "estimated_shade");
+  assert.equal(
+    classifyAt(missing, { ...p, y: p.y - 10 }, sun, true).reason,
     "height_uncertainty",
   );
 });
@@ -422,7 +428,9 @@ test("local route search returns fastest and a useful shade detour within budget
     now: at,
   });
   assert.equal(unknown.routes.length, 1);
-  assert.ok(unknown.routes[0].segments.every((s) => s.exposure === "unknown"));
+  assert.ok(
+    unknown.routes[0].segments.every((s) => s.exposure === "unshaded_estimate"),
+  );
 });
 
 test("offline routing rejects disconnected graphs, building-crossing snaps and stale requests", async () => {

@@ -11,10 +11,12 @@ const names = {
 export function RouteCard({
   route,
   selected,
+  recommended = false,
   onPress,
 }: {
   route: WalkingRoute;
   selected: boolean;
+  recommended?: boolean;
   onPress: () => void;
 }) {
   const totals = exposureTotals(route);
@@ -26,14 +28,19 @@ export function RouteCard({
       style={[styles.card, selected && styles.selected]}
     >
       <View style={styles.heading}>
-        <Text style={styles.name}>{names[route.kind]}</Text>
+        <Text style={styles.name}>
+          {names[route.kind]}
+          {recommended ? " · Recomandat" : ""}
+        </Text>
         <Text style={styles.time}>{minutes(route.duration_s)}</Text>
       </View>
       <Text style={styles.detail}>
         {distanceLabel(route.distance_m)} ·{" "}
         {totals.unknown >= route.duration_s - 1
-          ? "Expunere necunoscută"
-          : `${minutes(totals.shade + totals.estimated_shade)} umbră modelată`}
+          ? "Date insuficiente pentru estimare"
+          : totals.shade + totals.estimated_shade < 1
+            ? "Nicio umbră identificată"
+            : `${minutes(totals.shade + totals.estimated_shade)} umbră modelată`}
       </Text>
       <View style={styles.bar}>
         {totals.shade > 0 && (
@@ -47,6 +54,14 @@ export function RouteCard({
         {totals.sun > 0 && (
           <View style={{ flex: totals.sun, backgroundColor: colors.sun }} />
         )}
+        {totals.unshaded_estimate > 0 && (
+          <View
+            style={{
+              flex: totals.unshaded_estimate,
+              backgroundColor: "#D5A34B",
+            }}
+          />
+        )}
         {totals.unknown > 0 && (
           <View
             style={{ flex: totals.unknown, backgroundColor: colors.unknown }}
@@ -55,12 +70,18 @@ export function RouteCard({
       </View>
       {totals.estimated_shade > 0 && (
         <Text style={styles.detail}>
-          {minutes(totals.estimated_shade)} umbră de copaci estimată
+          {minutes(totals.estimated_shade)} umbră estimată · copaci sau clădiri cu înălțime presupusă
+        </Text>
+      )}
+      {totals.unshaded_estimate > 0 && (
+        <Text style={styles.detail}>
+          {minutes(totals.unshaded_estimate)} fără umbră identificată · date
+          incomplete, vremea poate schimba rezultatul
         </Text>
       )}
       {totals.unknown > 0 && (
         <Text style={styles.detail}>
-          {minutes(totals.unknown)} cu expunere necunoscută
+          {minutes(totals.unknown)} cu date insuficiente
         </Text>
       )}
     </Pressable>

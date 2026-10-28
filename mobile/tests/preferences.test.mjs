@@ -39,6 +39,7 @@ test("legacy detour settings migrate and corrupt values use safe platform defaul
     mapStyle: "terrain",
     threeD: true,
     showShadows: false,
+    showWeatherIcon: false,
     departureAt: "bad",
     maxExtraMinutes: 999,
   });
@@ -46,6 +47,7 @@ test("legacy detour settings migrate and corrupt values use safe platform defaul
   assert.equal(restorePreferences(raw, "ios").mapStyle, "map");
   assert.equal(restorePreferences(raw, "ios").threeD, true);
   assert.equal(restorePreferences(raw, "ios").showShadows, false);
+  assert.equal(restorePreferences(raw, "ios").showWeatherIcon, false);
   assert.equal(restorePreferences(raw, "ios").departureAt, null);
   assert.equal(restorePreferences(raw, "ios").maxExtraMinutes, 5);
 });
@@ -59,6 +61,7 @@ test("map controls detour and chosen time survive a fresh store without retainin
     mapStyle: "satellite",
     threeD: true,
     showShadows: false,
+    showWeatherIcon: false,
     departureAt: "2026-10-26T15:00:00Z",
   });
   await store.update({ maxExtraMinutes: 15 });
@@ -70,6 +73,7 @@ test("map controls detour and chosen time survive a fresh store without retainin
     threeD: true,
     showShadows: false,
     estimatedShadows: true,
+    showWeatherIcon: false,
     departureAt: "2026-10-26T15:00:00.000Z",
   });
   const saved = serializePreferences({

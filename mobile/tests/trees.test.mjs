@@ -56,7 +56,10 @@ test("mapped tree crown produces estimated shade only with summer foliage and kn
     classifyAt(data, point, sun, true, june).exposure,
     "estimated_shade",
   );
-  assert.equal(classifyAt(data, point, sun, true, january).exposure, "unknown");
+  assert.equal(
+    classifyAt(data, point, sun, true, january).exposure,
+    "unshaded_estimate",
+  );
   assert.equal(classifyAt(data, point, sun, false, june).exposure, "unknown");
   assert.equal(
     classifyAt(data, point, { ...sun, elevation: -5 }, true, june).exposure,
@@ -160,7 +163,7 @@ test("satellite canopies display and influence routes only as estimated shade", 
       true,
       january,
     ).exposure,
-    "unknown",
+    "unshaded_estimate",
   );
   const layer = await localShadows(
     withSatellite,

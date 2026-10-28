@@ -11,6 +11,7 @@ function renderer(models = false) {
       this.events = {};
       this.sources = {};
       this.layers = {};
+      this.insertions = [];
       this.pitch = 0;
       this.zoom = 15;
       this.roadFeatures = [];
@@ -61,8 +62,9 @@ function renderer(models = false) {
     getLayer(id) {
       return this.layers[id];
     }
-    addLayer(layer) {
+    addLayer(layer, before) {
       this.layers[layer.id] = layer;
+      this.insertions.push({ id: layer.id, before });
     }
     setLayoutProperty(id, name, value) {
       this.layers[id].layout ??= {};
@@ -167,6 +169,22 @@ function renderer(models = false) {
   map.emit("style.load");
   return { bridge: window.umbraMap, map, messages, instances };
 }
+
+test("3d geometry sits above roads and street names but below place labels", () => {
+  const { map } = renderer(true);
+  map.layers = {
+    road: { id: "road", type: "line", "source-layer": "transportation" },
+    arrow: { id: "arrow", type: "symbol", "source-layer": "transportation" },
+    bridge: { id: "bridge", type: "line", "source-layer": "transportation" },
+    streets: { id: "streets", type: "symbol", "source-layer": "transportation_name" },
+    labels: { id: "labels", type: "symbol", "source-layer": "place" },
+  };
+  map.insertions = [];
+  map.emit("style.load");
+  for (const id of ["umbra-buildings", "umbra-tree-models", "umbra-tree-volume", "umbra-tree-trunk"]) {
+    assert.equal(map.insertions.find((item) => item.id === id)?.before, "labels");
+  }
+});
 
 test("data updates and taps preserve building meshes and chosen pitch without recreating the map", () => {
   const { bridge, map, instances } = renderer();

@@ -123,9 +123,15 @@ export async function routeEffect(data, options) {
           const c = exposureTotals(chosen);
           row[name] = {
             fastest_shade: share(t.shade, fastest.duration_s),
-            fastest_unknown: share(t.unknown, fastest.duration_s),
+            fastest_unknown: share(
+              t.unknown + t.unshaded_estimate,
+              fastest.duration_s,
+            ),
             chosen_shade: share(c.shade + c.estimated_shade, chosen.duration_s),
-            chosen_unknown: share(c.unknown, chosen.duration_s),
+            chosen_unknown: share(
+              c.unknown + c.unshaded_estimate,
+              chosen.duration_s,
+            ),
             // Geometry signature: same coordinates means the same recommendation.
             chosen_signature: chosen.segments
               .flatMap((s) => s.coordinates)

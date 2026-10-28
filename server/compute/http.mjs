@@ -4,6 +4,7 @@ import { promisify } from "node:util";
 import { ComputeError, ComputePool } from "./pool.mjs";
 import { RegionTiles, regionalSelection } from "./regions.mjs";
 import { heightsRoute, RateLimiter } from "../heights/routes.mjs";
+import { createWeatherService, applyWeather } from "./weather.mjs";
 const compress = promisify(gzip);
 const kinds = new Map([
   ["/v1/routes/compare", "routes"],
@@ -110,6 +111,7 @@ export function createComputeServer({
   pool = new ComputePool(),
   regions = new RegionTiles(),
   heights = null,
+  weather = createWeatherService(),
   limiter = new RateLimiter({
     post_contributor: 30,
     post_ip: 60,
@@ -245,6 +247,13 @@ export function createComputeServer({
           region ? { ...job, __region: region } : job,
           controller.signal,
         );
+        if (kind === "routes") {
+          const value = JSON.parse(json);
+          if (Array.isArray(value.routes) && Array.isArray(value.attribution)) {
+            const forecast = await weather(q);
+            json = JSON.stringify(applyWeather(value, q, forecast));
+          }
+        }
         if (kind === "inspect" && heights) {
           // Shared status for the building card; never cached because it changes per upload.
           const value = JSON.parse(json);

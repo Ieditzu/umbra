@@ -230,9 +230,20 @@
     for (const name of Object.keys(saved))
       if (!map.getSource(`umbra-${name}`))
         map.addSource(`umbra-${name}`, { type: "geojson", data: saved[name] });
-    const before = map
-      .getStyle()
-      .layers.find((layer) => layer.type === "symbol")?.id;
+    const layers = map.getStyle().layers;
+    // Roads and their names belong on the ground. Liberty also has one-way
+    // symbols before bridge roads, so the first symbol is not a safe anchor.
+    let lastGroundLayer = -1;
+    layers.forEach((layer, index) => {
+      if (
+        (layer["source-layer"] === "transportation" && layer.type !== "symbol") ||
+        (layer["source-layer"] === "transportation_name" && layer.type === "symbol")
+      )
+        lastGroundLayer = index;
+    });
+    const before = layers.find(
+      (layer, index) => index > lastGroundLayer && layer.type === "symbol",
+    )?.id;
     if (!map.getLayer("umbra-shadows"))
       map.addLayer(
         {
@@ -334,7 +345,7 @@
           "fill-opacity": 0.55,
           "fill-outline-color": "#3d8050",
         },
-      });
+      }, before);
     if (!map.getLayer("umbra-tree-volume"))
       map.addLayer({
         id: "umbra-tree-volume",
@@ -351,7 +362,7 @@
           "fill-extrusion-base": ["coalesce", ["get", "base"], 3.2],
           "fill-extrusion-opacity": 0.86,
         },
-      });
+      }, before);
     if (!map.getLayer("umbra-tree-trunk"))
       map.addLayer({
         id: "umbra-tree-trunk",
@@ -364,7 +375,7 @@
           "fill-extrusion-base": 0,
           "fill-extrusion-opacity": 1,
         },
-      });
+      }, before);
     if (!map.getLayer("umbra-tree-models") && window.umbraCreateTreeLayer) {
       try {
         window.umbraTreeFeatures = saved.shadows.features;
@@ -398,6 +409,8 @@
             "#8cae71",
             "sun",
             "#d58d26",
+            "unshaded_estimate",
+            "#d5a34b",
             "#7b8587",
           ],
         },
