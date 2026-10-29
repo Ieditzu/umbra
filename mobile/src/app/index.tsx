@@ -256,7 +256,7 @@ export default function MapScreen() {
         if (controller.signal.aborted) return;
         if (!found) {
           setTargetError(
-            "Nu am găsit o clădire aici. Măsurarea funcționează în Constanța, Mamaia și Palazu Mare.",
+            "Nu am găsit o clădire măsurabilă aici.",
           );
           return;
         }

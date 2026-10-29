@@ -3,6 +3,13 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 const source = process.argv[2];
+if (
+  process.argv[3] &&
+  process.argv[3] !== "suceava" &&
+  process.argv[3] !== "constanta"
+)
+  throw new Error("Unknown city");
+const city = process.argv[3] === "suceava" ? "suceava" : "constanta";
 if (!source)
   throw new Error(
     "Usage: node scripts/prepare-city.mjs /path/to/prepared/city/dataset.json",
@@ -11,7 +18,7 @@ const data = JSON.parse(await readFile(source, "utf8"));
 if (
   data.schema_version !== 1 ||
   data.crs !== "EPSG:32635" ||
-  data.pilot_id !== "constanta-city-v1"
+  data.pilot_id !== `${city}-city-v1`
 )
   throw new Error("Unexpected pilot dataset");
 const heightTags = [
@@ -45,9 +52,12 @@ const packed =
     raw_bytes: Buffer.byteLength(output),
     payload: gzipSync(output, { level: 9 }).toString("base64"),
   }) + "\n";
-await writeFile(new URL("constanta-city.json", folder), packed);
+await writeFile(new URL(`${city}-city.json`, folder), packed);
 await writeFile(
-  new URL("manifest.json", folder),
+  new URL(
+    city === "constanta" ? "manifest.json" : "suceava-manifest.json",
+    folder,
+  ),
   JSON.stringify(
     {
       pilot_id: data.pilot_id,
@@ -63,7 +73,10 @@ await writeFile(
       raw_bytes: Buffer.byteLength(output),
       raw_sha256: createHash("sha256").update(output).digest("hex"),
       format: "umbra-gzip-json-v1",
-      geographic_extract_bounds: [28.5, 44.075, 28.75, 44.355],
+      geographic_extract_bounds:
+        city === "suceava"
+          ? [26.09, 47.59, 26.41, 47.77]
+          : [28.5, 44.075, 28.75, 44.355],
       source_url: data.metadata.source_url ?? data.metadata.overpass_endpoint,
       source_file: data.metadata.source_file,
       source_pbf_sha256: data.metadata.source_pbf_sha256,

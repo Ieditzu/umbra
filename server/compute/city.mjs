@@ -13,24 +13,37 @@ import { TreeCatalog } from "./tree-catalog.mjs";
 
 // Bundled Constanța snapshot with mapped trees and satellite canopies.
 // Shared by the compute worker and offline analyses (route-effect.mjs).
-export function loadCity({ copernicus = true } = {}) {
-  const treePromise = (async () => {
-    const packed = JSON.parse(
-      await readFile(
-        new URL("../../mobile/assets/data/romania-trees.json", import.meta.url),
-        "utf8",
-      ),
-    );
-    if (packed.format !== "umbra-gzip-json-v1" || packed.raw_bytes > 80_000_000)
-      throw Error("Invalid tree snapshot");
-    const decoded = gunzipSync(Buffer.from(packed.payload, "base64"), {
-      maxOutputLength: 80_000_000,
-    });
-    if (decoded.length !== packed.raw_bytes)
-      throw Error("Tree snapshot size mismatch");
-    return new TreeCatalog(JSON.parse(decoded.toString("utf8")));
-  })();
+export function loadCity({
+  copernicus = true,
+  city = "constanta",
+  treeCatalog,
+} = {}) {
+  const treePromise =
+    treeCatalog ??
+    (async () => {
+      const packed = JSON.parse(
+        await readFile(
+          new URL(
+            "../../mobile/assets/data/romania-trees.json",
+            import.meta.url,
+          ),
+          "utf8",
+        ),
+      );
+      if (
+        packed.format !== "umbra-gzip-json-v1" ||
+        packed.raw_bytes > 80_000_000
+      )
+        throw Error("Invalid tree snapshot");
+      const decoded = gunzipSync(Buffer.from(packed.payload, "base64"), {
+        maxOutputLength: 80_000_000,
+      });
+      if (decoded.length !== packed.raw_bytes)
+        throw Error("Tree snapshot size mismatch");
+      return new TreeCatalog(JSON.parse(decoded.toString("utf8")));
+    })();
   const canopyPromise = (async () => {
+    if (city !== "constanta") return [];
     const packed = JSON.parse(
       await readFile(
         new URL(
@@ -54,10 +67,7 @@ export function loadCity({ copernicus = true } = {}) {
   const dataPromise = (async () => {
     const packed = JSON.parse(
       await readFile(
-        new URL(
-          "../../mobile/assets/data/constanta-city.json",
-          import.meta.url,
-        ),
+        new URL(`../../mobile/assets/data/${city}-city.json`, import.meta.url),
         "utf8",
       ),
     );
@@ -80,7 +90,7 @@ export function loadCity({ copernicus = true } = {}) {
       ? JSON.parse(
           await readFile(
             new URL(
-              "../../mobile/assets/data/constanta-heights-2012.json",
+              `../../mobile/assets/data/${city}-heights-2012.json`,
               import.meta.url,
             ),
             "utf8",

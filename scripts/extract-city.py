@@ -98,6 +98,11 @@ class CityExtract(osmium.SimpleHandler):
 
 
 def main() -> None:
+    global WEST, SOUTH, EAST, NORTH
+    if len(sys.argv) > 3 and sys.argv[3] not in ("suceava", "constanta"):
+        raise ValueError("Unknown city")
+    if len(sys.argv) > 3 and sys.argv[3] == "suceava":
+        WEST, SOUTH, EAST, NORTH = 26.07, 47.57, 26.43, 47.79
     source, target = map(Path, sys.argv[1:3])
     reader = osmium.io.Reader(str(source))
     timestamp = reader.header().get("osmosis_replication_timestamp")

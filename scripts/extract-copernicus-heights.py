@@ -18,10 +18,13 @@ from pyproj import Transformer
 from rasterio.enums import MergeAlg
 from rasterio.features import rasterize
 
+city = sys.argv[2] if len(sys.argv) > 2 else "constanta"
+if city not in ("constanta", "suceava"):
+    raise ValueError("Unsupported city")
 raw = json.loads(
     gzip.decompress(
         base64.b64decode(
-            json.loads(Path("mobile/assets/data/constanta-city.json").read_text())[
+            json.loads(Path(f"mobile/assets/data/{city}-city.json").read_text())[
                 "payload"
             ]
         )
@@ -122,10 +125,10 @@ with rasterio.open(fpath) as ds:
     }
     output = {
         "schema_version": 1,
-        "source": "Copernicus Urban Atlas Building Block Height 2012 RO501 v010",
+        "source": f"Copernicus Urban Atlas Building Block Height 2012 {'RO512' if city == 'suceava' else 'RO501'} v010",
         "license": "© European Union, Copernicus Land Monitoring Service 2022, European Environment Agency (EEA)",
         "values": selected,
     }
-    with open("mobile/assets/data/constanta-heights-2012.json", "w") as file:
+    with open(f"mobile/assets/data/{city}-heights-2012.json", "w") as file:
         file.write(json.dumps(output, separators=(",", ":")) + "\n")
     print("saved previously missing heights:", len(selected), flush=True)

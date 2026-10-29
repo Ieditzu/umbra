@@ -72,6 +72,10 @@ function fixture(
 }
 
 test("Bucharest Cluj Timisoara and Iasi select bounded regional tiles while Constanta keeps its snapshot", () => {
+  assert.equal(
+    regionalSelection({ bounds: [26.24, 47.64, 26.28, 47.66] }),
+    null,
+  );
   for (const [longitude, latitude] of [
     [26.102, 44.435],
     [23.59, 46.77],

@@ -68,7 +68,7 @@ function validate(data: Dataset, q: RouteRequest, now: number): number {
     apart = distance(a, b);
   if (!contains(data.pilot_m, a) || !contains(data.pilot_m, b))
     throw new Error(
-      "Traseele locale acoperă Constanța, Mamaia și Palazu Mare. Punctele alese sunt în afara datelor incluse.",
+      "Punctele alese sunt în afara datelor disponibile pentru trasee.",
     );
   if (apart < 25 || apart > 20000)
     throw new Error("Alege puncte aflate între 25 m și 20 km distanță.");

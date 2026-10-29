@@ -1,0 +1,31 @@
+{
+  "pilot_id": "suceava-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T08:27:07Z",
+  "sha256": "25bd21cdad1ab207c481f65ec479792e05a5f52caaf81c47420f6cea99299d94",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 34070,
+  "directed_edges": 68670,
+  "buildings": 34056,
+  "bytes": 4241830,
+  "raw_bytes": 25596478,
+  "raw_sha256": "f8e65d722e760a7985b70a222e4334537c24968b64800c89f95ef59764428f3b",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    26.09,
+    47.59,
+    26.41,
+    47.77
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "umbra-romania-suceava.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "missing": 11511,
+    "osm_height_tag": 21089,
+    "estimated_from_levels": 1344,
+    "unsupported_elevated": 112
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

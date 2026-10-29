@@ -165,7 +165,7 @@ export function MeasurePanel({
           <Text style={styles.subtle}>
             {target
               ? `OSM ${target.id}${blind ? " · mod orb" : ""}`
-              : "Atinge o clădire din Constanța pe hartă."}
+              : "Atinge o clădire pe hartă."}
           </Text>
         </View>
         <Pressable
@@ -236,7 +236,7 @@ export function MeasurePanel({
               <Text style={styles.error}>
                 {target.reason === "elevated"
                   ? "Clădirile suspendate nu pot fi măsurate din umbră."
-                  : "Măsurarea funcționează doar pentru clădirile OSM din Constanța."}
+                  : "Măsurarea nu este disponibilă pentru această clădire."}
               </Text>
             )}
             {!blind && estimate && !estimate.confirmed && (

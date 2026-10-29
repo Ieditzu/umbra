@@ -27,6 +27,7 @@ func main() {
 	endpoint := flags.String("overpass", umbra.DefaultOverpass, "read-only Overpass interpreter endpoint")
 	refresh := flags.Bool("refresh", false, "explicitly fetch a fresh extract")
 	city := flags.Bool("city", false, "prepare the wider Constanta city extract instead of the central research pilot; use a separate --data path")
+	suceava := flags.Bool("suceava", false, "prepare the Suceava city extract; use a separate --data path")
 	extract := flags.String("extract", "", "optional local OSM JSON extract instead of an Overpass download")
 	auditPath := flags.String("audit", "", "optional reviewed obstruction inventory JSON in EPSG:32635")
 	addrDefault := os.Getenv("UMBRA_ADDR")
@@ -37,7 +38,10 @@ func main() {
 	flags.Parse(os.Args[2:])
 	switch os.Args[1] {
 	case "prepare":
-		if *city && *path == umbra.DefaultDataPath() {
+		if *suceava && (*city || *extract == "") {
+			log.Fatal("--suceava requires --extract and cannot be combined with --city")
+		}
+		if (*city || *suceava) && *path == umbra.DefaultDataPath() {
 			log.Fatal("--city requires an explicit separate --data path")
 		}
 		var audit *umbra.Audit
@@ -63,6 +67,9 @@ func main() {
 			area, id := umbra.PilotBBox, umbra.PilotID
 			if *city {
 				area, id = umbra.CityArea, "constanta-city-v1"
+			}
+			if *suceava {
+				area, id = umbra.Bounds{West: 26.09, South: 47.59, East: 26.41, North: 47.77}, "suceava-city-v1"
 			}
 			d, e = umbra.BuildDatasetArea(b, area, id)
 			if e == nil {

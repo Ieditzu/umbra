@@ -24,8 +24,12 @@ function byId(data) {
 }
 const regionCache = new Map();
 const { dataPromise, treePromise } = loadCity();
-dataPromise
-  .then((data) =>
+const suceavaPromise = loadCity({
+  city: "suceava",
+  treeCatalog: treePromise,
+}).dataPromise;
+Promise.all([dataPromise, suceavaPromise])
+  .then(([data]) =>
     parentPort.postMessage({
       type: "ready",
       nodes: data.nodes.length,
@@ -44,7 +48,23 @@ parentPort.on("message", async (message) => {
   controllers.set(message.id, controller);
   try {
     const { measured_heights: measured, ...q } = message.payload;
-    let data = await dataPromise;
+    const point =
+      q.origin ??
+      q.point ??
+      q.focus ??
+      (q.bounds
+        ? {
+            longitude: (q.bounds[0] + q.bounds[2]) / 2,
+            latitude: (q.bounds[1] + q.bounds[3]) / 2,
+          }
+        : null);
+    const inSuceava =
+      point &&
+      point.longitude >= 26.09 &&
+      point.longitude <= 26.41 &&
+      point.latitude >= 47.59 &&
+      point.latitude <= 47.77;
+    let data = await (inSuceava ? suceavaPromise : dataPromise);
     if (controller.signal.aborted) throw Error("Calculul a fost oprit.");
     if (q.__region && message.kind !== "routes") {
       data = regionCache.get(q.__region.key);
@@ -60,7 +80,9 @@ parentPort.on("message", async (message) => {
     data = withMeasuredHeights(data, measured);
     let result;
     if (message.kind === "verify") {
-      const b = byId(await dataPromise).get(q.osm_building);
+      const b =
+        byId(await dataPromise).get(q.osm_building) ??
+        byId(await suceavaPromise).get(q.osm_building);
       result = {
         exists: !!b,
         elevated: b?.height.source === "unsupported_elevated",
