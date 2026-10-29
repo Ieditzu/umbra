@@ -2,7 +2,7 @@
 
 # Bundled Constanța city data
 
-`mobile/assets/data/constanta-city.json` holds a real OpenStreetMap-derived database in an openly decodable `umbra-gzip-json-v1` wrapper: base64-encoded gzip, approximately 7 MB packaged and 40 MB decoded. It replaces the small central pilot. It is bundled so calculation needs no server or download. It is not a recording, synthetic fixture or measured shadow map.
+`mobile/assets/data/constanta-city.json` holds a real OpenStreetMap-derived database in an openly decodable `umbra-gzip-json-v1` wrapper: base64-encoded gzip, approximately 7 MB packaged and 40 MB decoded. It replaces the small central pilot. The PC server loads it on demand from the repository; running the app does not require downloading the extract again. It is not a recording, synthetic fixture or measured shadow map.
 
 The city extract covers approximately 28.50–28.75 E and 44.075–44.355 N: Constanța, Mamaia, Palazu Mare and a margin. This is a rectangle, not an administrative-boundary polygon. Its metric bounds include all four projected corners in UTM 35N; buildings have a 500 m buffer. Paths can still be disconnected and OSM coverage incomplete.
 

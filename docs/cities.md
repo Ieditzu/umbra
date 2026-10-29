@@ -1,6 +1,6 @@
 # City coverage
 
-Umbra calculates walking routes, building shadows, 3D buildings and building measurements from prepared OpenStreetMap (OSM) snapshots. Since the 2026-10-28 OSM extract, coverage is generated automatically for **București and all county seats in Romania**. No city is named in the server code: the server reads `mobile/assets/data/cities/index.json` and chooses the area by position.
+Umbra calculates walking routes, building shadows, 3D buildings and building measurements from prepared OpenStreetMap (OSM) snapshots. The generation pipeline targets **București and all county seats in Romania**. The checked-in index on 29 October 2026 currently contains five prepared areas: Cluj-Napoca, Timișoara, Iași, Constanța and Suceava. No city is named in the server code: the server reads `mobile/assets/data/cities/index.json` and chooses the available area by position. Generating a target city and publishing its files/index entry are required before it becomes routable.
 
 Elsewhere in Romania, the server shows building outlines and approximate shadows from OpenFreeMap vector tiles, as before. These areas have no walking network, so routes there say that the points are outside the prepared walking data. They do not name any city.
 

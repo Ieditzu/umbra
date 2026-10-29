@@ -1,5 +1,12 @@
 # Umbra · dosar de lucru RoSEF
 
+> **Arhivă — proiectul anterior cu cameră și detecție indirectă.** Instrucțiunile,
+> comenzile și rezultatele de mai jos descriu acea implementare. Pentru proiectul
+> actual, folosește [ghidul aplicației](../project-guide.md),
+> [lucrarea științifică](../paper/umbra-lucrare.pdf) și
+> [posterul curent](../poster/scientific/README.md). Nu porni componentele vechi
+> pentru a rula aplicația mobilă actuală.
+
 **Stare: proiect software demonstrabil; dosar pentru completare, nu înscriere finalizată.**
 
 Deschide `umbra-dosar.docx` pentru fișa pregătitoare, rezumate RO/EN, raport, protocol, contribuții și pregătirea prezentării. `umbra-poster.pdf` este posterul de lucru, 80 × 120 cm, vertical. Textul editabil se află în `dossier.ro.md`; posterul și documentul se regenerează cu `scripts/build_paperwork.py`.

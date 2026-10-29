@@ -1,6 +1,6 @@
 # Measuring buildings from their shadows
 
-Research direction and system design agreed on 27 October 2026. This document describes **proposed** work: nothing below is implemented yet, and no field measurement has been made. It replaces the old camera-based research direction in [`research-plan.md`](research-plan.md) and the paperwork in [`competition/`](competition/), which describe the earlier blind-corner camera project and no longer match the app.
+The measurement workflow, local storage, opt-in shared SQLite database and height updates used by shadows/routes are implemented; see [implementation status](#implementation-status) for the exact methods and rules. The original design and research protocol below also contain proposed extensions, including AR, which is not implemented. The team reports field use in Constanța; the aggregate OSM/GBA analyses and simulations here remain distinct from quantitative field results. This document supersedes the camera-based direction in [`research-plan.md`](research-plan.md) and the historical paperwork in [`competition/`](competition/). Start with the [project guide](project-guide.md) for current setup.
 
 ## 1. The problem
 
