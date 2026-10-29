@@ -218,6 +218,7 @@
     const hasModels = !!map.getLayer("umbra-tree-models");
     for (const [id, visible] of [
       ["umbra-buildings", is3d],
+      ["umbra-basemap-buildings", is3d],
       ["umbra-unknown", is3d],
       ["umbra-tree-canopy", !is3d],
       ["umbra-tree-volume", is3d && !hasModels],
@@ -232,6 +233,9 @@
       if (!map.getSource(`umbra-${name}`))
         map.addSource(`umbra-${name}`, { type: "geojson", data: saved[name] });
     const layers = map.getStyle().layers;
+    const baseBuildings = layers.find(
+      (layer) => layer.type === "fill" && layer["source-layer"] === "building" && layer.source,
+    );
     const streetName = (layer) =>
       layer.type === "symbol" &&
       layer["source-layer"] === "transportation_name" &&
@@ -297,6 +301,22 @@
         },
         before,
       );
+    // Vector tiles cover the entire screen without sending a city's geometry to the phone.
+    if (baseBuildings && !map.getLayer("umbra-basemap-buildings"))
+      map.addLayer({
+        id: "umbra-basemap-buildings",
+        type: "fill-extrusion",
+        source: baseBuildings.source,
+        "source-layer": "building",
+        minzoom: 13,
+        filter: ["!", ["has", "hide_3d"]],
+        paint: {
+          "fill-extrusion-color": "#e8e9e3",
+          "fill-extrusion-height": ["coalesce", ["get", "render_height"], 6],
+          "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+          "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 15, 1, 16, 0],
+        },
+      }, before);
     if (!map.getLayer("umbra-unknown"))
       map.addLayer(
         {
@@ -306,7 +326,9 @@
           filter: ["==", ["get", "height"], 0],
           paint: {
             "fill-color": "#e8e8e2",
-            "fill-opacity": 0.8,
+            "fill-opacity": baseBuildings
+              ? ["interpolate", ["linear"], ["zoom"], 15, 0, 16, 0.8]
+              : 0.8,
           },
         },
         before,
@@ -328,7 +350,9 @@
             ],
             "fill-extrusion-height": ["get", "display_height"],
             "fill-extrusion-base": 0,
-            "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 9, 0, 12.5, 1],
+            "fill-extrusion-opacity": baseBuildings
+              ? ["interpolate", ["linear"], ["zoom"], 15, 0, 16, 1]
+              : ["interpolate", ["linear"], ["zoom"], 9, 0, 12.5, 1],
           },
         },
         before,
@@ -687,7 +711,7 @@
         );
         if (!response.ok) throw new Error("Basemap unavailable");
         const style = await response.json();
-        // Only our height-provenance-aware local source supplies 3D buildings.
+        // Add our own tiled 3D layer so the wide view covers the whole screen.
         style.layers = style.layers.filter(
           (layer) =>
             layer.type !== "fill-extrusion" &&

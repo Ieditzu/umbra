@@ -207,6 +207,27 @@ test("buildings fade gradually between distant and city zoom", () => {
   );
 });
 
+test("wide views draw tiled buildings across the map and transition to detailed heights", () => {
+  const { map, bridge } = renderer();
+  map.layers = {
+    building: { id: "building", type: "fill", source: "openmaptiles", "source-layer": "building" },
+    roads: { id: "roads", type: "line", source: "openmaptiles", "source-layer": "transportation" },
+    poi: { id: "poi", type: "symbol", source: "openmaptiles", "source-layer": "poi" },
+  };
+  map.emit("style.load");
+  const tiles = map.getLayer("umbra-basemap-buildings");
+  assert.equal(tiles.source, "openmaptiles");
+  assert.equal(tiles["source-layer"], "building");
+  assert.equal(tiles.minzoom, 13);
+  assert.deepEqual(Array.from(tiles.paint["fill-extrusion-opacity"].slice(-4)), [15, 1, 16, 0]);
+  assert.deepEqual(Array.from(map.getLayer("umbra-buildings").paint["fill-extrusion-opacity"].slice(-4)), [15, 0, 16, 1]);
+  assert.equal(map.insertions.findLast((item) => item.id === tiles.id).before, "poi");
+  bridge.receive({ type: "models", value: false });
+  assert.equal(tiles.layout.visibility, "none");
+  bridge.receive({ type: "models", value: true });
+  assert.equal(tiles.layout.visibility, "visible");
+});
+
 test("wide view releases building geometry and allows it to reload", () => {
   const { bridge, map } = renderer();
   const value = { type: "FeatureCollection", features: [{ id: "building" }] };
