@@ -60,6 +60,7 @@ const shadowStatus: Record<string, string> = {
   night: "Noapte",
   low_sun: "Soare la orizont",
   loading: "Se actualizează",
+  zoom_out: "Apropie harta pentru umbre",
   unavailable: "Temporar indisponibile",
   server_restart: "Repornește serverul de pe PC",
   outside: "Apropie harta de România",

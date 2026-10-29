@@ -18,6 +18,7 @@ import {
 } from "../domain/localMap";
 import { measureFeatures } from "../domain/measureOverlay";
 import { distanceBetween, routeCoordinates } from "../domain/routes";
+import { detailedViewport } from "../domain/shadows";
 import type { Bounds } from "../domain/shadows";
 import type { MapMessage } from "../domain/localMap";
 import { calculateBuildings } from "../services/calculations";
@@ -61,6 +62,7 @@ export function LocalRouteMap(props: RouteMapProps) {
   const framed = useRef("");
   const overviewed = useRef(props.overview);
   const buildingTicket = useRef(0);
+  const detailed = detailedViewport(view.bounds);
   const boundsKey = [
     ...view.bounds,
     view.center.longitude,
@@ -80,9 +82,18 @@ export function LocalRouteMap(props: RouteMapProps) {
     );
     return () => sub.remove();
   }, []);
+  useEffect(() => {
+    if (ready || error) return;
+    const timer = setTimeout(() => setError("Harta durează prea mult să pornească."), 30000);
+    return () => clearTimeout(timer);
+  }, [ready, error]);
   // heightsKey refetches when confirmed measurements change building heights.
   useEffect(() => {
     if (!ready || !foreground) return;
+    if (!detailed) {
+      send({ type: "clearBuildings" });
+      return;
+    }
     const controller = new AbortController(),
       ticket = ++buildingTicket.current;
     const values = boundsKey.split(",").map(Number);
@@ -108,7 +119,7 @@ export function LocalRouteMap(props: RouteMapProps) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [ready, foreground, boundsKey, send, props.heightsKey]);
+  }, [ready, foreground, boundsKey, send, props.heightsKey, detailed]);
   useEffect(() => {
     if (ready)
       send({
@@ -126,9 +137,9 @@ export function LocalRouteMap(props: RouteMapProps) {
         type: "data",
         name: "shadows",
         value: shadowFeatures(props.shadows),
-        retainTrees: props.treesEnabled,
+        retainTrees: props.treesEnabled && detailed,
       });
-  }, [ready, props.shadows, props.treesEnabled, send]);
+  }, [ready, props.shadows, props.treesEnabled, detailed, send]);
   useEffect(() => {
     if (ready)
       send({ type: "data", name: "route", value: routeFeatures(props.route) });
@@ -284,6 +295,8 @@ export function LocalRouteMap(props: RouteMapProps) {
           } else if (message.type === "viewport") {
             lastCamera.current = message;
             setView({ bounds: message.bounds, center: message.center });
+            if (!detailedViewport(message.bounds))
+              setError((previous) => previous.startsWith("Clădirile nu au putut") ? "" : previous);
             current.current.onBounds(message.bounds, message.center);
             const tilted = message.pitch > 2;
             if (!pitchInitialized.current && tilted !== current.current.tilted)
@@ -321,6 +334,10 @@ export function LocalRouteMap(props: RouteMapProps) {
           centered.current = -1;
           framed.current = "";
           web.current?.reload();
+        }}
+        onRenderProcessGone={() => {
+          setReady(false);
+          setError("Harta a fost întreruptă.");
         }}
         onError={() => setError("Harta locală nu a putut porni.")}
       />

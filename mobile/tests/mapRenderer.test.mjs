@@ -198,6 +198,17 @@ test("street names move below 3d geometry while points of interest stay above", 
   assert.ok(ids.indexOf("poi") < ids.indexOf("road_shield"));
 });
 
+test("wide view releases building geometry and allows it to reload", () => {
+  const { bridge, map } = renderer();
+  const value = { type: "FeatureCollection", features: [{ id: "building" }] };
+  bridge.receive({ type: "data", name: "buildings", value });
+  assert.equal(map.getSource("umbra-buildings").data.features.length, 1);
+  bridge.receive({ type: "clearBuildings" });
+  assert.equal(map.getSource("umbra-buildings").data.features.length, 0);
+  bridge.receive({ type: "data", name: "buildings", value });
+  assert.equal(map.getSource("umbra-buildings").data.features.length, 1);
+});
+
 test("data updates and taps preserve building meshes and chosen pitch without recreating the map", () => {
   const { bridge, map, instances } = renderer();
   const buildings = {

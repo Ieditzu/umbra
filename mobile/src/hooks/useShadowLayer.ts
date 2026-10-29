@@ -4,7 +4,7 @@ import { calculateShadows } from "../services/calculations";
 import { CalculationError } from "../services/calculationClient";
 import type { Coordinate } from "../domain/routes";
 import type { Bounds, ShadowLayer } from "../domain/shadows";
-import { visibleShadowLayer } from "../domain/shadows";
+import { detailedViewport, visibleShadowLayer } from "../domain/shadows";
 
 export function useShadowLayer(
   at: string,
@@ -30,13 +30,14 @@ export function useShadowLayer(
     );
     return () => sub.remove();
   }, []);
+  const detailed = detailedViewport(bounds);
   const key = bounds.map((value) => value.toFixed(4)).join(",");
   const focusKey = focus
     ? `${focus.latitude.toFixed(4)},${focus.longitude.toFixed(4)}`
     : "";
   const requestKey = `${at}|${key}|${includeEstimates}|${focusKey}|${heightsKey}`;
   useEffect(() => {
-    if (!enabled || !foreground) return;
+    if (!enabled || !foreground || !detailed) return;
     const controller = new AbortController();
     let active = true;
     let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -103,13 +104,13 @@ export function useShadowLayer(
       clearTimeout(timer);
       clearTimeout(timeout);
     };
-  }, [at, key, requestKey, enabled, foreground, includeEstimates, focusKey]);
+  }, [at, key, requestKey, enabled, foreground, includeEstimates, focusKey, detailed]);
   const layer = useMemo(() => {
     const visible = visibleShadowLayer(
       result,
       at,
       key.split(",").map(Number) as Bounds,
-      enabled,
+      enabled && detailed,
       foreground,
     );
     return visible && !includeEstimates
@@ -127,13 +128,15 @@ export function useShadowLayer(
           ),
         }
       : visible;
-  }, [result, at, key, enabled, foreground, includeEstimates]);
+  }, [result, at, key, enabled, foreground, includeEstimates, detailed]);
   return {
     layer,
     status: !enabled
       ? "off"
       : !foreground
         ? "paused"
+        : !detailed
+          ? "zoom_out"
         : result.key === requestKey
           ? result.status
           : "loading",

@@ -2,6 +2,11 @@ import { isCoordinate } from "./routes.ts";
 import type { Coordinate } from "./routes.ts";
 
 export type Bounds = [number, number, number, number];
+
+/** Detailed geometry is useful only at neighborhood scale. */
+export function detailedViewport(bounds: Bounds): boolean {
+  return bounds[2] - bounds[0] <= 0.12 && bounds[3] - bounds[1] <= 0.12;
+}
 export type ShadowPolygon = {
   id: string;
   source:
