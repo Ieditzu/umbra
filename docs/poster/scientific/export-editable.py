@@ -1,4 +1,4 @@
-"""Scale a PDF exported from the editable PPTX to the 80 × 120 cm print size.
+"""Scale a PDF exported from the editable PPTX to the A0 (84,1 × 118,9 cm) print size.
 
 Usage: python export-editable.py /path/to/umbra-poster-editable.pdf
 """
@@ -13,7 +13,7 @@ reader = PdfReader(sys.argv[1])
 if len(reader.pages) != 1:
     raise ValueError('The poster must contain exactly one page')
 page = reader.pages[0]
-page.scale_to(800 / 25.4 * 72, 1200 / 25.4 * 72)
+page.scale_to(841 / 25.4 * 72, 1189 / 25.4 * 72)
 writer = PdfWriter()
 writer.add_page(page)
 writer.add_metadata({'/Title': 'UMBRA — poster științific', '/Author': 'Echipa Umbra'})

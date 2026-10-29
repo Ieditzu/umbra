@@ -1,29 +1,31 @@
 {
-  "design_id": "DAHZTc_T4ks",
-  "title": "UMBRA — poster final — texte și grafice editabile",
+  "design_id": "DAHZYusS6q8",
+  "title": "UMBRA — cercetare și aplicație — versiune actualizată",
   "status": "saved",
-  "edit_url": "https://www.canva.com/d/YRDor-B05Sn05q4",
+  "edit_url": "https://www.canva.com/d/DR5WyUYDqxB-kgE",
   "page_size_px": {
-    "width": 1536,
-    "height": 2304
+    "width": 2246,
+    "height": 3179
   },
   "print_size_mm": {
-    "width": 800,
-    "height": 1200
+    "width": 841,
+    "height": 1189
   },
   "source": "umbra-poster-editable.pptx",
-  "source_shape_elements": 314,
-  "verified_canva_text_elements": 117,
-  "verified_canva_image_elements": 1,
-  "image_description": "Building-and-shadow illustration only",
+  "source_shape_elements": 319,
+  "verified_canva_text_elements": 122,
+  "verified_canva_image_elements": 2,
+  "image_description": "Building illustration and repository QR code",
   "charts": "Editable bar rectangles, axes, labels, line segments and table cells",
   "data_sources": [
     "docs/research/gba-heights/summary.json",
-    "docs/paper/measurability.json"
+    "docs/paper/measurability.json",
+    "mobile/assets/data/cities/index.json"
   ],
   "previous_designs_preserved": [
     "DAHZSdDhWCw",
     "DAHZSUWM3uM",
-    "DAHZM0B_Iyg"
+    "DAHZM0B_Iyg",
+    "DAHZTc_T4ks"
   ]
 }

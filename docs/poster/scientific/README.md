@@ -1,17 +1,16 @@
 # Scientific poster — RoSEF 2026
 
-Print `umbra-poster-print.pdf` at actual size: **80 × 120 cm, portrait**.
+Print `umbra-poster-print.pdf` at actual size: **A0 (84.1 × 118.9 cm), portrait**.
 
 ## Current editable Canva poster
 
-**UMBRA — poster final — texte și grafice editabile**
-Design ID: `DAHZTc_T4ks`
-Editor: https://www.canva.com/d/YRDor-B05Sn05q4
+**UMBRA — cercetare și aplicație — versiune actualizată**
+Design ID: `DAHZYusS6q8`
+Editor: https://www.canva.com/d/DR5WyUYDqxB-kgE
 
 This saved design replaces the damaged image-to-design conversion. Importing the
-editable source preserved 117 text elements. The bar rectangles, axes, curve line
-segments, section bands and table cells are individual vector elements. Only the
-3D building illustration is an image. The graphs use editable drawing elements;
+editable source preserved 122 text elements. The bar rectangles, axes, curve line
+segments, section bands and table cells are individual vector elements. The 3D building illustration and QR code are images. The graphs use editable drawing elements;
 they are not Canva spreadsheet-backed chart widgets.
 
 `canva-layout.json` records the saved design and verification counts. Earlier
@@ -19,12 +18,12 @@ Canva designs are preserved so the team's previous work remains accessible.
 
 ## Files
 
-- `umbra-poster-editable.pptx`: editable source, 314 shape elements including text,
-  and one illustration image. Import this file into Canva without image conversion.
+- `umbra-poster-editable.pptx`: editable source, 319 shape elements including text,
+  and two images (the building illustration and repository QR code). Import this file into Canva without image conversion.
 - `build-editable.cjs`: creates the editable source directly from the analysis JSON.
 - `export-editable.py`: scales its exported PDF to the required print dimensions
   and renders the preview with Poppler.
-- `umbra-poster-print.pdf`: current single-page print file, exactly 800 × 1200 mm.
+- `umbra-poster-print.pdf`: current single-page print file, exactly A0 (841 × 1189 mm).
 - `umbra-poster-preview.png`: current print preview.
 - `building-3d.png`: AI-assisted illustration, not a measured building.
 - `build.py` and `umbra-poster.svg`: retained earlier Matplotlib composition;
@@ -53,6 +52,15 @@ For a Canva revision, import the resulting PPTX and inspect the saved page.
 Do not run image-to-design on a full-page screenshot: that conversion introduced
 OCR errors and duplicate graph labels in the earlier poster.
 
+## Revision on 29 October 2026
+
+The scientific question spans the page beneath the masthead. The app section
+explains route comparison, forecast use and shadow measurements. The final
+section connects OSM/Copernicus sources, the 41 published cities, weather-aware
+recommendations and optional shared heights. Coverage is read from the current
+city index; the research graphs retain their original Constanța samples.
+The A0 layout and repository QR code are preserved.
+
 ## Data and interpretation
 
 The reproducible inputs are:
@@ -60,6 +68,8 @@ The reproducible inputs are:
 - `docs/research/gba-heights/summary.json`: OSM coverage, GBA associations,
   height-per-floor medians and differences against OSM height tags.
 - `docs/paper/measurability.json`: six simulated instants for 38,913 buildings.
+- `mobile/assets/data/cities/index.json`: current city count and the Constanța
+  Copernicus supplement; city zones are counted once per city.
 
 Fig. 3 is the theoretical relation δh ≈ tan(e) · δL, using assumed length
 errors of 5 m and 0.3 m. Fig. 4 considers obstruction by other buildings;
@@ -73,7 +83,7 @@ computational sources. Temperature and UV dose are not study outputs.
 
 ## Verification
 
-On 28 October 2026 the PPTX and PDF were rendered and visually reviewed after
+On 29 October 2026 the PPTX and PDF were rendered and visually reviewed after
 correcting axis units and legend spacing. The saved Canva import was checked:
-117 native text elements and only one image, the building illustration. The
-print PDF has one page and a media box of 2267.72 × 3401.57 pt (800 × 1200 mm).
+122 native text elements and two images, the illustration and QR code. The
+print PDF has one page and a media box of 2383.94 × 3370.39 pt (A0, 841 × 1189 mm).

@@ -29,6 +29,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PAPER = ROOT / "docs/paper"
 GBA = json.loads((ROOT / "docs/research/gba-heights/summary.json").read_text())
 MEASURE = json.loads((PAPER / "measurability.json").read_text())
+AREAS = json.loads((ROOT / "mobile/assets/data/cities/index.json").read_text())["areas"]
 FONT = "Times New Roman"
 
 
@@ -201,8 +202,8 @@ def build(model: Path, output: Path) -> None:
     ))
     para(doc, (
         "Calcularea înălțimii din umbră este cunoscută în teledetecție [4]. Am integrat-o într-un flux de "
-        "măsurare cu telefonul. Întrebarea științifică este: cât de precis poate fi estimată înălțimea din umbră "
-        "și cum alegem momentul măsurării? Evaluăm consistența GBA cu OSM, sensibilitatea la erori și "
+        "măsurare cu telefonul. Întrebarea științifică este: cu ce eroare estimăm înălțimea clădirilor "
+        "din umbre și când rămân vârfurile umbrelor neobstrucționate? Evaluăm consistența GBA cu OSM, sensibilitatea la erori și "
         "fezabilitatea geometrică. Ipoteza unei precizii mai bune decât GBA la blocuri înalte rămâne de "
         "verificat cu referințe independente pe teren."
     ))
@@ -210,8 +211,9 @@ def build(model: Path, output: Path) -> None:
     heading(doc, "2. MATERIALE ȘI METODE")
     para(doc, (
         "**Aplicația.** Interfața este scrisă în TypeScript, cu React Native și Expo, pentru Android și iOS; "
-        "motorul de calcul rulează pe un server Node.js. Datele OSM sunt pregătite automat pentru București și "
-        "toate reședințele de județ și păstrate comprimat în proiect; analizele de mai jos folosesc instantaneul "
+        "motorul de calcul rulează pe un server Node.js. Catalogul publicat cuprinde "
+        f"{len({area['city'] for area in AREAS})} orașe cu date OSM pregătite, incluzând București și reședințele "
+        "de județ. Datele se încarcă la cerere. Analizele de mai jos folosesc instantaneul "
         "Constanței: 50.071 de noduri și 111.552 de muchii ale rețelei pietonale și 51.428 de contururi de clădiri, "
         "în coordonate metrice (UTM, EPSG:32635). Umbra arborilor este estimată separat, cu pondere redusă; "
         "lucrarea de față se ocupă numai de clădiri. Fiecare "
@@ -220,6 +222,15 @@ def build(model: Path, output: Path) -> None:
         "Soarelui trece sub limita inferioară; între cele două limite rezultatul este „necunoscut”, iar clădirile "
         "fără înălțime nu susțin o clasificare sigură. Expunerea este evaluată la momentele parcurgerii. "
         "Căutarea compară un set limitat de candidați, fără garanția optimului global."
+    ))
+    para(doc, (
+        "**Actualizări ale aplicației.** Copernicus Urban Atlas Building Block Height 2012 [9] completează "
+        f"{num(next(area.get('heights_count', 0) for area in AREAS if area['city'] == 'constanta'), 0)} de înălțimi lipsă din OSM în Constanța, "
+        "cu estimări marcate separat, fără a înlocui înălțimile OSM sau măsurătorile confirmate. "
+        "Prognoza Open-Meteo [10] ajustează recomandarea dintre alternative în funcție de radiația directă "
+        "estimată și durata mersului; în lipsa ei, comparația geometrică rămâne disponibilă. "
+        "Aceste funcții extind aplicația; rezultatele numerice ale studiului rămân cele obținute pe "
+        "datele OSM/GBA și simulările descrise mai jos."
     ))
     para(doc, (
         "**Măsoară clădirea.** Utilizatorul selectează clădirea și un colț al acoperișului pe rigla umbrei. "
@@ -377,6 +388,10 @@ def build(model: Path, output: Path) -> None:
         "Earth System Science Data, nr. 16(11), 2024, essd.copernicus.org/articles/16/5357/2024, accesat la 27.10.2026.",
         "[8] Milojevic-Dupont, N. și colab., „EUBUCCO v0.1: European building stock characteristics in a common "
         "and open database for 200+ million individual buildings”, Scientific Data, nr. 10, 2023.",
+        "[9] Copernicus Land Monitoring Service, Urban Atlas Building Block Height 2012, raster 10 m, "
+        "land.copernicus.eu/en/products/urban-atlas/building-height-2012, accesat la 29.10.2026.",
+        "[10] Open-Meteo, Weather Forecast API, open-meteo.com/en/docs, variabile direct_radiation_instant "
+        "și cloud_cover, accesat la 29.10.2026.",
     ]:
         para(doc, ref, align=WD_ALIGN_PARAGRAPH.LEFT, size=10, after=2, spacing=1.0)
 
