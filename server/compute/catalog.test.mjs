@@ -35,6 +35,9 @@ test("catalog selects areas by location without city names in code", () => {
   assert.equal(catalog.at(p(26.05, 44.03)).id, "beta-1");
   assert.ok(catalog.covers([24.05, 45.05, 24.1, 45.1]));
   assert.ok(!catalog.covers([24.15, 45.05, 24.25, 45.1]));
+  // A viewport across the zone seam stays on the split city's own data.
+  assert.ok(catalog.covers([26.07, 44.02, 26.13, 44.04]));
+  assert.ok(!catalog.covers([25.99, 44.02, 26.05, 44.04]));
 });
 
 test("routes use one area or two neighbouring zones and refuse unrelated areas", () => {

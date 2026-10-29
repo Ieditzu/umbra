@@ -1,6 +1,6 @@
 {
  "schema_version": 1,
- "generated_at": "2026-10-29T09:43:27Z",
+ "generated_at": "2026-10-29T09:45:31Z",
  "osm_source": "https://download.geofabrik.de/europe/romania.html",
  "osm_base_timestamp": "2026-10-28T21:21:02Z",
  "selection": "Romanian county seats (OSM admin_centre of ISO3166-2 RO-* counties), ordered by OSM population tags; shared seats counted once",
@@ -23,6 +23,15 @@
     23.71833,
     46.86183
    ],
+   "heights": "cluj-napoca-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO002 v010",
+   "heights_year": 2012,
+   "heights_count": 22244,
+   "heights_check": {
+    "tagged": 38,
+    "median_abs_m": 4.0,
+    "within_3m": 0.447
+   },
    "osm_base_timestamp": "2026-10-28T21:21:02Z",
    "nodes": 70457,
    "directed_edges": 147342,
@@ -48,6 +57,15 @@
     21.32724,
     45.83417
    ],
+   "heights": "timisoara-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO003 v010",
+   "heights_year": 2012,
+   "heights_count": 22472,
+   "heights_check": {
+    "tagged": 256,
+    "median_abs_m": 3.0,
+    "within_3m": 0.512
+   },
    "osm_base_timestamp": "2026-10-28T21:21:02Z",
    "nodes": 59020,
    "directed_edges": 131146,
@@ -73,6 +91,15 @@
     27.69213,
     47.2279
    ],
+   "heights": "iasi-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO502 v010",
+   "heights_year": 2012,
+   "heights_count": 9513,
+   "heights_check": {
+    "tagged": 123,
+    "median_abs_m": 5.5,
+    "within_3m": 0.325
+   },
    "osm_base_timestamp": "2026-10-28T21:21:02Z",
    "nodes": 46346,
    "directed_edges": 96458,
@@ -96,6 +123,11 @@
    "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO501 v010",
    "heights_year": 2012,
    "heights_count": 16243,
+   "heights_check": {
+    "tagged": 47,
+    "median_abs_m": 4.0,
+    "within_3m": 0.45
+   },
    "canopy": "../constanta-canopy.json",
    "bounds": [
     28.5,
@@ -126,6 +158,10 @@
    "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO512 v010",
    "heights_year": 2012,
    "heights_count": 1228,
+   "heights_check": {
+    "tagged": 4739,
+    "median_abs_m": 6.0
+   },
    "bounds": [
     26.09,
     47.59,

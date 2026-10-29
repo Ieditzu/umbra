@@ -32,9 +32,12 @@ RASTERS = ROOT / ".umbra-data/copernicus"
 # Already bundled with hand-checked bounds, canopy and field-study data; kept unchanged.
 LEGACY = {
     "constanta": {"file": "../constanta-city.json", "heights": "../constanta-heights-2012.json",
-                  "manifest": "../manifest.json", "canopy": "../constanta-canopy.json"},
+                  "manifest": "../manifest.json", "canopy": "../constanta-canopy.json",
+                  # From docs/mobile-data.md (earlier extraction runs).
+                  "check": {"tagged": 47, "median_abs_m": 4.0, "within_3m": 0.45}},
     "suceava": {"file": "../suceava-city.json", "heights": "../suceava-heights-2012.json",
-                "manifest": "../suceava-manifest.json"},
+                "manifest": "../suceava-manifest.json",
+                "check": {"tagged": 4739, "median_abs_m": 6.0}},
 }
 # Routing bounds margin: ~1 km, as for the Constanța and Suceava extracts.
 MARGIN = (0.015, 0.01)
@@ -322,6 +325,19 @@ def main() -> None:
     write_index(discovered, plan(discovered))
 
 
+def check(log: list[str]) -> dict:
+    """Agreement with OSM height tags, read from the extraction log (tags are not ground truth)."""
+    out = {}
+    for line in log:
+        words = line.replace(":", "").split()
+        if line.startswith("missing:"):
+            out["tagged"] = int(words[words.index("tagged") + 1])
+        if line.startswith("tag comparison:"):
+            out["median_abs_m"] = float(words[words.index("median_abs") + 1])
+            out["within_3m"] = float(words[words.index("3m") + 1])
+    return out
+
+
 def write_index(discovered: dict, areas: list[dict]) -> None:
     entries = []
     for a in areas:
@@ -335,6 +351,7 @@ def write_index(discovered: dict, areas: list[dict]) -> None:
                 "heights_source": heights_raw["source"],
                 "heights_year": 2012,
                 "heights_count": len(heights_raw["values"]),
+                "heights_check": legacy["check"],
                 **({"canopy": legacy["canopy"]} if "canopy" in legacy else {}),
                 "bounds": manifest["geographic_extract_bounds"],
             }
@@ -353,6 +370,7 @@ def write_index(discovered: dict, areas: list[dict]) -> None:
                     heights_source=meta["source"],
                     heights_year=meta["year"],
                     heights_count=len(values),
+                    heights_check=check(meta.get("log", [])),
                 )
         entries.append({
             "id": a["id"],
@@ -388,7 +406,7 @@ def write_index(discovered: dict, areas: list[dict]) -> None:
 
 
 def thousands(n: int) -> str:
-    return f"{n:,}".replace(",", ".")
+    return f"{n:,}"
 
 
 def write_coverage(index: dict) -> None:
@@ -399,9 +417,10 @@ def write_coverage(index: dict) -> None:
         cities.setdefault(a["city"], []).append(a)
     header = (
         "| # | City | County | Zones | OSM buildings | Walking nodes | "
-        "Satellite estimates (untagged buildings) | OSM date | Packed size |"
+        "Satellite estimates (untagged buildings) | Estimate vs OSM height tags | OSM date | "
+        "Packed size |"
     )
-    rows = [header, "|---|---|---|---|---|---|---|---|---|"]
+    rows = [header, "|---|---|---|---|---|---|---|---|---|---|"]
     total = {"areas": 0, "buildings": 0, "nodes": 0, "bytes": 0, "estimates": 0}
     for areas in sorted(cities.values(), key=lambda x: x[0]["rank"]):
         first = areas[0]
@@ -422,15 +441,23 @@ def write_coverage(index: dict) -> None:
         for key, value in values.items():
             total[key] += value
         osm = ", ".join(sorted({a["osm_base_timestamp"][:10] for a in areas}))
+        checks = [a["heights_check"] for a in areas if a.get("heights_check", {}).get("tagged")]
+        agreement = (
+            f"n = {thousands(checks[0]['tagged'])}, median abs. diff. {checks[0]['median_abs_m']:g} m"
+            if len(checks) == 1
+            else f"{len(checks)} zones, n = {sum(c['tagged'] for c in checks)}"
+            if checks
+            else "–"
+        )
         rows.append(
             f"| {first['rank']} | {first['name'].split(' · ')[0]} | "
             f"{', '.join(c.removeprefix('RO-') for c in first['counties'])} | {values['areas']} | "
             f"{thousands(values['buildings'])} | {thousands(values['nodes'])} | {source} | "
-            f"{osm} | {values['bytes'] / 1e6:.1f} MB |"
+            f"{agreement} | {osm} | {values['bytes'] / 1e6:.1f} MB |"
         )
     rows.append(
         f"| | **Total: {len(cities)} cities** | | {total['areas']} | {thousands(total['buildings'])} | "
-        f"{thousands(total['nodes'])} | {thousands(total['estimates'])} | | "
+        f"{thousands(total['nodes'])} | {thousands(total['estimates'])} | | | "
         f"{total['bytes'] / 1e6:.0f} MB |"
     )
     start, end = "<!-- coverage:start -->", "<!-- coverage:end -->"
@@ -438,3 +465,7 @@ def write_coverage(index: dict) -> None:
     before, rest = text.split(start, 1)
     after = rest.split(end, 1)[1]
     doc.write_text(f"{before}{start}\n" + "\n".join(rows) + f"\n{end}{after}")
+
+
+if __name__ == "__main__":
+    main()

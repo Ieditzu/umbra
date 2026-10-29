@@ -64,14 +64,36 @@ export class CityCatalog {
     }
     return best;
   }
-  /** True when a whole viewport lies inside one bundled area. */
+  /**
+   * True when a whole viewport lies inside one bundled area, or each corner lies in
+   * a zone of the same split city (the zones overlap by more than the viewport margin).
+   */
   covers(bounds) {
-    return this.areas.some(
-      (a) =>
-        bounds[0] >= a.bounds[0] &&
-        bounds[1] >= a.bounds[1] &&
-        bounds[2] <= a.bounds[2] &&
-        bounds[3] <= a.bounds[3],
+    if (
+      this.areas.some(
+        (a) =>
+          bounds[0] >= a.bounds[0] &&
+          bounds[1] >= a.bounds[1] &&
+          bounds[2] <= a.bounds[2] &&
+          bounds[3] <= a.bounds[3],
+      )
+    )
+      return true;
+    const corners = [
+      [bounds[0], bounds[1]],
+      [bounds[0], bounds[3]],
+      [bounds[2], bounds[1]],
+      [bounds[2], bounds[3]],
+    ].map(([longitude, latitude]) => this.at({ longitude, latitude }));
+    return (
+      corners.every((a) => a?.zone) &&
+      new Set(corners.map((a) => a.city)).size === 1 &&
+      // Neighbouring zones only; a viewport this wide is beyond building budgets anyway.
+      corners.every(
+        (a) =>
+          Math.abs(a.zone[0] - corners[0].zone[0]) <= 1 &&
+          Math.abs(a.zone[1] - corners[0].zone[1]) <= 1,
+      )
     );
   }
   /**
