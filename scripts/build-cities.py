@@ -195,7 +195,10 @@ def fetch_rasters(areas: list[dict], client, files2012: dict, use2021: bool, wai
             print(f"requested {key}: task {tasks[key]}", flush=True)
     deadline = time.time() + wait_s
     pending = {k for k in wanted}
-    while pending and time.time() < deadline:
+    first = True
+    # Always check once, then keep polling until the deadline.
+    while pending and (first or time.time() < deadline):
+        first = False
         for key in sorted(pending):
             status = client.call(f"@datarequest_status_get?TaskID={tasks[key]}")
             state = status.get("Status")
@@ -210,7 +213,7 @@ def fetch_rasters(areas: list[dict], client, files2012: dict, use2021: bool, wai
                 tasks.pop(key, None)
                 pending.discard(key)
         TASKS.write_text(json.dumps(tasks, indent=1))
-        if pending:
+        if pending and time.time() < deadline:
             time.sleep(30)
     if pending:
         print("still processing at CLMS (rerun later):", ", ".join(sorted(pending)), flush=True)
@@ -251,7 +254,7 @@ def main() -> None:
     parser.add_argument("--batch", type=int, default=8)
     parser.add_argument("--with-2021", action="store_true",
                         help="also request 2021 heights (slow custom-area CLMS jobs)")
-    parser.add_argument("--wait-minutes", type=float, default=30)
+    parser.add_argument("--wait-minutes", type=float, default=0)
     args = parser.parse_args()
     CACHE.mkdir(parents=True, exist_ok=True)
     OUT.mkdir(parents=True, exist_ok=True)
@@ -428,6 +431,7 @@ def write_coverage(index: dict) -> None:
         estimates = sum(a.get("heights_count", 0) for a in areas)
         source = (
             f"Copernicus {'/'.join(map(str, years))}: {thousands(estimates)}"
+            f"{'¹' if len(areas) > 1 else ''}"
             if years
             else "none (OSM only)"
         )
@@ -445,18 +449,19 @@ def write_coverage(index: dict) -> None:
         agreement = (
             f"n = {thousands(checks[0]['tagged'])}, median abs. diff. {checks[0]['median_abs_m']:g} m"
             if len(checks) == 1
-            else f"{len(checks)} zones, n = {sum(c['tagged'] for c in checks)}"
+            else f"{len(checks)} zones, n = {thousands(sum(c['tagged'] for c in checks))}"
             if checks
             else "–"
         )
         rows.append(
             f"| {first['rank']} | {first['name'].split(' · ')[0]} | "
             f"{', '.join(c.removeprefix('RO-') for c in first['counties'])} | {values['areas']} | "
-            f"{thousands(values['buildings'])} | {thousands(values['nodes'])} | {source} | "
+            f"{thousands(values['buildings'])}{'¹' if len(areas) > 1 else ''} | "
+            f"{thousands(values['nodes'])}{'¹' if len(areas) > 1 else ''} | {source} | "
             f"{agreement} | {osm} | {values['bytes'] / 1e6:.1f} MB |"
         )
     rows.append(
-        f"| | **Total: {len(cities)} cities** | | {total['areas']} | {thousands(total['buildings'])} | "
+        f"| | **Total: {len(cities)} cities**¹ | | {total['areas']} | {thousands(total['buildings'])} | "
         f"{thousands(total['nodes'])} | {thousands(total['estimates'])} | | | "
         f"{total['bytes'] / 1e6:.0f} MB |"
     )
@@ -464,6 +469,11 @@ def write_coverage(index: dict) -> None:
     text = doc.read_text() if doc.exists() else f"{start}\n{end}\n"
     before, rest = text.split(start, 1)
     after = rest.split(end, 1)[1]
+    rows.append("")
+    rows.append(
+        "¹ Sum over zones. Zones overlap by about 1 km, so buildings and nodes near zone "
+        "edges are counted more than once."
+    )
     doc.write_text(f"{before}{start}\n" + "\n".join(rows) + f"\n{end}{after}")
 
 

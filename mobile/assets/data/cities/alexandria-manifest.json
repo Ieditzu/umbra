@@ -1,0 +1,30 @@
+{
+  "pilot_id": "alexandria-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T10:20:04Z",
+  "sha256": "600336636db59ee9a5e97b6f699c99e4641d179df60638bd4fe74baee815d175",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 6274,
+  "directed_edges": 13610,
+  "buildings": 5565,
+  "bytes": 747565,
+  "raw_bytes": 4526262,
+  "raw_sha256": "526e78df7457c623e2f754d605e44e950a60c3edfff8f40654fce1070d2232f4",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    25.26538,
+    43.91867,
+    25.45257,
+    44.04512
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "estimated_from_levels": 62,
+    "missing": 5501,
+    "unsupported_elevated": 2
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

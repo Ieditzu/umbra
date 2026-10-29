@@ -78,10 +78,10 @@ is a development workflow, not a hosted deployment.
    hiding it does not disable the forecast.
 
 Prepared walking data and map-display coverage are different. The current
-checked-in city index contains **Cluj-Napoca, Timișoara, Iași, Constanța and
-Suceava**. Its rectangles are the authority for routable coverage. The pipeline
-can generate additional county-seat areas, but a planned city is not available
-until its files and index entry exist. See [city coverage](cities.md).
+checked-in city index contains **București (9 zones) and all 40 other county
+seats**: 41 cities in 49 areas. Its rectangles are the authority for routable
+coverage; suburbs outside them (for example in Ilfov) and other towns have no
+walking graph. See [city coverage](cities.md).
 
 Outside prepared areas, the PC can fetch bounded OpenFreeMap building tiles
 inside the Romania envelope for display and approximate shadows. These tiles

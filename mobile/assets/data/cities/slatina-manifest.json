@@ -1,0 +1,31 @@
+{
+  "pilot_id": "slatina-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T10:19:42Z",
+  "sha256": "1b21d6f43f6b7d74b2dc0346e8a2687c856a2f9131741056ec3c0534e3f5dadc",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 12257,
+  "directed_edges": 26454,
+  "buildings": 10590,
+  "bytes": 1587997,
+  "raw_bytes": 9206539,
+  "raw_sha256": "e6f1b3ed8e83d0ff29d55f84e5b8d39d31d339f993afca088ad2e462078e2dd0",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    24.32058,
+    44.38963,
+    24.43349,
+    44.47796
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "missing": 9541,
+    "estimated_from_levels": 938,
+    "osm_height_tag": 85,
+    "unsupported_elevated": 26
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

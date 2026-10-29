@@ -1,11 +1,362 @@
 {
  "schema_version": 1,
- "generated_at": "2026-10-29T09:45:31Z",
+ "generated_at": "2026-10-29T10:28:39Z",
  "osm_source": "https://download.geofabrik.de/europe/romania.html",
  "osm_base_timestamp": "2026-10-28T21:21:02Z",
  "selection": "Romanian county seats (OSM admin_centre of ISO3166-2 RO-* counties), ordered by OSM population tags; shared seats counted once",
  "license": "ODbL-1.0 (OSM); Copernicus heights: © European Union, Copernicus Land Monitoring Service 2022, European Environment Agency (EEA)",
  "areas": [
+  {
+   "id": "bucuresti-1",
+   "city": "bucuresti",
+   "name": "București · zona 1",
+   "counties": [
+    "RO-B",
+    "RO-IF"
+   ],
+   "rank": 1,
+   "population": 1883425,
+   "population_date": null,
+   "zone": [
+    0,
+    0
+   ],
+   "file": "bucuresti-1-city.json",
+   "bounds": [
+    25.95467,
+    44.32525,
+    26.06497,
+    44.4123
+   ],
+   "heights": "bucuresti-1-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO001 v020",
+   "heights_year": 2012,
+   "heights_count": 12799,
+   "heights_check": {
+    "tagged": 141,
+    "median_abs_m": 2.0,
+    "within_3m": 0.752
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 17503,
+   "directed_edges": 37978,
+   "buildings": 44763,
+   "bytes": 4350102,
+   "raw_bytes": 22604925,
+   "sha256": "e40e1eb47286006b6f2f625f501fcb7ded9c98929fa98bfaa82510bcfce90dc5"
+  },
+  {
+   "id": "bucuresti-2",
+   "city": "bucuresti",
+   "name": "București · zona 2",
+   "counties": [
+    "RO-B",
+    "RO-IF"
+   ],
+   "rank": 1,
+   "population": 1883425,
+   "population_date": null,
+   "zone": [
+    0,
+    1
+   ],
+   "file": "bucuresti-2-city.json",
+   "bounds": [
+    26.04097,
+    44.32525,
+    26.15128,
+    44.4123
+   ],
+   "heights": "bucuresti-2-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO001 v020",
+   "heights_year": 2012,
+   "heights_count": 26391,
+   "heights_check": {
+    "tagged": 461,
+    "median_abs_m": 3.0,
+    "within_3m": 0.566
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 40680,
+   "directed_edges": 91038,
+   "buildings": 57557,
+   "bytes": 7087822,
+   "raw_bytes": 38356735,
+   "sha256": "03d96cbc884e2e454a2e520b306182ae4bc3804435c3c8823278cfbae2e87f65"
+  },
+  {
+   "id": "bucuresti-3",
+   "city": "bucuresti",
+   "name": "București · zona 3",
+   "counties": [
+    "RO-B",
+    "RO-IF"
+   ],
+   "rank": 1,
+   "population": 1883425,
+   "population_date": null,
+   "zone": [
+    0,
+    2
+   ],
+   "file": "bucuresti-3-city.json",
+   "bounds": [
+    26.12728,
+    44.32525,
+    26.23758,
+    44.4123
+   ],
+   "heights": "bucuresti-3-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO001 v020",
+   "heights_year": 2012,
+   "heights_count": 9996,
+   "heights_check": {
+    "tagged": 318,
+    "median_abs_m": 3.0,
+    "within_3m": 0.547
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 23561,
+   "directed_edges": 50812,
+   "buildings": 31553,
+   "bytes": 3861462,
+   "raw_bytes": 21214734,
+   "sha256": "c177e910308bde4b236a1b41108ca52bef6e846df06b2e3c8f8edeff05cd497f"
+  },
+  {
+   "id": "bucuresti-4",
+   "city": "bucuresti",
+   "name": "București · zona 4",
+   "counties": [
+    "RO-B",
+    "RO-IF"
+   ],
+   "rank": 1,
+   "population": 1883425,
+   "population_date": null,
+   "zone": [
+    1,
+    0
+   ],
+   "file": "bucuresti-4-city.json",
+   "bounds": [
+    25.95467,
+    44.3943,
+    26.06497,
+    44.48135
+   ],
+   "heights": "bucuresti-4-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO001 v020",
+   "heights_year": 2012,
+   "heights_count": 30419,
+   "heights_check": {
+    "tagged": 879,
+    "median_abs_m": 2.0,
+    "within_3m": 0.638
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 44405,
+   "directed_edges": 99612,
+   "buildings": 66260,
+   "bytes": 8134086,
+   "raw_bytes": 43706605,
+   "sha256": "7b5617349e8fe78f1d0bd868580ed41df1318f3ac717ce7e086b598681d08e57"
+  },
+  {
+   "id": "bucuresti-5",
+   "city": "bucuresti",
+   "name": "București · zona 5",
+   "counties": [
+    "RO-B",
+    "RO-IF"
+   ],
+   "rank": 1,
+   "population": 1883425,
+   "population_date": null,
+   "zone": [
+    1,
+    1
+   ],
+   "file": "bucuresti-5-city.json",
+   "bounds": [
+    26.04097,
+    44.3943,
+    26.15128,
+    44.48135
+   ],
+   "heights": "bucuresti-5-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO001 v020",
+   "heights_year": 2012,
+   "heights_count": 52477,
+   "heights_check": {
+    "tagged": 3303,
+    "median_abs_m": 2.0,
+    "within_3m": 0.763
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 89946,
+   "directed_edges": 202694,
+   "buildings": 102517,
+   "bytes": 14407782,
+   "raw_bytes": 79359603,
+   "sha256": "a88d05ecc654aaa95dd37669dace37da90e16f5683c36a08a0bac958e04dcfca"
+  },
+  {
+   "id": "bucuresti-6",
+   "city": "bucuresti",
+   "name": "București · zona 6",
+   "counties": [
+    "RO-B",
+    "RO-IF"
+   ],
+   "rank": 1,
+   "population": 1883425,
+   "population_date": null,
+   "zone": [
+    1,
+    2
+   ],
+   "file": "bucuresti-6-city.json",
+   "bounds": [
+    26.12728,
+    44.3943,
+    26.23758,
+    44.48135
+   ],
+   "heights": "bucuresti-6-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO001 v020",
+   "heights_year": 2012,
+   "heights_count": 29618,
+   "heights_check": {
+    "tagged": 3638,
+    "median_abs_m": 2.5,
+    "within_3m": 0.704
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 53417,
+   "directed_edges": 119306,
+   "buildings": 72424,
+   "bytes": 8939086,
+   "raw_bytes": 49669094,
+   "sha256": "c2e1d1a1a4a96599a8ccf1542afb54a913755a99a4340fa5112df307df780c74"
+  },
+  {
+   "id": "bucuresti-7",
+   "city": "bucuresti",
+   "name": "București · zona 7",
+   "counties": [
+    "RO-B",
+    "RO-IF"
+   ],
+   "rank": 1,
+   "population": 1883425,
+   "population_date": null,
+   "zone": [
+    2,
+    0
+   ],
+   "file": "bucuresti-7-city.json",
+   "bounds": [
+    25.95467,
+    44.46335,
+    26.06497,
+    44.5504
+   ],
+   "heights": "bucuresti-7-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO001 v020",
+   "heights_year": 2012,
+   "heights_count": 15205,
+   "heights_check": {
+    "tagged": 168,
+    "median_abs_m": 2.75,
+    "within_3m": 0.607
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 21740,
+   "directed_edges": 47844,
+   "buildings": 40000,
+   "bytes": 4419746,
+   "raw_bytes": 23591328,
+   "sha256": "537ebc427205da58326ee6f78084a102ae0277fee6e164fa63f4690464f2e5a9"
+  },
+  {
+   "id": "bucuresti-8",
+   "city": "bucuresti",
+   "name": "București · zona 8",
+   "counties": [
+    "RO-B",
+    "RO-IF"
+   ],
+   "rank": 1,
+   "population": 1883425,
+   "population_date": null,
+   "zone": [
+    2,
+    1
+   ],
+   "file": "bucuresti-8-city.json",
+   "bounds": [
+    26.04097,
+    44.46335,
+    26.15128,
+    44.5504
+   ],
+   "heights": "bucuresti-8-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO001 v020",
+   "heights_year": 2012,
+   "heights_count": 21617,
+   "heights_check": {
+    "tagged": 2425,
+    "median_abs_m": 2.0,
+    "within_3m": 0.821
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 40571,
+   "directed_edges": 88852,
+   "buildings": 55593,
+   "bytes": 6739790,
+   "raw_bytes": 37384958,
+   "sha256": "92e39a88e92e2d6b883e17f079dfa4e78573ee534052dfd4ec74e7d478314733"
+  },
+  {
+   "id": "bucuresti-9",
+   "city": "bucuresti",
+   "name": "București · zona 9",
+   "counties": [
+    "RO-B",
+    "RO-IF"
+   ],
+   "rank": 1,
+   "population": 1883425,
+   "population_date": null,
+   "zone": [
+    2,
+    2
+   ],
+   "file": "bucuresti-9-city.json",
+   "bounds": [
+    26.12728,
+    44.46335,
+    26.23758,
+    44.5504
+   ],
+   "heights": "bucuresti-9-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO001 v020",
+   "heights_year": 2012,
+   "heights_count": 16632,
+   "heights_check": {
+    "tagged": 3269,
+    "median_abs_m": 2.5,
+    "within_3m": 0.721
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 20478,
+   "directed_edges": 45310,
+   "buildings": 49235,
+   "bytes": 4782594,
+   "raw_bytes": 25669988,
+   "sha256": "750612c52ae13c664853db2222da939445b5109a7517dbf01320f6b43a1babd4"
+  },
   {
    "id": "cluj-napoca",
    "city": "cluj-napoca",
@@ -33,12 +384,12 @@
     "within_3m": 0.447
    },
    "osm_base_timestamp": "2026-10-28T21:21:02Z",
-   "nodes": 70457,
-   "directed_edges": 147342,
+   "nodes": 78694,
+   "directed_edges": 168294,
    "buildings": 44649,
-   "bytes": 7406646,
-   "raw_bytes": 45195220,
-   "sha256": "d936468cae10f98efdea5bbcac5e0f7f16b099061f1c5d5e139c5bd4a5b95291"
+   "bytes": 7971218,
+   "raw_bytes": 49408191,
+   "sha256": "f22f733d41e267f4475dc03aff096c35c53858a7cac71861b790c0663d6dbf5a"
   },
   {
    "id": "timisoara",
@@ -67,12 +418,12 @@
     "within_3m": 0.512
    },
    "osm_base_timestamp": "2026-10-28T21:21:02Z",
-   "nodes": 59020,
-   "directed_edges": 131146,
+   "nodes": 65459,
+   "directed_edges": 149760,
    "buildings": 60645,
-   "bytes": 8086358,
-   "raw_bytes": 46215751,
-   "sha256": "c4357d74b5dee30d4c0b5a31b0789d374ec3668aec601ffc6a48d4d3ec981acd"
+   "bytes": 8586770,
+   "raw_bytes": 49869926,
+   "sha256": "4681af9de8d4658c0fbb2ad1376613c0ceb5a2cb66f3ab730431f0f128382212"
   },
   {
    "id": "iasi",
@@ -101,12 +452,12 @@
     "within_3m": 0.325
    },
    "osm_base_timestamp": "2026-10-28T21:21:02Z",
-   "nodes": 46346,
-   "directed_edges": 96458,
+   "nodes": 52211,
+   "directed_edges": 113504,
    "buildings": 33068,
-   "bytes": 5351378,
-   "raw_bytes": 31132714,
-   "sha256": "395ccc3aa9c4933a91f9f113fb88c1a1e0ca03f6bfc686fc801a78f460f7b7b4"
+   "bytes": 5804390,
+   "raw_bytes": 34516722,
+   "sha256": "78a95b91f1a77fa94b93582af9819aad04e552c6b3921a3c9e972422b309b8b7"
   },
   {
    "id": "constanta",
@@ -144,6 +495,616 @@
    "sha256": "36aec14d2618936956c385c3948c11224f459223f8a32ed73adfe51da47576c5"
   },
   {
+   "id": "craiova",
+   "city": "craiova",
+   "name": "Craiova",
+   "counties": [
+    "RO-DJ"
+   ],
+   "rank": 6,
+   "population": 269506,
+   "population_date": null,
+   "file": "craiova-city.json",
+   "bounds": [
+    23.70792,
+    44.26808,
+    23.90582,
+    44.37865
+   ],
+   "heights": "craiova-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO004 v010",
+   "heights_year": 2012,
+   "heights_count": 9827,
+   "heights_check": {
+    "tagged": 48,
+    "median_abs_m": 7.0,
+    "within_3m": 0.25
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 35180,
+   "directed_edges": 78332,
+   "buildings": 30420,
+   "bytes": 4399666,
+   "raw_bytes": 26389110,
+   "sha256": "ec42d9768e91be378be345b901c498b76e3964e2679062e7bd4ea43ffc6b0b20"
+  },
+  {
+   "id": "brasov",
+   "city": "brasov",
+   "name": "Brașov",
+   "counties": [
+    "RO-BV"
+   ],
+   "rank": 7,
+   "population": 253200,
+   "population_date": null,
+   "file": "brasov-city.json",
+   "bounds": [
+    25.50356,
+    45.49965,
+    25.68892,
+    45.75233
+   ],
+   "heights": "brasov-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO504 v010",
+   "heights_year": 2012,
+   "heights_count": 15937,
+   "heights_check": {
+    "tagged": 76,
+    "median_abs_m": 3.0,
+    "within_3m": 0.658
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 77771,
+   "directed_edges": 169265,
+   "buildings": 47104,
+   "bytes": 8926510,
+   "raw_bytes": 52329879,
+   "sha256": "668792a4df62b2d2471eed93488f5bba86eef5f6d9e3622e94103ddd7ec03ff2"
+  },
+  {
+   "id": "galati",
+   "city": "galati",
+   "name": "Galați",
+   "counties": [
+    "RO-GL"
+   ],
+   "rank": 8,
+   "population": 249432,
+   "population_date": null,
+   "file": "galati-city.json",
+   "bounds": [
+    27.94336,
+    45.39052,
+    28.20869,
+    45.61037
+   ],
+   "heights": "galati-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO503 v010",
+   "heights_year": 2012,
+   "heights_count": 6671,
+   "heights_check": {
+    "tagged": 18,
+    "median_abs_m": 5.5,
+    "within_3m": 0.222
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 31324,
+   "directed_edges": 69416,
+   "buildings": 15772,
+   "bytes": 3048966,
+   "raw_bytes": 19471911,
+   "sha256": "8bd8c08096bc377cf657d31c5646ee25ce04694966281befb1ef04a444f11828"
+  },
+  {
+   "id": "ploiesti",
+   "city": "ploiesti",
+   "name": "Ploiești",
+   "counties": [
+    "RO-PH"
+   ],
+   "rank": 9,
+   "population": 224406,
+   "population_date": null,
+   "file": "ploiesti-city.json",
+   "bounds": [
+    25.9179,
+    44.89614,
+    26.10197,
+    44.96842
+   ],
+   "heights": "ploiesti-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO505 v010",
+   "heights_year": 2012,
+   "heights_count": 13572,
+   "heights_check": {
+    "tagged": 131,
+    "median_abs_m": 1.0,
+    "within_3m": 0.901
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 26896,
+   "directed_edges": 59840,
+   "buildings": 23195,
+   "bytes": 3452286,
+   "raw_bytes": 20054517,
+   "sha256": "66513e4c636c3159af2c7cde1bef0065e29804ac11175958fcd0fec9aa110765"
+  },
+  {
+   "id": "oradea",
+   "city": "oradea",
+   "name": "Oradea",
+   "counties": [
+    "RO-BH"
+   ],
+   "rank": 10,
+   "population": 196367,
+   "population_date": null,
+   "file": "oradea-city.json",
+   "bounds": [
+    21.84283,
+    47.00703,
+    22.03226,
+    47.14213
+   ],
+   "heights": "oradea-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO006 v010",
+   "heights_year": 2012,
+   "heights_count": 12385,
+   "heights_check": {
+    "tagged": 72,
+    "median_abs_m": 1.0,
+    "within_3m": 0.972
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 38172,
+   "directed_edges": 84706,
+   "buildings": 32658,
+   "bytes": 5085754,
+   "raw_bytes": 29413273,
+   "sha256": "1a119124cf715c12e1edc62267c6dfb5a7bfb603e2549b1e4a8a849f315bf2e8"
+  },
+  {
+   "id": "braila",
+   "city": "braila",
+   "name": "Brăila",
+   "counties": [
+    "RO-BR"
+   ],
+   "rank": 11,
+   "population": 180302,
+   "population_date": null,
+   "file": "braila-city.json",
+   "bounds": [
+    27.90853,
+    45.231,
+    28.02287,
+    45.31349
+   ],
+   "heights": "braila-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO005 v010",
+   "heights_year": 2012,
+   "heights_count": 10464,
+   "heights_check": {
+    "tagged": 7,
+    "median_abs_m": 2.0,
+    "within_3m": 0.857
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 11681,
+   "directed_edges": 26732,
+   "buildings": 23308,
+   "bytes": 2426794,
+   "raw_bytes": 13368780,
+   "sha256": "7cd879a8d98d99ff69a23e45feeb107045af45b9fcd00cf5351a5c486d635d0b"
+  },
+  {
+   "id": "arad",
+   "city": "arad",
+   "name": "Arad",
+   "counties": [
+    "RO-AR"
+   ],
+   "rank": 12,
+   "population": 159074,
+   "population_date": null,
+   "file": "arad-city.json",
+   "bounds": [
+    21.15136,
+    46.04475,
+    21.41468,
+    46.26182
+   ],
+   "heights": "arad-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO008 v010",
+   "heights_year": 2012,
+   "heights_count": 3956,
+   "heights_check": {
+    "tagged": 33,
+    "median_abs_m": 2.0,
+    "within_3m": 0.879
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 36901,
+   "directed_edges": 80790,
+   "buildings": 14372,
+   "bytes": 3223898,
+   "raw_bytes": 21207983,
+   "sha256": "da89644af5aff2e73ec3cec37bd86d7011e554ce4b0b874394143babf29adb48"
+  },
+  {
+   "id": "sibiu",
+   "city": "sibiu",
+   "name": "Sibiu",
+   "counties": [
+    "RO-SB"
+   ],
+   "rank": 13,
+   "population": 147245,
+   "population_date": null,
+   "file": "sibiu-city.json",
+   "bounds": [
+    23.92191,
+    45.63387,
+    24.24459,
+    45.85709
+   ],
+   "heights": "sibiu-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO009 v010",
+   "heights_year": 2012,
+   "heights_count": 14161,
+   "heights_check": {
+    "tagged": 211,
+    "median_abs_m": 2.0,
+    "within_3m": 0.687
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 62100,
+   "directed_edges": 132484,
+   "buildings": 35397,
+   "bytes": 6191274,
+   "raw_bytes": 39107480,
+   "sha256": "f907bbed2de84757ad4528d903dc2659bebdb9f8c7df3b0da5d4fdcd60998741"
+  },
+  {
+   "id": "bacau",
+   "city": "bacau",
+   "name": "Bacău",
+   "counties": [
+    "RO-BC"
+   ],
+   "rank": 14,
+   "population": 144307,
+   "population_date": null,
+   "file": "bacau-city.json",
+   "bounds": [
+    26.86299,
+    46.50576,
+    26.95466,
+    46.62154
+   ],
+   "heights": "bacau-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO007 v010",
+   "heights_year": 2012,
+   "heights_count": 6350,
+   "heights_check": {
+    "tagged": 1,
+    "median_abs_m": 8.0,
+    "within_3m": 0.0
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 21461,
+   "directed_edges": 48192,
+   "buildings": 25729,
+   "bytes": 3173362,
+   "raw_bytes": 18424325,
+   "sha256": "3946b8b27b8812bf95d59f23afbe2fb1445ed10c7f0c6dee81ac12f1c14db3e1"
+  },
+  {
+   "id": "pitesti",
+   "city": "pitesti",
+   "name": "Pitești",
+   "counties": [
+    "RO-AG"
+   ],
+   "rank": 15,
+   "population": 141275,
+   "population_date": "2021-12-01",
+   "file": "pitesti-city.json",
+   "bounds": [
+    24.78039,
+    44.81748,
+    24.94267,
+    44.89582
+   ],
+   "heights": "pitesti-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO506 v010",
+   "heights_year": 2012,
+   "heights_count": 4171,
+   "heights_check": {
+    "tagged": 51,
+    "median_abs_m": 3.0,
+    "within_3m": 0.588
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 26098,
+   "directed_edges": 56094,
+   "buildings": 20402,
+   "bytes": 2960582,
+   "raw_bytes": 18036113,
+   "sha256": "e770925211cfbcebaa9d5ad818c4e08dc31bb08618d0d0bee5e2cf7e6872b6dc"
+  },
+  {
+   "id": "targu-mures",
+   "city": "targu-mures",
+   "name": "Târgu Mureș",
+   "counties": [
+    "RO-MS"
+   ],
+   "rank": 16,
+   "population": 134290,
+   "population_date": null,
+   "file": "targu-mures-city.json",
+   "bounds": [
+    24.49187,
+    46.50002,
+    24.62685,
+    46.59617
+   ],
+   "heights": "targu-mures-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO010 v010",
+   "heights_year": 2012,
+   "heights_count": 6045,
+   "heights_check": {
+    "tagged": 492,
+    "median_abs_m": 2.0,
+    "within_3m": 0.652
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 43837,
+   "directed_edges": 98042,
+   "buildings": 22081,
+   "bytes": 4659714,
+   "raw_bytes": 28830284,
+   "sha256": "e2547e8dbe76edc6446e09bf8d15df73c021c00cf1295ffcb281370c7500ad11"
+  },
+  {
+   "id": "baia-mare",
+   "city": "baia-mare",
+   "name": "Baia Mare",
+   "counties": [
+    "RO-MM"
+   ],
+   "rank": 17,
+   "population": 123738,
+   "population_date": null,
+   "file": "baia-mare-city.json",
+   "bounds": [
+    23.48205,
+    47.62274,
+    23.71164,
+    47.85881
+   ],
+   "heights": "baia-mare-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO507 v010",
+   "heights_year": 2012,
+   "heights_count": 5180,
+   "heights_check": {
+    "tagged": 993,
+    "median_abs_m": 1.0,
+    "within_3m": 0.803
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 43790,
+   "directed_edges": 91998,
+   "buildings": 10080,
+   "bytes": 3196626,
+   "raw_bytes": 22320558,
+   "sha256": "5a3fce8b48524681709ee279338b2080d09c803599e78e8d69617ade8888034c"
+  },
+  {
+   "id": "buzau",
+   "city": "buzau",
+   "name": "Buzău",
+   "counties": [
+    "RO-BZ"
+   ],
+   "rank": 18,
+   "population": 115494,
+   "population_date": null,
+   "file": "buzau-city.json",
+   "bounds": [
+    26.71469,
+    45.09161,
+    26.92587,
+    45.18375
+   ],
+   "heights": "buzau-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO508 v010",
+   "heights_year": 2012,
+   "heights_count": 6328,
+   "heights_check": {
+    "tagged": 607,
+    "median_abs_m": 4.0,
+    "within_3m": 0.323
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 16329,
+   "directed_edges": 35274,
+   "buildings": 17317,
+   "bytes": 2310018,
+   "raw_bytes": 13296824,
+   "sha256": "8203611ffe632a85e2f2e50a7c987eaa7f6b4c0cbd1ca96e6f29caac26cea7c2"
+  },
+  {
+   "id": "botosani",
+   "city": "botosani",
+   "name": "Botoșani",
+   "counties": [
+    "RO-BT"
+   ],
+   "rank": 19,
+   "population": 106847,
+   "population_date": null,
+   "file": "botosani-city.json",
+   "bounds": [
+    26.61057,
+    47.70375,
+    26.74147,
+    47.80287
+   ],
+   "heights": "botosani-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO510 v010",
+   "heights_year": 2012,
+   "heights_count": 2842,
+   "heights_check": {
+    "tagged": 14,
+    "median_abs_m": 1.65,
+    "within_3m": 0.786
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 14145,
+   "directed_edges": 31618,
+   "buildings": 5303,
+   "bytes": 1287257,
+   "raw_bytes": 8357032,
+   "sha256": "5daa4ab8fc83d247ccef8ae3e03447d4e685e963c3f45841e35011d66dd43141"
+  },
+  {
+   "id": "satu-mare",
+   "city": "satu-mare",
+   "name": "Satu Mare",
+   "counties": [
+    "RO-SM"
+   ],
+   "rank": 20,
+   "population": 102411,
+   "population_date": null,
+   "file": "satu-mare-city.json",
+   "bounds": [
+    22.75602,
+    47.69783,
+    22.97684,
+    47.89458
+   ],
+   "heights": "satu-mare-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO509 v010",
+   "heights_year": 2012,
+   "heights_count": 5352,
+   "heights_check": {
+    "tagged": 0
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 21234,
+   "directed_edges": 48000,
+   "buildings": 12998,
+   "bytes": 2284774,
+   "raw_bytes": 14174484,
+   "sha256": "1f04142777ec81a2ab538ef07a3205d2bcd7c50e638e69ec2b31660b13f8e1fa"
+  },
+  {
+   "id": "ramnicu-valcea",
+   "city": "ramnicu-valcea",
+   "name": "Râmnicu Vâlcea",
+   "counties": [
+    "RO-VL"
+   ],
+   "rank": 21,
+   "population": 98776,
+   "population_date": null,
+   "file": "ramnicu-valcea-city.json",
+   "bounds": [
+    24.25968,
+    45.00934,
+    24.45027,
+    45.14032
+   ],
+   "heights": "ramnicu-valcea-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO511 v010",
+   "heights_year": 2012,
+   "heights_count": 7301,
+   "heights_check": {
+    "tagged": 33,
+    "median_abs_m": 3.0,
+    "within_3m": 0.606
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 36757,
+   "directed_edges": 76398,
+   "buildings": 27652,
+   "bytes": 4052182,
+   "raw_bytes": 24840735,
+   "sha256": "3820462d81d3e8be9f783d80d0b874d391c2ceed5260c1f2edeccedf81ba8e39"
+  },
+  {
+   "id": "focsani",
+   "city": "focsani",
+   "name": "Focșani",
+   "counties": [
+    "RO-VN"
+   ],
+   "rank": 22,
+   "population": 97186,
+   "population_date": null,
+   "file": "focsani-city.json",
+   "bounds": [
+    27.14672,
+    45.6512,
+    27.26698,
+    45.74776
+   ],
+   "heights": "focsani-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO015 v010",
+   "heights_year": 2012,
+   "heights_count": 693,
+   "heights_check": {
+    "tagged": 5,
+    "median_abs_m": 1.0,
+    "within_3m": 0.8
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 9704,
+   "directed_edges": 21562,
+   "buildings": 3209,
+   "bytes": 830025,
+   "raw_bytes": 5610139,
+   "sha256": "9e056e10c3dc82faf2e757e26aeac53688655c106dbae690725cb91be472d196"
+  },
+  {
+   "id": "drobeta-turnu-severin",
+   "city": "drobeta-turnu-severin",
+   "name": "Drobeta-Turnu Severin",
+   "counties": [
+    "RO-MH"
+   ],
+   "rank": 23,
+   "population": 92617,
+   "population_date": "2011",
+   "file": "drobeta-turnu-severin-city.json",
+   "bounds": [
+    22.46936,
+    44.61372,
+    22.7019,
+    44.73278
+   ],
+   "heights": "drobeta-turnu-severin-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO513 v010",
+   "heights_year": 2012,
+   "heights_count": 768,
+   "heights_check": {
+    "tagged": 482,
+    "median_abs_m": 1.0,
+    "within_3m": 0.751
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 16944,
+   "directed_edges": 36544,
+   "buildings": 4338,
+   "bytes": 1348233,
+   "raw_bytes": 9187179,
+   "sha256": "97ccb2623db734022d94dc74eaa3e2180a937ddc84e11a067be7f8e5a32c0865"
+  },
+  {
    "id": "suceava",
    "city": "suceava",
    "name": "Suceava",
@@ -169,12 +1130,534 @@
     47.77
    ],
    "osm_base_timestamp": "2026-10-28T21:21:02Z",
-   "nodes": 34070,
-   "directed_edges": 68670,
+   "nodes": 42498,
+   "directed_edges": 88202,
    "buildings": 34056,
-   "bytes": 4241830,
-   "raw_bytes": 25596478,
-   "sha256": "25bd21cdad1ab207c481f65ec479792e05a5f52caaf81c47420f6cea99299d94"
+   "bytes": 4743786,
+   "raw_bytes": 29577755,
+   "sha256": "5d887a8f19d2bdeb7da222ee57ca7952fab1067ac5526b3d83b710741a216478"
+  },
+  {
+   "id": "targu-jiu",
+   "city": "targu-jiu",
+   "name": "Târgu Jiu",
+   "counties": [
+    "RO-GJ"
+   ],
+   "rank": 25,
+   "population": 82504,
+   "population_date": null,
+   "file": "targu-jiu-city.json",
+   "bounds": [
+    23.20132,
+    44.98841,
+    23.38214,
+    45.10527
+   ],
+   "heights": "targu-jiu-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO016 v010",
+   "heights_year": 2012,
+   "heights_count": 7580,
+   "heights_check": {
+    "tagged": 222,
+    "median_abs_m": 2.0,
+    "within_3m": 0.73
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 14110,
+   "directed_edges": 30066,
+   "buildings": 10508,
+   "bytes": 1522261,
+   "raw_bytes": 9459350,
+   "sha256": "8ef8975f8e39f575a636d61238003e938b1461ef54ae485b2252a418af13e7fc"
+  },
+  {
+   "id": "piatra-neamt",
+   "city": "piatra-neamt",
+   "name": "Piatra-Neamț",
+   "counties": [
+    "RO-NT"
+   ],
+   "rank": 26,
+   "population": 79679,
+   "population_date": "2023-01-31",
+   "file": "piatra-neamt-city.json",
+   "bounds": [
+    26.29841,
+    46.86179,
+    26.44773,
+    46.97965
+   ],
+   "heights": "piatra-neamt-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO011 v010",
+   "heights_year": 2012,
+   "heights_count": 4462,
+   "heights_check": {
+    "tagged": 23,
+    "median_abs_m": 5.5,
+    "within_3m": 0.174
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 26904,
+   "directed_edges": 57164,
+   "buildings": 17358,
+   "bytes": 2976746,
+   "raw_bytes": 17992993,
+   "sha256": "148566a8e90eaddf9e1634ada604cee885a008d45e83ccb11ec38456e26604a1"
+  },
+  {
+   "id": "targoviste",
+   "city": "targoviste",
+   "name": "Târgoviște",
+   "counties": [
+    "RO-DB"
+   ],
+   "rank": 27,
+   "population": 79610,
+   "population_date": null,
+   "file": "targoviste-city.json",
+   "bounds": [
+    25.3599,
+    44.88695,
+    25.5329,
+    44.95095
+   ],
+   "heights": "targoviste-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO018 v010",
+   "heights_year": 2012,
+   "heights_count": 5099,
+   "heights_check": {
+    "tagged": 7,
+    "median_abs_m": 4.0,
+    "within_3m": 0.143
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 14993,
+   "directed_edges": 32334,
+   "buildings": 9788,
+   "bytes": 1609201,
+   "raw_bytes": 9801789,
+   "sha256": "ce70ca9fb67b6a59e54533ac68e3db290d6586cdc03d3f4af2c49af83cf5fd28"
+  },
+  {
+   "id": "bistrita",
+   "city": "bistrita",
+   "name": "Bistrița",
+   "counties": [
+    "RO-BN"
+   ],
+   "rank": 28,
+   "population": 75076,
+   "population_date": null,
+   "file": "bistrita-city.json",
+   "bounds": [
+    24.38651,
+    47.05055,
+    24.65179,
+    47.22851
+   ],
+   "heights": "bistrita-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO022 v010",
+   "heights_year": 2012,
+   "heights_count": 3622,
+   "heights_check": {
+    "tagged": 2,
+    "median_abs_m": 3.5,
+    "within_3m": 0.5
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 22268,
+   "directed_edges": 46188,
+   "buildings": 6053,
+   "bytes": 1670210,
+   "raw_bytes": 11486238,
+   "sha256": "c7dd6fa84776bebf8d63d2294d3371db0011e0108d55b80965ee2a6adba34962"
+  },
+  {
+   "id": "tulcea",
+   "city": "tulcea",
+   "name": "Tulcea",
+   "counties": [
+    "RO-TL"
+   ],
+   "rank": 29,
+   "population": 73707,
+   "population_date": null,
+   "file": "tulcea-city.json",
+   "bounds": [
+    28.68709,
+    45.05305,
+    28.91299,
+    45.24977
+   ],
+   "heights": "tulcea-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO017 v010",
+   "heights_year": 2012,
+   "heights_count": 976,
+   "heights_check": {
+    "tagged": 10,
+    "median_abs_m": 4.0,
+    "within_3m": 0.4
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 11821,
+   "directed_edges": 25256,
+   "buildings": 3264,
+   "bytes": 962461,
+   "raw_bytes": 6367813,
+   "sha256": "24dbb5a8815134126d497237679ccea50008c023b81ea8b650271468527a1e0b"
+  },
+  {
+   "id": "resita",
+   "city": "resita",
+   "name": "Reșița",
+   "counties": [
+    "RO-CS"
+   ],
+   "rank": 30,
+   "population": 73282,
+   "population_date": null,
+   "file": "resita-city.json",
+   "bounds": [
+    21.79967,
+    45.20988,
+    22.11268,
+    45.38787
+   ],
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 27344,
+   "directed_edges": 56912,
+   "buildings": 2481,
+   "bytes": 1663562,
+   "raw_bytes": 12467093,
+   "sha256": "55f0131dfbfc567568a58587dfbdd5e08ff9d050a0805b6b1cf20c9890c01a17"
+  },
+  {
+   "id": "slatina",
+   "city": "slatina",
+   "name": "Slatina",
+   "counties": [
+    "RO-OT"
+   ],
+   "rank": 31,
+   "population": 70293,
+   "population_date": null,
+   "file": "slatina-city.json",
+   "bounds": [
+    24.32058,
+    44.38963,
+    24.43349,
+    44.47796
+   ],
+   "heights": "slatina-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO019 v010",
+   "heights_year": 2012,
+   "heights_count": 3815,
+   "heights_check": {
+    "tagged": 47,
+    "median_abs_m": 2.0,
+    "within_3m": 0.681
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 12257,
+   "directed_edges": 26454,
+   "buildings": 10590,
+   "bytes": 1587997,
+   "raw_bytes": 9206539,
+   "sha256": "1b21d6f43f6b7d74b2dc0346e8a2687c856a2f9131741056ec3c0534e3f5dadc"
+  },
+  {
+   "id": "calarasi",
+   "city": "calarasi",
+   "name": "Călărași",
+   "counties": [
+    "RO-CL"
+   ],
+   "rank": 32,
+   "population": 65181,
+   "population_date": null,
+   "file": "calarasi-city.json",
+   "bounds": [
+    27.26868,
+    44.1279,
+    27.40342,
+    44.31741
+   ],
+   "heights": "calarasi-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO012 v010",
+   "heights_year": 2012,
+   "heights_count": 1509,
+   "heights_check": {
+    "tagged": 0
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 6833,
+   "directed_edges": 15530,
+   "buildings": 2281,
+   "bytes": 583397,
+   "raw_bytes": 3909396,
+   "sha256": "dc94402017eea00c116f6887595a83c1901af2009f3357bd309a8e4db93ca7a3"
+  },
+  {
+   "id": "alba-iulia",
+   "city": "alba-iulia",
+   "name": "Alba Iulia",
+   "counties": [
+    "RO-AB"
+   ],
+   "rank": 33,
+   "population": 63536,
+   "population_date": null,
+   "file": "alba-iulia-city.json",
+   "bounds": [
+    23.44696,
+    45.99567,
+    23.6269,
+    46.13664
+   ],
+   "heights": "alba-iulia-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO014 v010",
+   "heights_year": 2012,
+   "heights_count": 5355,
+   "heights_check": {
+    "tagged": 19,
+    "median_abs_m": 2.0,
+    "within_3m": 0.789
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 20083,
+   "directed_edges": 42572,
+   "buildings": 13464,
+   "bytes": 2145082,
+   "raw_bytes": 13244731,
+   "sha256": "c87e6edbd19a12195b52301fa1b86a330d5198492fc09172f1b8e2231e5e9121"
+  },
+  {
+   "id": "giurgiu",
+   "city": "giurgiu",
+   "name": "Giurgiu",
+   "counties": [
+    "RO-GR"
+   ],
+   "rank": 34,
+   "population": 61353,
+   "population_date": null,
+   "file": "giurgiu-city.json",
+   "bounds": [
+    25.88112,
+    43.85915,
+    26.03391,
+    43.93606
+   ],
+   "heights": "giurgiu-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO013 v010",
+   "heights_year": 2012,
+   "heights_count": 4309,
+   "heights_check": {
+    "tagged": 982,
+    "median_abs_m": 3.5,
+    "within_3m": 0.499
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 14417,
+   "directed_edges": 31258,
+   "buildings": 11660,
+   "bytes": 1801810,
+   "raw_bytes": 10704828,
+   "sha256": "1398096ae681fdad79c1d08aa7b8390ff05d2dee62c9ee9af3f29853ef3ca35e"
+  },
+  {
+   "id": "deva",
+   "city": "deva",
+   "name": "Deva",
+   "counties": [
+    "RO-HD"
+   ],
+   "rank": 35,
+   "population": 61123,
+   "population_date": null,
+   "file": "deva-city.json",
+   "bounds": [
+    22.847,
+    45.80138,
+    22.97546,
+    45.91013
+   ],
+   "heights": "deva-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO998 v010",
+   "heights_year": 2012,
+   "heights_count": 2486,
+   "heights_check": {
+    "tagged": 1,
+    "median_abs_m": 6.5,
+    "within_3m": 0.0
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 14359,
+   "directed_edges": 30490,
+   "buildings": 9164,
+   "bytes": 1509689,
+   "raw_bytes": 9302417,
+   "sha256": "004bca623dfb9325bca93222a802d6f6b0de13b51ee24672809d6c07422fde54"
+  },
+  {
+   "id": "zalau",
+   "city": "zalau",
+   "name": "Zalău",
+   "counties": [
+    "RO-SJ"
+   ],
+   "rank": 36,
+   "population": 56202,
+   "population_date": null,
+   "file": "zalau-city.json",
+   "bounds": [
+    23.00067,
+    47.1194,
+    23.17401,
+    47.23329
+   ],
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 12364,
+   "directed_edges": 25776,
+   "buildings": 2252,
+   "bytes": 877345,
+   "raw_bytes": 6086512,
+   "sha256": "887a01b53df66e5603659587ed11e8c60bab93bf17a8a59f5b142a7428e27f33"
+  },
+  {
+   "id": "sfantu-gheorghe",
+   "city": "sfantu-gheorghe",
+   "name": "Sfântu Gheorghe",
+   "counties": [
+    "RO-CV"
+   ],
+   "rank": 37,
+   "population": 56006,
+   "population_date": null,
+   "file": "sfantu-gheorghe-city.json",
+   "bounds": [
+    25.67484,
+    45.79723,
+    25.85861,
+    45.90311
+   ],
+   "heights": "sfantu-gheorghe-heights.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO997 v010",
+   "heights_year": 2012,
+   "heights_count": 2189,
+   "heights_check": {
+    "tagged": 3,
+    "median_abs_m": 16.0,
+    "within_3m": 0.333
+   },
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 16544,
+   "directed_edges": 34678,
+   "buildings": 9868,
+   "bytes": 1657174,
+   "raw_bytes": 10400667,
+   "sha256": "fe3d93ba13ed95a0a77d0bd9a2219554297157cdb4774b5b02602f454fbdcef2"
+  },
+  {
+   "id": "vaslui",
+   "city": "vaslui",
+   "name": "Vaslui",
+   "counties": [
+    "RO-VS"
+   ],
+   "rank": 38,
+   "population": 55407,
+   "population_date": null,
+   "file": "vaslui-city.json",
+   "bounds": [
+    27.65549,
+    46.60361,
+    27.83478,
+    46.70311
+   ],
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 8817,
+   "directed_edges": 18606,
+   "buildings": 3152,
+   "bytes": 714121,
+   "raw_bytes": 4842031,
+   "sha256": "b7685fb96f0e9cb0be0be571be72801e4160c39a3222b3b11b7ba2a5ca8588c4"
+  },
+  {
+   "id": "slobozia",
+   "city": "slobozia",
+   "name": "Slobozia",
+   "counties": [
+    "RO-IL"
+   ],
+   "rank": 39,
+   "population": 45891,
+   "population_date": null,
+   "file": "slobozia-city.json",
+   "bounds": [
+    27.30271,
+    44.49623,
+    27.45137,
+    44.7206
+   ],
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 6157,
+   "directed_edges": 13882,
+   "buildings": 2085,
+   "bytes": 519437,
+   "raw_bytes": 3565125,
+   "sha256": "ff4302ecb9149109b21d8082e00e2f767776eb7bab307a752266070a928ec496"
+  },
+  {
+   "id": "alexandria",
+   "city": "alexandria",
+   "name": "Alexandria",
+   "counties": [
+    "RO-TR"
+   ],
+   "rank": 40,
+   "population": 45434,
+   "population_date": null,
+   "file": "alexandria-city.json",
+   "bounds": [
+    25.26538,
+    43.91867,
+    25.45257,
+    44.04512
+   ],
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 6274,
+   "directed_edges": 13610,
+   "buildings": 5565,
+   "bytes": 747565,
+   "raw_bytes": 4526262,
+   "sha256": "600336636db59ee9a5e97b6f699c99e4641d179df60638bd4fe74baee815d175"
+  },
+  {
+   "id": "miercurea-ciuc",
+   "city": "miercurea-ciuc",
+   "name": "Miercurea Ciuc",
+   "counties": [
+    "RO-HR"
+   ],
+   "rank": 41,
+   "population": 33946,
+   "population_date": null,
+   "file": "miercurea-ciuc-city.json",
+   "bounds": [
+    25.61979,
+    46.27173,
+    25.90836,
+    46.40426
+   ],
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 22116,
+   "directed_edges": 45562,
+   "buildings": 20283,
+   "bytes": 2801802,
+   "raw_bytes": 16191788,
+   "sha256": "607d9002a8bb6259be0aed1806e3e192bb27d2957f6e88081d409db38117863b"
   }
  ]
 }

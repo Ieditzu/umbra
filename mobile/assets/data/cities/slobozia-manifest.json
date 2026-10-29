@@ -1,0 +1,30 @@
+{
+  "pilot_id": "slobozia-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T10:20:03Z",
+  "sha256": "ff4302ecb9149109b21d8082e00e2f767776eb7bab307a752266070a928ec496",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 6157,
+  "directed_edges": 13882,
+  "buildings": 2085,
+  "bytes": 519437,
+  "raw_bytes": 3565125,
+  "raw_sha256": "68e9329206c5136305704f01406797d5220aaf8f6a3494545075b03bc00191cd",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    27.30271,
+    44.49623,
+    27.45137,
+    44.7206
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "missing": 1351,
+    "unsupported_elevated": 5,
+    "estimated_from_levels": 729
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

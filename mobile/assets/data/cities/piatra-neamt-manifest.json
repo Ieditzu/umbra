@@ -1,0 +1,31 @@
+{
+  "pilot_id": "piatra-neamt-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T10:19:26Z",
+  "sha256": "148566a8e90eaddf9e1634ada604cee885a008d45e83ccb11ec38456e26604a1",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 26904,
+  "directed_edges": 57164,
+  "buildings": 17358,
+  "bytes": 2976746,
+  "raw_bytes": 17992993,
+  "raw_sha256": "98aaf8bbb86b26d1c7a6caa12cf9dc526bfe439c2ad9fcd83477fef395a96fac",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    26.29841,
+    46.86179,
+    26.44773,
+    46.97965
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "missing": 13439,
+    "estimated_from_levels": 3820,
+    "osm_height_tag": 44,
+    "unsupported_elevated": 55
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

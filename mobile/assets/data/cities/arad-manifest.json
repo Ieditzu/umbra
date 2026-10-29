@@ -1,0 +1,31 @@
+{
+  "pilot_id": "arad-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T10:05:38Z",
+  "sha256": "da89644af5aff2e73ec3cec37bd86d7011e554ce4b0b874394143babf29adb48",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 36901,
+  "directed_edges": 80790,
+  "buildings": 14372,
+  "bytes": 3223898,
+  "raw_bytes": 21207983,
+  "raw_sha256": "c8ce57bc03e773eaa502689105ccef1e761ae933402f1c11f0fba5f79ea589bf",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    21.15136,
+    46.04475,
+    21.41468,
+    46.26182
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "missing": 11328,
+    "estimated_from_levels": 2936,
+    "osm_height_tag": 40,
+    "unsupported_elevated": 68
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

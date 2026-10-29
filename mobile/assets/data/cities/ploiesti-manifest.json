@@ -1,0 +1,31 @@
+{
+  "pilot_id": "ploiesti-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T10:05:18Z",
+  "sha256": "66513e4c636c3159af2c7cde1bef0065e29804ac11175958fcd0fec9aa110765",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 26896,
+  "directed_edges": 59840,
+  "buildings": 23195,
+  "bytes": 3452286,
+  "raw_bytes": 20054517,
+  "raw_sha256": "894ff727e7334615346936c85515139c23bf30f3bd9829e974e2bcbe5a96773e",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    25.9179,
+    44.89614,
+    26.10197,
+    44.96842
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "missing": 20802,
+    "estimated_from_levels": 2186,
+    "osm_height_tag": 139,
+    "unsupported_elevated": 68
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

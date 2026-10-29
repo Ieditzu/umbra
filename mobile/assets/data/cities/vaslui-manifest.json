@@ -1,0 +1,30 @@
+{
+  "pilot_id": "vaslui-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T10:20:01Z",
+  "sha256": "b7685fb96f0e9cb0be0be571be72801e4160c39a3222b3b11b7ba2a5ca8588c4",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 8817,
+  "directed_edges": 18606,
+  "buildings": 3152,
+  "bytes": 714121,
+  "raw_bytes": 4842031,
+  "raw_sha256": "d8bd74e4e8683df9c02fe174565f0cf2c663062596674fe53b7f271c4c9aef4c",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    27.65549,
+    46.60361,
+    27.83478,
+    46.70311
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "missing": 3028,
+    "estimated_from_levels": 79,
+    "osm_height_tag": 45
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

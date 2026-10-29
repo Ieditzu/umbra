@@ -1,0 +1,31 @@
+{
+  "pilot_id": "pitesti-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T10:18:39Z",
+  "sha256": "e770925211cfbcebaa9d5ad818c4e08dc31bb08618d0d0bee5e2cf7e6872b6dc",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 26098,
+  "directed_edges": 56094,
+  "buildings": 20402,
+  "bytes": 2960582,
+  "raw_bytes": 18036113,
+  "raw_sha256": "81584e472d435f407850f5e8e65ccb63cc62e96452c29e23abba1841946d5408",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    24.78039,
+    44.81748,
+    24.94267,
+    44.89582
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "estimated_from_levels": 2640,
+    "missing": 17683,
+    "osm_height_tag": 64,
+    "unsupported_elevated": 15
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

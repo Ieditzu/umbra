@@ -1,0 +1,31 @@
+{
+  "pilot_id": "giurgiu-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T10:19:50Z",
+  "sha256": "1398096ae681fdad79c1d08aa7b8390ff05d2dee62c9ee9af3f29853ef3ca35e",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 14417,
+  "directed_edges": 31258,
+  "buildings": 11660,
+  "bytes": 1801810,
+  "raw_bytes": 10704828,
+  "raw_sha256": "31b6f0a5988ae45941efa04d95cd261eb8381ae6613819ca3893f3d6e090cda5",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    25.88112,
+    43.85915,
+    26.03391,
+    43.93606
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "missing": 9324,
+    "estimated_from_levels": 204,
+    "osm_height_tag": 2066,
+    "unsupported_elevated": 66
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

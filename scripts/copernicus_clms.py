@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -80,8 +81,12 @@ class Client:
             data=data,
             headers=headers,
         )
-        with urllib.request.urlopen(request, timeout=120) as response:
-            return json.load(response)
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                return json.load(response)
+        except urllib.error.HTTPError as error:
+            detail = error.read()[:300].decode("utf-8", "replace")
+            raise RuntimeError(f"CLMS {error.code} for {path.split('?')[0]}: {detail}") from None
 
     def dataset(self, title: str = BUILDING_HEIGHT_2012) -> dict:
         query = urllib.parse.urlencode(

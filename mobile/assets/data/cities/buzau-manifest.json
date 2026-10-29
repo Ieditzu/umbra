@@ -1,0 +1,31 @@
+{
+  "pilot_id": "buzau-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T10:19:01Z",
+  "sha256": "8203611ffe632a85e2f2e50a7c987eaa7f6b4c0cbd1ca96e6f29caac26cea7c2",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 16329,
+  "directed_edges": 35274,
+  "buildings": 17317,
+  "bytes": 2310018,
+  "raw_bytes": 13296824,
+  "raw_sha256": "f3ec30d3e2593db02e05c2b74b1a1e07c6042ebdab55b6d0f1e2eb7b6ef5cec6",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    26.71469,
+    45.09161,
+    26.92587,
+    45.18375
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "osm_height_tag": 1957,
+    "estimated_from_levels": 1423,
+    "missing": 13927,
+    "unsupported_elevated": 10
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

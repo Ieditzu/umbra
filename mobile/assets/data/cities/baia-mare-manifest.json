@@ -1,0 +1,31 @@
+{
+  "pilot_id": "baia-mare-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T10:18:55Z",
+  "sha256": "5a3fce8b48524681709ee279338b2080d09c803599e78e8d69617ade8888034c",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 43790,
+  "directed_edges": 91998,
+  "buildings": 10080,
+  "bytes": 3196626,
+  "raw_bytes": 22320558,
+  "raw_sha256": "f1f3ce14c6e049e8f5025142df78e85811c43a49f445467bc9a3bb6e4f256986",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    23.48205,
+    47.62274,
+    23.71164,
+    47.85881
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "missing": 8840,
+    "osm_height_tag": 1149,
+    "estimated_from_levels": 87,
+    "unsupported_elevated": 4
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

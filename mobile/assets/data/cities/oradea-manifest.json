@@ -1,0 +1,31 @@
+{
+  "pilot_id": "oradea-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T10:05:25Z",
+  "sha256": "1a119124cf715c12e1edc62267c6dfb5a7bfb603e2549b1e4a8a849f315bf2e8",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 38172,
+  "directed_edges": 84706,
+  "buildings": 32658,
+  "bytes": 5085754,
+  "raw_bytes": 29413273,
+  "raw_sha256": "e8cd1d505afd8075ffdfe10352f9c6a2bf079552c2652cc995f9533f28d00ef2",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    21.84283,
+    47.00703,
+    22.03226,
+    47.14213
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "missing": 31099,
+    "estimated_from_levels": 1434,
+    "osm_height_tag": 107,
+    "unsupported_elevated": 18
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

@@ -1,0 +1,31 @@
+{
+  "pilot_id": "bucuresti-3-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T10:02:34Z",
+  "sha256": "c177e910308bde4b236a1b41108ca52bef6e846df06b2e3c8f8edeff05cd497f",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 23561,
+  "directed_edges": 50812,
+  "buildings": 31553,
+  "bytes": 3861462,
+  "raw_bytes": 21214734,
+  "raw_sha256": "7b031f03bc42fc0ba12a33712178f75827f680ca7bef0eff46d4ae047d6d21e9",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    26.12728,
+    44.32525,
+    26.23758,
+    44.4123
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "estimated_from_levels": 3767,
+    "missing": 25715,
+    "unsupported_elevated": 831,
+    "osm_height_tag": 1240
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

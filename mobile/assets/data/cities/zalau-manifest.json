@@ -1,0 +1,31 @@
+{
+  "pilot_id": "zalau-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T10:19:56Z",
+  "sha256": "887a01b53df66e5603659587ed11e8c60bab93bf17a8a59f5b142a7428e27f33",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 12364,
+  "directed_edges": 25776,
+  "buildings": 2252,
+  "bytes": 877345,
+  "raw_bytes": 6086512,
+  "raw_sha256": "2df0f0fb7a03461e6139c0e315f2786229f38ad20f9108fcaa5b13f754ed280a",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    23.00067,
+    47.1194,
+    23.17401,
+    47.23329
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "estimated_from_levels": 137,
+    "missing": 2104,
+    "unsupported_elevated": 8,
+    "osm_height_tag": 3
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

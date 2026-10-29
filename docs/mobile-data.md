@@ -2,6 +2,8 @@
 
 # Bundled Constanța city data
 
+Other cities, București zones and the automatic build are described in [city coverage](cities.md).
+
 `mobile/assets/data/constanta-city.json` holds a real OpenStreetMap-derived database in an openly decodable `umbra-gzip-json-v1` wrapper: base64-encoded gzip, approximately 7 MB packaged and 40 MB decoded. It replaces the small central pilot. The PC server loads it on demand from the repository; running the app does not require downloading the extract again. It is not a recording, synthetic fixture or measured shadow map.
 
 The city extract covers approximately 28.50–28.75 E and 44.075–44.355 N: Constanța, Mamaia, Palazu Mare and a margin. This is a rectangle, not an administrative-boundary polygon. Its metric bounds include all four projected corners in UTM 35N; buildings have a 500 m buffer. Paths can still be disconnected and OSM coverage incomplete.
@@ -10,7 +12,7 @@ The source snapshot is `2026-10-25T21:21:21Z`, from Geofabrik's Romania extract.
 
 The separate `constanta-heights-2012.json` adds Copernicus Urban Atlas Building Block Height 2012 (RO501 v010) samples for 16,243 buildings lacking OSM height and floor tags. `scripts/extract-copernicus-heights.py` transforms OSM polygons to EPSG:3035 and assigns only pixels whose centres fall in exactly one footprint; each height is the median of valid 10 m pixels. Source GeoTIFF SHA-256: `a89e2d4f27391d5515ebc9c6ccce933b7ed55693293762282b96acabc432975f`. The imagery is old; buildings may have changed. Against 47 available OSM height tags the median absolute difference is 4 m, mean absolute difference 11.36 m, and 45% are within 3 m; tags themselves are not surveyed ground truth. The routing range (height minus 5 m to height plus 10 m) is a heuristic, not a validated confidence interval. Estimates do not override OSM tags or measured heights and produce only estimated shade. © European Union, Copernicus Land Monitoring Service 2022, European Environment Agency (EEA). Source: https://land.copernicus.eu/en/products/urban-atlas/building-height-2012.
 
-Suceava uses the Geofabrik Romania OSM snapshot `2026-10-28T21:21:02Z` and the same extraction pipeline, with 34,070 nodes, 68,670 directed edges and 34,056 buildings. Its Copernicus 2012 raster (RO512 v010; SHA-256 `9a9f30085f8d1229adb21dc1cb9639f22c2315b09fbdb5a94655ab41d549fcaf`) supplies estimates for 1,228 buildings without OSM height or floor tags. Comparing 4,739 overlapping OSM height tags gives median absolute difference 6 m and mean absolute difference 5.17 m; these tags are not verified ground truth. No field accuracy is claimed. Provenance and bundle checksums are in `suceava-manifest.json`.
+Suceava uses the Geofabrik Romania OSM snapshot `2026-10-28T21:21:02Z` and the same extraction pipeline, with 34,056 buildings. Its walking graph was rebuilt on 2026-10-29 under the extended street policy ([city coverage](cities.md#walking-network)): 42,498 nodes and 88,202 directed edges, up from 34,070 and 68,670. Its Copernicus 2012 raster (RO512 v010; SHA-256 `9a9f30085f8d1229adb21dc1cb9639f22c2315b09fbdb5a94655ab41d549fcaf`) supplies estimates for 1,228 buildings without OSM height or floor tags. Comparing 4,739 overlapping OSM height tags gives median absolute difference 6 m and mean absolute difference 5.17 m; these tags are not verified ground truth. No field accuracy is claimed. Provenance and bundle checksums are in `suceava-manifest.json`.
 
 ## License and editable source
 

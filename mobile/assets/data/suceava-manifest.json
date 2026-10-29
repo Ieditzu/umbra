@@ -1,16 +1,16 @@
 {
   "pilot_id": "suceava-city-v1",
   "osm_base_timestamp": "2026-10-28T21:21:02Z",
-  "imported_at": "2026-10-29T08:27:07Z",
-  "sha256": "25bd21cdad1ab207c481f65ec479792e05a5f52caaf81c47420f6cea99299d94",
+  "imported_at": "2026-10-29T10:24:03Z",
+  "sha256": "5d887a8f19d2bdeb7da222ee57ca7952fab1067ac5526b3d83b710741a216478",
   "license": "ODbL-1.0",
   "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
-  "nodes": 34070,
-  "directed_edges": 68670,
+  "nodes": 42498,
+  "directed_edges": 88202,
   "buildings": 34056,
-  "bytes": 4241830,
-  "raw_bytes": 25596478,
-  "raw_sha256": "f8e65d722e760a7985b70a222e4334537c24968b64800c89f95ef59764428f3b",
+  "bytes": 4743786,
+  "raw_bytes": 29577755,
+  "raw_sha256": "c27167ffca5c1171236ec5ea3e0222adba43a61cfc35877e769175471f598ce5",
   "format": "umbra-gzip-json-v1",
   "geographic_extract_bounds": [
     26.09,
@@ -19,7 +19,7 @@
     47.77
   ],
   "source_url": "https://download.geofabrik.de/europe/romania.html",
-  "source_file": "umbra-romania-suceava.osm.pbf",
+  "source_file": "romania-261028.osm.pbf",
   "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
   "height_sources": {
     "missing": 11511,

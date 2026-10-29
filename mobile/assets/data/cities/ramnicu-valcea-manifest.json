@@ -1,0 +1,31 @@
+{
+  "pilot_id": "ramnicu-valcea-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T10:19:13Z",
+  "sha256": "3820462d81d3e8be9f783d80d0b874d391c2ceed5260c1f2edeccedf81ba8e39",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 36757,
+  "directed_edges": 76398,
+  "buildings": 27652,
+  "bytes": 4052182,
+  "raw_bytes": 24840735,
+  "raw_sha256": "066a8ac8ff8e413873a4ed79c8a3c38276de7540b48bb24c9a0ffca554a9eb7f",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    24.25968,
+    45.00934,
+    24.45027,
+    45.14032
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "missing": 21787,
+    "estimated_from_levels": 5804,
+    "osm_height_tag": 56,
+    "unsupported_elevated": 5
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}
