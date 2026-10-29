@@ -180,7 +180,7 @@ function renderer(models = false, style = null) {
   return { bridge: window.umbraMap, map, messages, instances };
 }
 
-test("bus stops are filtered from all POI layers without removing other symbols", async () => {
+test("transport places are filtered from all POI layers without removing other symbols", async () => {
   const style = { layers: [
     { id: "poi", type: "symbol", "source-layer": "poi", filter: ["==", ["get", "rank"], 1] },
     { id: "transit", type: "symbol", "source-layer": "poi" },
@@ -193,7 +193,8 @@ test("bus stops are filtered from all POI layers without removing other symbols"
   assert.equal(layers[0].filter[1][0], "==");
   for (const layer of layers.slice(0, 2)) {
     assert.ok(JSON.stringify(layer.filter).includes('"bus_stop"'));
-    assert.ok(JSON.stringify(layer.filter).includes('"bus_station"'));
+    for (const type of ['bus_station', 'railway', 'airport', 'ferry_terminal', 'tram_stop'])
+      assert.ok(JSON.stringify(layer.filter).includes(JSON.stringify(type)));
   }
   assert.equal(layers[2].filter, undefined);
 });

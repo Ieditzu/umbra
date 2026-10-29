@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ComponentProps } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import MapView, { Circle, Marker, Polygon, Polyline } from "react-native-maps";
 import type { Region } from "react-native-maps";
@@ -13,6 +14,19 @@ import { colors } from "../theme";
 import { nativeMapType } from "../domain/mapDisplay";
 import type { MapStyle } from "../domain/mapDisplay";
 import type { MeasureOverlay } from "../domain/measureOverlay";
+
+// MapKit accepts an allowlist, so omit transport categories while keeping other POIs.
+const applePlaces: NonNullable<ComponentProps<typeof MapView>["pointsOfInterestFilter"]> = [
+  "museum", "musicVenue", "theater", "library", "planetarium", "school", "university",
+  "movieTheater", "nightlife", "fireStation", "hospital", "pharmacy", "police",
+  "castle", "fortress", "landmark", "nationalMonument", "bakery", "brewery", "cafe",
+  "distillery", "foodMarket", "restaurant", "winery", "animalService", "atm", "bank",
+  "beauty", "fitnessCenter", "laundry", "mailbox", "postOffice", "restroom", "spa", "store",
+  "amusementPark", "aquarium", "beach", "campground", "fairground", "nationalPark", "park", "rvPark", "zoo",
+  "baseball", "basketball", "bowling", "goKart", "golf", "hiking", "miniGolf", "rockClimbing",
+  "skatePark", "skating", "skiing", "soccer", "stadium", "tennis", "volleyball",
+  "conventionCenter", "hotel", "fishing", "kayaking", "surfing", "swimming",
+];
 
 function shadowElements(shadows: ShadowLayer | null) {
   return shadows?.polygons.map((polygon) => (
@@ -330,7 +344,8 @@ export function RouteMap({
           onTap?.(event.nativeEvent.coordinate);
         }}
         mapType={nativeMapType(mapStyle, Platform.OS)}
-        customMapStyle={Platform.OS === "android" ? [{ featureType: "transit.station.bus", stylers: [{ visibility: "off" }] }] : undefined}
+        customMapStyle={Platform.OS === "android" ? [{ featureType: "transit", stylers: [{ visibility: "off" }] }] : undefined}
+        pointsOfInterestFilter={Platform.OS === "ios" ? applePlaces : undefined}
         showsBuildings={threeD}
         pitchEnabled
         showsCompass={false}
