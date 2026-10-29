@@ -49,6 +49,17 @@ function areaData(areas) {
     areaCache.delete(areaCache.keys().next().value);
   return promise;
 }
+/** Answer cancellation promptly; a city load keeps running and stays cached for a retry. */
+function untilAborted(promise, signal) {
+  return new Promise((resolve, reject) => {
+    const stop = () => reject(Error("Calculul a fost oprit."));
+    if (signal.aborted) return stop();
+    signal.addEventListener("abort", stop, { once: true });
+    promise
+      .then(resolve, reject)
+      .finally(() => signal.removeEventListener("abort", stop));
+  });
+}
 const NO_DATA =
   "Pentru această zonă nu există încă date pietonale și de clădiri pregătite.";
 treePromise
@@ -79,7 +90,7 @@ parentPort.on("message", async (message) => {
             ? "Punctele alese sunt în zone fără o rețea pietonală comună. Alege o destinație mai apropiată."
             : "Pentru punctele alese nu există încă date pietonale pregătite.",
         );
-      data = await areaData(areas);
+      data = await untilAborted(areaData(areas), controller.signal);
     } else if (q.__region) {
       data = regionCache.get(q.__region.key);
       if (!data) {
@@ -104,7 +115,7 @@ parentPort.on("message", async (message) => {
         // Measuring outside bundled areas finds no OSM building rather than failing.
         if (message.kind !== "verify" && message.kind !== "inspect")
           throw new OutsideCoverageError(NO_DATA);
-      } else data = await areaData([area]);
+      } else data = await untilAborted(areaData([area]), controller.signal);
     }
     if (controller.signal.aborted) throw Error("Calculul a fost oprit.");
     if (data) data = withMeasuredHeights(data, measured);

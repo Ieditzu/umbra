@@ -1,6 +1,6 @@
 # Umbra
 
-A React Native map with building geometry and estimated solar shadows across Romania. Shade-aware walking routes use prepared OpenStreetMap city graphs for București and all 41 county seats, generated automatically (see [city coverage](docs/cities.md)). **The PC calculates routes, sunlight and building geometry; the phone displays the map and reads GPS/compass.** No server address needs to be entered in the app. See [the overview](overview.md).
+A React Native map with building geometry and estimated solar shadows across Romania. Shade-aware walking routes use prepared OpenStreetMap city graphs for București and the other 40 county seats (41 cities), generated automatically (see [city coverage](docs/cities.md)). **The PC calculates routes, sunlight and building geometry; the phone displays the map and reads GPS/compass.** No server address needs to be entered in the app. See [the overview](overview.md).
 
 ## Run on your PC and phone
 

@@ -181,10 +181,12 @@ test(
       catalog.forRoute(request.origin, request.destination).map((a) => a.id),
       [left.id, right.id],
     );
-    const route = parseComparison(
-      await post("/v1/routes/compare", request),
-      request,
-    );
+    // The first joined-zone route also decodes both zones (about 7 s here); under a
+    // loaded test machine it can hit the 20 s deadline, and the retry reuses the load.
+    let answer = await post("/v1/routes/compare", request);
+    if (answer.code === "timeout")
+      answer = await post("/v1/routes/compare", request);
+    const route = parseComparison(answer, request);
     assert.ok(route.routes[0].distance_m > 500);
     assert.ok(
       route.warnings.some(
