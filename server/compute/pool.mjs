@@ -7,7 +7,7 @@ export class ComputeError extends Error {
   }
 }
 export class ComputePool {
-  constructor(size = 2) {
+  constructor(size = 1) {
     this.queue = [];
     this.sequence = 0;
     this.closed = false;

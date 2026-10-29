@@ -117,7 +117,7 @@ test(
   "real city worker serves validated buildings shadows and a connected route without changing the phone model",
   { timeout: 60000 },
   async (t) => {
-    const pool = new ComputePool(1),
+    const pool = new ComputePool(),
       app = createComputeServer({ pool }),
       base = await listen(app.server);
     t.after(() => app.close());
@@ -128,6 +128,7 @@ test(
     while (!pool.ready && Date.now() < expiry)
       await new Promise((r) => setTimeout(r, 100));
     assert.equal(pool.ready, true);
+    assert.equal(pool.slots.length, 1);
     const cancelled = new AbortController();
     const pending = pool.run(
       "buildings",

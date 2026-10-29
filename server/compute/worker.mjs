@@ -14,7 +14,7 @@ import { unproject } from "../../mobile/src/engine/geometry.ts";
 import { decodeRegion } from "./tile-buildings.mjs";
 import { simplifyDisplayRing } from "./display-geometry.mjs";
 import { IdleCache } from "./idle-cache.mjs";
-import { cityCatalog, loadAreas, loadTreeCatalog } from "./city.mjs";
+import { cityCatalog, loadAreaGraph, loadAreas, loadTreeCatalog } from "./city.mjs";
 const controllers = new Map();
 const idIndex = new WeakMap();
 /** Building lookup by OSM id for upload verification. */
@@ -32,26 +32,25 @@ const treePromise = loadTreeCatalog();
 // Decoded areas are large (roughly 0.2–0.6 GB each); keep only recent ones per worker.
 const AREA_CACHE = Math.max(
   1,
-  Math.min(16, Number(process.env.UMBRA_CITY_CACHE) || 3),
+  Math.min(16, Number(process.env.UMBRA_CITY_CACHE) || 1),
 );
 const areaCache = new IdleCache();
 setInterval(() => { areaCache.sweep(); regionCache.sweep(); }, 60000).unref();
-function areaData(areas) {
-  const key = areas
-    .map((a) => a.id)
-    .sort()
-    .join("+");
-  let promise = areaCache.get(key);
-  if (promise) {
-    areaCache.delete(key);
-  } else {
-    promise = loadAreas(areas, { treeCatalog: treePromise });
-    promise.catch(() => { if (areaCache.get(key) === promise) areaCache.delete(key); });
+function areaData(areas, includeGraph = false) {
+  const key = areas.map((a) => a.id).sort().join("+");
+  let entry = areaCache.get(key);
+  if (!entry || (includeGraph && !entry.includeGraph)) {
+    const promise = entry && includeGraph
+      ? entry.promise.then((base) => loadAreaGraph(areas, base))
+      : loadAreas(areas, { treeCatalog: treePromise, includeGraph });
+    entry = { promise, includeGraph };
+    const current = entry;
+    promise.catch(() => { if (areaCache.get(key) === current) areaCache.delete(key); });
+    areaCache.set(key, entry);
+    while (areaCache.size > AREA_CACHE)
+      areaCache.delete(areaCache.keys().next().value);
   }
-  areaCache.set(key, promise);
-  while (areaCache.size > AREA_CACHE)
-    areaCache.delete(areaCache.keys().next().value);
-  return promise;
+  return entry.promise;
 }
 /** Answer cancellation promptly; a city load keeps running and stays cached for a retry. */
 function untilAborted(promise, signal) {
@@ -94,14 +93,14 @@ parentPort.on("message", async (message) => {
             ? "Punctele alese sunt în zone fără o rețea pietonală comună. Alege o destinație mai apropiată."
             : "Pentru punctele alese nu există încă date pietonale pregătite.",
         );
-      data = await untilAborted(areaData(areas), controller.signal);
+      data = await untilAborted(areaData(areas, true), controller.signal);
     } else if (q.__region) {
       data = regionCache.get(q.__region.key);
       if (!data) {
         data = await decodeRegion(q.__region, controller.signal);
         const trees = await treePromise;
         data = withTrees(data, trees.forArea(data.imported_m));
-        if (regionCache.size >= 3)
+        if (regionCache.size >= 1)
           regionCache.delete(regionCache.keys().next().value);
         regionCache.set(q.__region.key, data);
       }

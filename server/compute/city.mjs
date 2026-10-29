@@ -69,14 +69,15 @@ export function mergeRaw(parts) {
  */
 export async function loadAreas(
   areas,
-  { copernicus = true, treeCatalog = loadTreeCatalog() } = {},
+  { copernicus = true, treeCatalog = loadTreeCatalog(), includeGraph = true } = {},
 ) {
   const raws = await Promise.all(
     areas.map((a) => unpack(new URL(a.file, CITIES), MAX_RAW)),
   );
   const raw = mergeRaw(raws);
+  const input = includeGraph ? raw : { ...raw, nodes: [], edges: [] };
   const [data, catalog] = await Promise.all([
-    initializeDataset(raw, task(new AbortController().signal, 120000)),
+    initializeDataset(input, task(new AbortController().signal, 120000), { requireGraph: includeGraph }),
     treeCatalog,
   ]);
   let result = data;
@@ -125,6 +126,13 @@ export async function loadAreas(
     withTrees(result, catalog.forArea(data.imported_m)),
     canopies,
   );
+}
+
+/** Add the pedestrian graph without rebuilding the already loaded map geometry. */
+export async function loadAreaGraph(areas, base) {
+  const raw = mergeRaw(await Promise.all(areas.map((a) => unpack(new URL(a.file, CITIES), MAX_RAW))));
+  const graph = await initializeDataset({ ...raw, buildings: [] }, task(new AbortController().signal, 120000));
+  return { ...base, nodes: graph.nodes, edges: graph.edges, positions: graph.positions, adjacency: graph.adjacency };
 }
 
 let shared = null;
