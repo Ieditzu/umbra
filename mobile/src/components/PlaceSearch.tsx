@@ -1,10 +1,8 @@
-import * as Location from "expo-location";
-import { useEffect, useRef, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Keyboard,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,196 +11,99 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { isCoordinate } from "../domain/routes";
+import type { Coordinate } from "../domain/routes";
+import { searchPlaces } from "../services/placeSearch";
+import type { SearchPlace } from "../services/placeSearch";
 import type { Place, Selection } from "../state/PlannerProvider";
 import { colors } from "../theme";
 
-export function PlaceSearch({
-  target,
-  onClose,
-  onChoose,
-}: {
+export function PlaceSearch({ target, near, onClose, onChoose }: {
   target: Selection | null;
+  near: Coordinate | null;
   onClose: () => void;
   onChoose: (place: Place) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Place[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const operation = useRef({ value: 0 });
+  const [results, setResults] = useState<SearchPlace[]>([]);
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [position] = useState(near);
+
   useEffect(() => {
-    const state = operation.current;
-    return () => {
-      state.value++;
-    };
-  }, []);
-  async function search() {
-    if (busy || query.trim().length < 3) return;
-    const ticket = ++operation.current.value;
-    setBusy(true);
-    setError("");
+    const text = query.trim();
+    if (text.length < 3) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      void searchPlaces(text, position, controller.signal).then((places) => {
+        if (!controller.signal.aborted) {
+          setResults(places);
+          setStatus("done");
+        }
+      }).catch(() => {
+        if (!controller.signal.aborted) setStatus("error");
+      });
+    }, 800);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [query, position]);
+
+  function changeQuery(value: string) {
+    setQuery(value);
     setResults([]);
-    Keyboard.dismiss();
-    try {
-      if (Platform.OS === "android") {
-        const permission = await Location.requestForegroundPermissionsAsync();
-        if (permission.status !== "granted")
-          throw new Error(
-            "Căutarea nativă Android necesită permisiunea de localizare. Poți alege punctul direct pe hartă fără această permisiune.",
-          );
-      }
-      if (ticket !== operation.current.value) return;
-      const addresses = await Location.geocodeAsync(`${query.trim()}, România`);
-      if (ticket !== operation.current.value) return;
-      const places = addresses
-        .filter(isCoordinate)
-        .slice(0, 5)
-        .map((item) => ({
-          coordinate: { latitude: item.latitude, longitude: item.longitude },
-          label: query.trim(),
-        }));
-      setResults(places);
-      if (!places.length)
-        setError(
-          "Nu am găsit adresa. Încearcă un nume mai complet sau alege pe hartă.",
-        );
-    } catch (reason) {
-      if (ticket === operation.current.value)
-        setError(
-          reason instanceof Error
-            ? reason.message
-            : "Căutarea nu este disponibilă.",
-        );
-    } finally {
-      if (ticket === operation.current.value) setBusy(false);
-    }
+    setStatus(value.trim().length >= 3 ? "loading" : "idle");
   }
+
   return (
-    <Modal
-      visible={target !== null}
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={target !== null} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.page}>
-        <View style={styles.header}>
-          <Text style={styles.title}>
-            {target === "origin" ? "De unde pleci?" : "Unde mergi?"}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onClose}
-            style={styles.close}
-          >
-            <Text style={styles.closeText}>Închide</Text>
+        <View style={styles.searchBar}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Înapoi" onPress={onClose} style={styles.iconButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.ink} />
           </Pressable>
+          <TextInput autoFocus value={query} onChangeText={changeQuery} style={styles.input}
+            placeholder={target === "origin" ? "De unde pleci?" : "Unde mergi?"}
+            placeholderTextColor={colors.muted} accessibilityLabel="Caută un loc sau o adresă"
+            returnKeyType="search" maxLength={200} autoCorrect={false} />
+          {status === "loading" ? <ActivityIndicator color={colors.green} /> : query ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Șterge căutarea" onPress={() => changeQuery("")} style={styles.iconButton}>
+              <Ionicons name="close-circle" size={21} color={colors.muted} />
+            </Pressable>
+          ) : null}
         </View>
-        <TextInput
-          autoFocus
-          value={query}
-          onChangeText={setQuery}
-          style={styles.input}
-          placeholder="Unde mergi?"
-          placeholderTextColor={colors.muted}
-          accessibilityLabel="Adresa căutată"
-          returnKeyType="search"
-          onSubmitEditing={() => void search()}
-          maxLength={200}
-        />
-        <Pressable
-          accessibilityRole="button"
-          disabled={busy || query.trim().length < 3}
-          onPress={() => void search()}
-          style={[
-            styles.button,
-            (busy || query.trim().length < 3) && { opacity: 0.5 },
-          ]}
-        >
-          {busy ? (
-            <ActivityIndicator color={colors.white} />
-          ) : (
-            <Text style={styles.buttonText}>Caută adresa</Text>
-          )}
-        </Pressable>
-        {!!error && (
-          <Text accessibilityRole="alert" style={styles.error}>
-            {error}
-          </Text>
-        )}
-        <ScrollView keyboardShouldPersistTaps="handled">
+        <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+          {status === "error" && <Text accessibilityRole="alert" style={styles.message}>Căutarea nu este disponibilă. Verifică conexiunea și încearcă din nou.</Text>}
+          {status === "done" && results.length === 0 && <Text style={styles.message}>Nu am găsit locuri. Încearcă alt nume sau adaugă orașul.</Text>}
           {results.map((place, index) => (
-            <Pressable
-              accessibilityRole="button"
-              key={`${place.coordinate.latitude}-${place.coordinate.longitude}-${index}`}
-              onPress={() => onChoose(place)}
-              style={styles.result}
-            >
-              <Text style={styles.resultTitle}>
-                {place.label}
-                {results.length > 1 ? ` · ${index + 1}` : ""}
-              </Text>
-              <Text style={styles.note}>
-                {place.coordinate.latitude.toFixed(5)},{" "}
-                {place.coordinate.longitude.toFixed(5)}
-              </Text>
+            <Pressable accessibilityRole="button" key={`${place.coordinate.latitude}-${place.coordinate.longitude}-${index}`}
+              onPress={() => onChoose({ coordinate: place.coordinate, label: place.label })} style={styles.result}>
+              <View style={styles.pin}><Ionicons name="location-outline" size={21} color={colors.ink} /></View>
+              <View style={styles.resultText}>
+                <Text style={styles.resultTitle}>{place.label}</Text>
+                {!!place.detail && <Text style={styles.detail}>{place.detail}</Text>}
+              </View>
+              <Ionicons name="arrow-up-outline" size={20} color={colors.muted} style={{ transform: [{ rotate: "45deg" }] }} />
             </Pressable>
           ))}
+          <Pressable accessibilityRole="button" onPress={onClose} style={styles.mapChoice}>
+            <View style={styles.pin}><Ionicons name="map-outline" size={21} color={colors.ink} /></View>
+            <Text style={styles.resultTitle}>Alege pe hartă</Text>
+          </Pressable>
+          <Text style={styles.attribution}>Căutare: Photon · © OpenStreetMap contributors</Text>
         </ScrollView>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onClose}
-          style={styles.close}
-        >
-          <Text style={styles.closeText}>Aleg punctul pe hartă</Text>
-        </Pressable>
       </SafeAreaView>
     </Modal>
   );
 }
+
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.paper, padding: 22 },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  title: { fontSize: 24, color: colors.ink, fontWeight: "700" },
-  close: {
-    minHeight: 48,
-    padding: 10,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  closeText: { color: colors.green, fontWeight: "600" },
-  note: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: colors.muted,
-    marginVertical: 10,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: 15,
-    borderRadius: 12,
-    backgroundColor: colors.white,
-    color: colors.ink,
-    fontSize: 16,
-    marginVertical: 10,
-  },
-  button: {
-    minHeight: 52,
-    backgroundColor: colors.green,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 14,
-  },
-  buttonText: { color: colors.white, fontWeight: "600", fontSize: 15 },
-  error: { color: colors.error, lineHeight: 21, paddingVertical: 14 },
-  result: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-    paddingVertical: 14,
-  },
-  resultTitle: { color: colors.ink, fontSize: 16, fontWeight: "500" },
+  page: { flex: 1, backgroundColor: colors.white },
+  searchBar: { flexDirection: "row", alignItems: "center", marginHorizontal: 16, marginVertical: 12, paddingRight: 12, minHeight: 56, borderRadius: 28, backgroundColor: "#f1f3f2" },
+  iconButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  input: { flex: 1, color: colors.ink, fontSize: 17, paddingVertical: 12 },
+  message: { color: colors.muted, fontSize: 15, lineHeight: 22, paddingHorizontal: 24, paddingVertical: 20 },
+  result: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 13, gap: 14 },
+  pin: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#eef0ee", alignItems: "center", justifyContent: "center" },
+  resultText: { flex: 1, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line, paddingBottom: 10 },
+  resultTitle: { color: colors.ink, fontSize: 16, fontWeight: "600" },
+  detail: { color: colors.muted, fontSize: 13, marginTop: 4 },
+  mapChoice: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 13, gap: 14 },
+  attribution: { color: colors.muted, fontSize: 11, marginHorizontal: 24, marginTop: 16 },
 });

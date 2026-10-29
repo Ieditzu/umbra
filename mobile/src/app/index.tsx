@@ -978,6 +978,7 @@ export default function MapScreen() {
       {search && (
         <PlaceSearch
           target="destination"
+          near={live.fix}
           onClose={() => setSearch(false)}
           onChoose={(place) => {
             setNavigation(null);
