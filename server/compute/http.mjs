@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { gzip } from "node:zlib";
 import { promisify } from "node:util";
 import { ComputeError, ComputePool } from "./pool.mjs";
+import { IdleCache } from "./idle-cache.mjs";
 import { RegionTiles, regionalSelection } from "./regions.mjs";
 import { heightsRoute, RateLimiter } from "../heights/routes.mjs";
 import { createWeatherService, applyWeather } from "./weather.mjs";
@@ -118,8 +119,10 @@ export function createComputeServer({
     delete_ip: 120,
   }),
 } = {}) {
-  const cache = new Map();
   let cacheBytes = 0;
+  const cache = new IdleCache(300000, Date.now, (json) => { cacheBytes -= Buffer.byteLength(json); });
+  const cleanup = setInterval(() => cache.sweep(), 60000);
+  cleanup.unref();
   const server = createServer(async (req, res) => {
     const controller = new AbortController();
     res.on("close", () => {
@@ -269,7 +272,6 @@ export function createComputeServer({
               cacheBytes + Buffer.byteLength(json) > 16_000_000)
           ) {
             const first = cache.keys().next().value;
-            cacheBytes -= Buffer.byteLength(cache.get(first));
             cache.delete(first);
           }
           cache.set(key, json);
@@ -298,6 +300,9 @@ export function createComputeServer({
     server,
     pool,
     close: async () => {
+      clearInterval(cleanup);
+      cache.clear();
+      regions.close?.();
       server.closeAllConnections();
       await new Promise((resolve) => server.close(resolve));
       await pool.close();

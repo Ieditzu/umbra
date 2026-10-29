@@ -17,6 +17,8 @@ The combined launcher automatically reloads its backend after edits to server/sh
 
 The app automatically reaches the backend through the same Expo connection, at `/umbra-api`. There is no IP/server field to configure. The backend uses `127.0.0.1:8000` internally; Metro forwards the permitted API paths. If you already started this backend separately, the launcher reuses it and leaves it running on exit. Go is not required for this workflow.
 
+The server shares city and map data between requests. Cached city data, map tiles and viewport results expire after five minutes without use (checked once per minute); active calculations continue. The shared tree catalog stays loaded. Reopening an expired area may take longer, and the operating system may not reclaim released memory immediately.
+
 To launch the two processes separately, use **two terminals**, from the repository root:
 
 ```bash

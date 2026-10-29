@@ -151,8 +151,12 @@ test("tile downloads use one shared metadata request at most four connections an
   assert.equal(a.tiles.length, 9);
   assert.ok(max <= 4);
   assert.equal(calls, 10);
+  assert.equal(loader.bytes, 9 * tile.length);
   await loader.load(selection);
   assert.equal(calls, 10);
+  assert.equal(loader.bytes, 9 * tile.length);
+  loader.close();
+  assert.equal(loader.bytes, 0);
 });
 
 test("regional polygons retain courtyards and map heights stay separate from source height evidence", async () => {

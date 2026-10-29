@@ -1,4 +1,5 @@
 import { ComputeError } from "./pool.mjs";
+import { IdleCache } from "./idle-cache.mjs";
 import { cityCatalog } from "./city.mjs";
 const ZOOM = 14,
   SIZE = 2 ** ZOOM;
@@ -61,13 +62,19 @@ async function limitedBody(response, limit) {
 export class RegionTiles {
   constructor(fetcher = fetch) {
     this.fetcher = fetcher;
-    this.cache = new Map();
+    this.cache = new IdleCache(300000, Date.now, (tile) => { this.bytes -= tile.bytes.length; });
     this.pending = new Map();
     this.regions = new Map();
     this.bytes = 0;
     this.active = 0;
     this.waiters = [];
     this.metadata = null;
+    this.cleanup = setInterval(() => this.cache.sweep(), 60000);
+    this.cleanup.unref();
+  }
+  close() {
+    clearInterval(this.cleanup);
+    this.cache.clear();
   }
   async network(url, limit) {
     if (this.active >= 4)
@@ -118,8 +125,6 @@ export class RegionTiles {
     const key = `${z}/${x}/${y}`;
     if (this.cache.has(key)) {
       const value = this.cache.get(key);
-      this.cache.delete(key);
-      this.cache.set(key, value);
       return value;
     }
     if (this.pending.has(key)) return this.pending.get(key);
@@ -135,7 +140,6 @@ export class RegionTiles {
         (this.cache.size >= 32 || this.bytes + bytes.length > 16_000_000)
       ) {
         const first = this.cache.keys().next().value;
-        this.bytes -= this.cache.get(first).bytes.length;
         this.cache.delete(first);
       }
       const value = { x, y, z, bytes };

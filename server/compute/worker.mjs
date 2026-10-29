@@ -13,6 +13,7 @@ import {
 import { unproject } from "../../mobile/src/engine/geometry.ts";
 import { decodeRegion } from "./tile-buildings.mjs";
 import { simplifyDisplayRing } from "./display-geometry.mjs";
+import { IdleCache } from "./idle-cache.mjs";
 import { cityCatalog, loadAreas, loadTreeCatalog } from "./city.mjs";
 const controllers = new Map();
 const idIndex = new WeakMap();
@@ -25,7 +26,7 @@ function byId(data) {
   }
   return index;
 }
-const regionCache = new Map();
+const regionCache = new IdleCache();
 const catalog = cityCatalog();
 const treePromise = loadTreeCatalog();
 // Decoded areas are large (roughly 0.2–0.6 GB each); keep only recent ones per worker.
@@ -33,7 +34,8 @@ const AREA_CACHE = Math.max(
   1,
   Math.min(16, Number(process.env.UMBRA_CITY_CACHE) || 3),
 );
-const areaCache = new Map();
+const areaCache = new IdleCache();
+setInterval(() => { areaCache.sweep(); regionCache.sweep(); }, 60000).unref();
 function areaData(areas) {
   const key = areas
     .map((a) => a.id)
@@ -44,7 +46,7 @@ function areaData(areas) {
     areaCache.delete(key);
   } else {
     promise = loadAreas(areas, { treeCatalog: treePromise });
-    promise.catch(() => areaCache.delete(key));
+    promise.catch(() => { if (areaCache.get(key) === promise) areaCache.delete(key); });
   }
   areaCache.set(key, promise);
   while (areaCache.size > AREA_CACHE)
