@@ -189,3 +189,42 @@ func TestMultipolygonOuterFragmentsAndHole(t *testing.T) {
 		t.Fatal("relation rings lost or duplicated", d.Buildings)
 	}
 }
+func TestCityStreetsWithoutSeparateSidewalks(t *testing.T) {
+	raw := `{"osm3s":{"timestamp_osm_base":"2026-10-28T00:00:00Z"},"elements":[
+{"type":"node","id":1,"lat":44.173,"lon":28.635},
+{"type":"node","id":2,"lat":44.174,"lon":28.635},
+{"type":"node","id":3,"lat":44.175,"lon":28.635},
+{"type":"node","id":4,"lat":44.176,"lon":28.635},
+{"type":"node","id":5,"lat":44.177,"lon":28.635},
+{"type":"node","id":6,"lat":44.178,"lon":28.635},
+{"type":"node","id":7,"lat":44.179,"lon":28.635},
+{"type":"way","id":200,"nodes":[1,2],"tags":{"highway":"tertiary"}},
+{"type":"way","id":201,"nodes":[2,3],"tags":{"highway":"primary","sidewalk":"both"}},
+{"type":"way","id":202,"nodes":[3,4],"tags":{"highway":"secondary","sidewalk":"separate"}},
+{"type":"way","id":203,"nodes":[4,5],"tags":{"highway":"primary","sidewalk":"no"}},
+{"type":"way","id":204,"nodes":[5,6],"tags":{"highway":"trunk"}},
+{"type":"way","id":205,"nodes":[6,7],"tags":{"highway":"trunk","foot":"yes"}},
+{"type":"way","id":206,"nodes":[1,7],"tags":{"highway":"unclassified","foot":"no"}}
+]}`
+	d, err := u.BuildDataset([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[int64]int{}
+	for _, e := range d.Edges {
+		got[e.WayID]++
+		if e.PositionKnown {
+			t.Fatalf("street centreline %d assigned sidewalk precision", e.WayID)
+		}
+	}
+	for _, way := range []int64{200, 201, 205} {
+		if got[way] != 2 {
+			t.Fatalf("way %d should be walkable both ways: %v", way, got)
+		}
+	}
+	for _, way := range []int64{202, 203, 204, 206} {
+		if got[way] != 0 {
+			t.Fatalf("way %d should be excluded: %v", way, got)
+		}
+	}
+}

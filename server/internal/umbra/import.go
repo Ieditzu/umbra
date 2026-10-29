@@ -174,6 +174,18 @@ func walkingWay(t map[string]string) (bool, bool) {
 			return false, false
 		}
 		return true, false // lawful mapped road route, no fabricated sidewalk offset or shade
+	case "unclassified", "tertiary", "tertiary_link", "secondary", "secondary_link", "primary", "primary_link":
+		// City streets whose sidewalks are not mapped separately. The centreline only stands in
+		// for the unmapped sidewalk, so its exposure stays unknown. Explicitly no sidewalk is excluded.
+		switch t["sidewalk"] {
+		case "separate", "no", "none":
+			return false, false
+		}
+		return true, false
+	case "trunk", "trunk_link", "motorway", "motorway_link":
+		if t["foot"] == "yes" || t["foot"] == "designated" {
+			return true, false
+		}
 	}
 	return false, false
 }
