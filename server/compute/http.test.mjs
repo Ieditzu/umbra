@@ -149,6 +149,13 @@ test(
     assert.ok(
       buildings.features.length > 0 && buildings.features.length <= 2500,
     );
+    const wideBuildings = parseBuildingFeatures(
+      await (await post(base, "/v1/buildings", {
+        bounds: [28.3, 43.9, 28.9, 44.4],
+        focus: { latitude: 44.175, longitude: 28.636 },
+      })).json(),
+    );
+    assert.ok(wideBuildings.features.length > 0 && wideBuildings.features.length <= 2500);
     const shadows = parseShadowLayer(
       await (await post(base, "/v1/shadows", { bounds, at })).json(),
       at,

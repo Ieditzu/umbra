@@ -60,6 +60,7 @@ const shadowStatus: Record<string, string> = {
   night: "Noapte",
   low_sun: "Soare la orizont",
   loading: "Se actualizează",
+  zoom_out: "Apropie harta pentru umbre",
   unavailable: "Temporar indisponibile",
   server_restart: "Repornește serverul de pe PC",
   outside: "Apropie harta de România",
@@ -978,7 +979,7 @@ export default function MapScreen() {
       {search && (
         <PlaceSearch
           target="destination"
-          near={live.fix}
+          near={live.fix ?? view.focus}
           onClose={() => setSearch(false)}
           onChoose={(place) => {
             setNavigation(null);

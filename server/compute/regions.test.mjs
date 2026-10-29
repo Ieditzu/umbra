@@ -111,6 +111,14 @@ test("towns without a bundled snapshot use regional tiles while bundled cities k
   );
 });
 
+test("wide building views use the focused city dataset when available", () => {
+  const query = { bounds: [28.3, 43.9, 28.9, 44.4], focus: { longitude: 28.64, latitude: 44.175 } };
+  assert.equal(regionalSelection(query, undefined, true), null);
+  assert.equal(regionalSelection(query).z, 14);
+  const elsewhere = { ...query, focus: { longitude: 28.585, latitude: 43.815 } };
+  assert.equal(regionalSelection(elsewhere, undefined, true).z, 14);
+});
+
 test("tile downloads use one shared metadata request at most four connections and a cache", async () => {
   let active = 0,
     max = 0,

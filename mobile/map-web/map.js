@@ -87,6 +87,7 @@
     clearTimeout(obstacleTimer);
     obstacleTimer = setTimeout(() => {
       const layer = window.umbraTreeLayer;
+      if (map.getZoom() < 13) return;
       if (!layer || typeof layer.setObstacles !== "function") return;
       const roadSources = new Set(
         (map.getStyle()?.layers ?? [])
@@ -327,7 +328,7 @@
             ],
             "fill-extrusion-height": ["get", "display_height"],
             "fill-extrusion-base": 0,
-            "fill-extrusion-opacity": 1,
+            "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 9, 0, 12.5, 1],
           },
         },
         before,
@@ -717,6 +718,12 @@
     window.umbraMap = {
       receive(message) {
         switch (message.type) {
+          case "clearBuildings":
+            saved.buildings = empty();
+            buildingRevision++;
+            map.getSource("umbra-buildings")?.setData(saved.buildings);
+            scheduleObstacles();
+            break;
           case "data":
             put(message.name, message.value, message.retainTrees !== false);
             break;

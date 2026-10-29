@@ -2,11 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { freshFix, shouldRefreshRoute } from "../src/domain/live.ts";
 import {
+  detailedViewport,
   parseShadowLayer,
   mapShadowVisibility,
   shadowInstant,
   visibleShadowLayer,
 } from "../src/domain/shadows.ts";
+
+test("large views suspend detailed geometry until the map is zoomed back in", () => {
+  assert.equal(detailedViewport([28.62, 44.16, 28.66, 44.20]), true);
+  assert.equal(detailedViewport([28, 44, 29, 45]), false);
+  assert.equal(detailedViewport([28.62, 44, 28.66, 45]), false);
+});
 
 const point = { latitude: 44.175, longitude: 28.635 };
 const at = "2026-10-24T12:00:00.000Z";

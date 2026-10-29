@@ -238,7 +238,7 @@ export function createComputeServer({
       if (!json) {
         // Measuring uses stable OSM ids, so it always reads the bundled city snapshot.
         const selection =
-          kind === "routes" || kind === "inspect" ? null : regionalSelection(q);
+          kind === "routes" || kind === "inspect" ? null : regionalSelection(q, undefined, kind === "buildings");
         const region = selection ? await regions.load(selection) : undefined;
         if (controller.signal.aborted) return;
         const measured = mergeHeights(heights?.confirmed(), q.measured_heights);
