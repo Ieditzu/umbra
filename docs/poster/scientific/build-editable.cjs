@@ -10,7 +10,7 @@ require('node:assert/strict')(areas.length>0 && areas.every(a=>typeof a.city==='
 const cityCount = new Set(areas.map(a=>a.city)).size;
 const constantaHeights = areas.find(a=>a.city==='constanta')?.heights_count||0;
 const pptx = new pptxgen();
-const SY=16*1189/841/24; // A0 (841 × 1189 mm) at the original 16 in width
+const SY=1; // Portrait 80 × 120 cm, RoSEF 2026 art. 6(4) II.
 pptx.defineLayout({name:'POSTER', width:16, height:24*SY});
 pptx.layout='POSTER'; pptx.author='Echipa Umbra'; pptx.title='UMBRA — poster științific';
 const s = pptx.addSlide(); s.background={color:'FFFFFF'};
@@ -24,8 +24,12 @@ const fmt=(v,n=1)=>Number(v).toFixed(n).replace('.',',');
 text('RoSEF 2026  /  TEHNOLOGIA INFORMAȚIEI ȘI COMUNICAȚIILOR  /  APLICAȚIE MOBILĂ + CERCETARE',.6,.23,14.8,.25,12,{bold:true});
 text('UMBRA',.55,.48,8.5,1.30,82,{bold:true});
 text('Trasee umbrite.\nÎnălțimi din umbre.',9.45,.64,5.8,1.05,23,{bold:true,color:C.copper});
-text('Eduard-Mihai Perjoc · Eduard-Andrei Haivas · Cezar-Ștefan Manea',.65,1.91,14.6,.3,14,{bold:true});
-text('Clasa a X-a · Constanța    |    Coordonator: prof. Ramona Rădulescu',.65,2.27,14.6,.25,12,{color:C.muted});
+const authors=[
+  ['Eduard-Mihai Perjoc','Liceul Tehnologic de Marină\nConstanța'],
+  ['Eduard-Andrei Haivas','Liceul Internațional de Informatică\nConstanța'],
+  ['Cezar-Ștefan Manea','Liceul Tehnologic de Electrotehnică\nși Telecomunicații · Constanța'],
+];
+authors.forEach(([name,school],i)=>{const x=.65+i*4.98;text(name,x,1.85,4.7,.27,14,{bold:true});text(school,x,2.18,4.7,.43,11,{color:C.muted});});
 rect(.6,2.68,14.8,1.08,C.pale);
 text('ÎNTREBAREA ȘTIINȚIFICĂ',.8,2.77,14.3,.23,12,{bold:true,color:C.copper});
 text('Cu ce eroare estimăm înălțimea clădirilor din umbre și când rămân vârfurile umbrelor neobstrucționate?',.8,3.07,14.3,.35,17,{bold:true});
@@ -106,6 +110,6 @@ rect(.6,22.00,14.8,.48,C.copper);text('CONCLUZIE: ÎNĂLȚIMILE LOCALE ȘI MOMEN
 text('Surse: © OpenStreetMap contributors (ODbL); GlobalBuildingAtlas (ESSD 2025); Open-Meteo (CC BY 4.0); NOAA/Meeus.\nCopernicus: © European Union, Copernicus Land Monitoring Service 2022, European Environment Agency (EEA).',.65,22.66,13.2,.48,10,{color:C.muted});
 line(.65,23.22,14.1,23.22);
 s.addImage({path:path.join(root,'docs/poster/qr-github.png'),x:14.4,y:22.58*SY,w:1.0,h:1.0});
-text('Liceul Tehnologic de Marină · Liceul Internațional de Informatică Constanța · Liceul Tehnologic de Electrotehnică și Telecomunicații',.65,23.30,13.4,.25,9);
-text('Coordonator: prof. Ramona Rădulescu · Informatică pentru Viitor · radramra@gmail.com     |     github.com/Ieditzu/umbra',.65,23.59,13.4,.25,9,{color:C.muted});
+text('Clasa a X-a · Constanța · Coordonator: prof. Ramona Rădulescu · Informatică pentru Viitor (IPV)',.65,23.30,13.4,.25,9);
+text('Contact: radramra@gmail.com     |     Cod și documentație: github.com/Ieditzu/umbra',.65,23.59,13.4,.25,9,{color:C.muted});
 pptx.writeFile({fileName:path.join(__dirname,'umbra-poster-editable.pptx')});

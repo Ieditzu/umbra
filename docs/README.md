@@ -1,5 +1,9 @@
 # Umbra documentation
 
+For the stand, use the separate [five-page project documentation PDF](documentation/umbra-documentatie.pdf)
+and the [three-file print checklist](print-checklist.md). The Markdown guide below
+is the longer developer reference, not the printable documentation deliverable.
+
 Start with the [project guide](project-guide.md) for installation, phone use,
 architecture, API, research reproduction and troubleshooting.
 

@@ -1,19 +1,19 @@
 {
-  "design_id": "DAHZYusS6q8",
-  "title": "UMBRA — cercetare și aplicație — versiune actualizată",
+  "design_id": "DAHZY6AHDbc",
+  "title": "UMBRA — afilieri și format RoSEF 80 × 120 cm",
   "status": "saved",
-  "edit_url": "https://www.canva.com/d/DR5WyUYDqxB-kgE",
+  "edit_url": "https://www.canva.com/d/evpcoxAZT5M4XHD",
   "page_size_px": {
-    "width": 2246,
-    "height": 3179
+    "width": 1536,
+    "height": 2304
   },
   "print_size_mm": {
-    "width": 841,
-    "height": 1189
+    "width": 800,
+    "height": 1200
   },
   "source": "umbra-poster-editable.pptx",
-  "source_shape_elements": 319,
-  "verified_canva_text_elements": 122,
+  "source_shape_elements": 323,
+  "verified_canva_text_elements": 126,
   "verified_canva_image_elements": 2,
   "image_description": "Building illustration and repository QR code",
   "charts": "Editable bar rectangles, axes, labels, line segments and table cells",
@@ -26,6 +26,7 @@
     "DAHZSdDhWCw",
     "DAHZSUWM3uM",
     "DAHZM0B_Iyg",
-    "DAHZTc_T4ks"
+    "DAHZTc_T4ks",
+    "DAHZYusS6q8"
   ]
 }

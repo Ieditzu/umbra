@@ -1,4 +1,4 @@
-> **Latest poster (29 October 2026):** the combined scientific/app version is in [`scientific/`](scientific/README.md). Its print file is [`scientific/umbra-poster-print.pdf`](scientific/umbra-poster-print.pdf), exactly A0 (84.1 × 118.9 cm). The files described below are the earlier map-background version, preserved for reference.
+> **Latest poster (29 October 2026):** the combined scientific/app version is in [`scientific/`](scientific/README.md). Its print file is [`scientific/umbra-poster-print.pdf`](scientific/umbra-poster-print.pdf), exactly 80 × 120 cm. The files described below are the earlier map-background version, preserved for reference.
 
 # Poster
 

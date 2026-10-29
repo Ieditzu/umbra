@@ -1,15 +1,15 @@
 # Scientific poster — RoSEF 2026
 
-Print `umbra-poster-print.pdf` at actual size: **A0 (84.1 × 118.9 cm), portrait**.
+Print `umbra-poster-print.pdf` at actual size: **80 × 120 cm, portrait**.
 
 ## Current editable Canva poster
 
-**UMBRA — cercetare și aplicație — versiune actualizată**
-Design ID: `DAHZYusS6q8`
-Editor: https://www.canva.com/d/DR5WyUYDqxB-kgE
+**UMBRA — afilieri și format RoSEF 80 × 120 cm**
+Design ID: `DAHZY6AHDbc`
+Editor: https://www.canva.com/d/evpcoxAZT5M4XHD
 
 This saved design replaces the damaged image-to-design conversion. Importing the
-editable source preserved 122 text elements. The bar rectangles, axes, curve line
+editable source preserved 126 text elements. The bar rectangles, axes, curve line
 segments, section bands and table cells are individual vector elements. The 3D building illustration and QR code are images. The graphs use editable drawing elements;
 they are not Canva spreadsheet-backed chart widgets.
 
@@ -18,12 +18,12 @@ Canva designs are preserved so the team's previous work remains accessible.
 
 ## Files
 
-- `umbra-poster-editable.pptx`: editable source, 319 shape elements including text,
+- `umbra-poster-editable.pptx`: editable source, 323 shape elements including text,
   and two images (the building illustration and repository QR code). Import this file into Canva without image conversion.
 - `build-editable.cjs`: creates the editable source directly from the analysis JSON.
 - `export-editable.py`: scales its exported PDF to the required print dimensions
   and renders the preview with Poppler.
-- `umbra-poster-print.pdf`: current single-page print file, exactly A0 (841 × 1189 mm).
+- `umbra-poster-print.pdf`: current single-page print file, exactly 800 × 1200 mm.
 - `umbra-poster-preview.png`: current print preview.
 - `building-3d.png`: AI-assisted illustration, not a measured building.
 - `build.py` and `umbra-poster.svg`: retained earlier Matplotlib composition;
@@ -59,7 +59,9 @@ explains route comparison, forecast use and shadow measurements. The final
 section connects OSM/Copernicus sources, the 41 published cities, weather-aware
 recommendations and optional shared heights. Coverage is read from the current
 city index; the research graphs retain their original Constanța samples.
-The A0 layout and repository QR code are preserved.
+Each school appears below its author. The repository QR code is preserved.
+The print size is corrected to 80 × 120 cm, verified against RoSEF 2026
+Article 6(4), section II; see [print checklist](../../print-checklist.md).
 
 ## Data and interpretation
 
@@ -85,5 +87,5 @@ computational sources. Temperature and UV dose are not study outputs.
 
 On 29 October 2026 the PPTX and PDF were rendered and visually reviewed after
 correcting axis units and legend spacing. The saved Canva import was checked:
-122 native text elements and two images, the illustration and QR code. The
-print PDF has one page and a media box of 2383.94 × 3370.39 pt (A0, 841 × 1189 mm).
+126 native text elements and two images, the illustration and QR code. The
+print PDF has one page and a media box of 2267.72 × 3401.57 pt (A0, 841 × 1189 mm).

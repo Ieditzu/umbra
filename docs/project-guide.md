@@ -327,9 +327,10 @@ Canva designs and camera-project paperwork are historical.
 
 The 29 October poster places the research question beneath the masthead and
 explains these current app features alongside the study figures. Its editable
-Canva source contains 122 text elements and separate vector graph components;
+Canva source contains 126 text elements and separate vector graph components;
 the illustration and repository QR code are the two images. The current print
-file is A0 (841 × 1189 mm). The paper remains five A4 pages and includes the
+file is 80 × 120 cm, portrait, as required by RoSEF 2026 Article 6(4) II. The separate [project documentation PDF](documentation/umbra-documentatie.pdf)
+is five A4 pages in black and white. The paper remains five A4 pages and includes the
 Copernicus/Open-Meteo sources without replacing the original study results.
 
 ## Checks and troubleshooting
