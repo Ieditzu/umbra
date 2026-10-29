@@ -194,6 +194,7 @@ export function createComputeServer({
               "estimated_shadows",
               "sun_position",
               "shadow_measurement",
+              "city_catalog",
               ...(heights ? ["shared_heights"] : []),
             ],
             ready: pool.ready,

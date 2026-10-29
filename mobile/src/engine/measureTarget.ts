@@ -1,5 +1,6 @@
 import type { Coordinate } from "../domain/routes.ts";
 import { isCoordinate } from "../domain/routes.ts";
+import { isCopernicus } from "./data.ts";
 import type { Dataset, Height } from "./data.ts";
 import {
   distance,
@@ -93,14 +94,13 @@ export function inspectBuilding(
     ring = poly[0];
   const levels = Number(building.tags["building:levels"]);
   const render = Number(building.tags["umbra:render_height"]);
-  const expected =
-    building.height.source === "copernicus_2012"
-      ? building.height.high_m - 10
-      : building.height.low_m > 0
-        ? (building.height.low_m + building.height.high_m) / 2
-        : render > 0 && render <= 1000
-          ? render
-          : 15;
+  const expected = isCopernicus(building.height.source)
+    ? building.height.high_m - 10
+    : building.height.low_m > 0
+      ? (building.height.low_m + building.height.high_m) / 2
+      : render > 0 && render <= 1000
+        ? render
+        : 15;
   const centre = ring.reduce(
     (s, q) => ({
       x: s.x + q.x / ring.length,

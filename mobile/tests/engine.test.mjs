@@ -25,6 +25,7 @@ import { compareLocalRoutes } from "../src/engine/routing.ts";
 import { task } from "../src/engine/task.ts";
 import { unpackDataset } from "../src/engine/packedData.ts";
 import { parseShadowLayer } from "../src/domain/shadows.ts";
+import { heightLabel } from "../src/domain/measureText.ts";
 
 const centre = { latitude: 44.1733, longitude: 28.6383 },
   p = project(centre);
@@ -288,6 +289,27 @@ test("Copernicus heights fill missing values as uncertain satellite estimates", 
     withCopernicusHeights(tagged, { "synthetic-building": 20 }).buildings[0]
       .height.source,
     "osm_height_tag",
+  );
+});
+
+test("newer Copernicus years keep their own label and stay estimates", async () => {
+  const raw = synthetic();
+  raw.buildings = [roof({})];
+  const data = withCopernicusHeights(
+    await initialize(raw),
+    { "synthetic-building": 20 },
+    2021,
+    "Copernicus Urban Atlas Building Block Height 2021",
+  );
+  assert.equal(data.buildings[0].height.source, "copernicus_2021");
+  assert.equal(data.metadata.copernicus_heights, "2021");
+  assert.deepEqual(classifyAt(data, p, { elevation: 45, azimuth: 0 }, true), {
+    exposure: "estimated_shade",
+    reason: "copernicus_2021",
+  });
+  assert.equal(
+    heightLabel(data.buildings[0].height, null, null),
+    "Estimare satelitară Copernicus 2021: 15–30 m",
   );
 });
 

@@ -14,6 +14,7 @@ export type Height = {
     | "osm_height_tag"
     | "estimated_from_levels"
     | "copernicus_2012"
+    | "copernicus_2021"
     | "missing"
     | "unsupported_elevated"
     | "measured_shadow";
@@ -174,9 +175,9 @@ export async function initializeDataset(
     !validBox(raw.pilot_m) ||
     !validBox(raw.imported_m) ||
     (options.requireGraph && (!raw.nodes.length || !raw.edges.length)) ||
-    raw.nodes.length > 150000 ||
-    raw.edges.length > 400000 ||
-    raw.buildings.length > 100000
+    raw.nodes.length > 400000 ||
+    raw.edges.length > 1000000 ||
+    raw.buildings.length > 300000
   )
     throw new Error("Datele locale ale zonei nu sunt valide.");
   const positions = new Map<number, Point>(),
@@ -264,10 +265,17 @@ export async function initializeDataset(
 }
 
 export type MeasuredHeight = { id: string; low_m: number; high_m: number };
-/** Old raster-derived heights are estimates; OSM and measured heights take priority. */
+export type CopernicusYear = 2012 | 2021;
+/** Satellite-derived Urban Atlas heights: estimates, never verified tags or measurements. */
+export function isCopernicus(source: Height["source"]): boolean {
+  return source === "copernicus_2012" || source === "copernicus_2021";
+}
+/** Raster-derived heights are estimates; OSM and measured heights take priority. */
 export function withCopernicusHeights(
   data: Dataset,
   values: Record<string, number>,
+  year: CopernicusYear = 2012,
+  sourceName?: string,
 ): Dataset {
   const buildings = data.buildings.map((b) => {
     const h = values[b.id];
@@ -284,14 +292,18 @@ export function withCopernicusHeights(
       height: {
         low_m: Math.max(0, h - 5),
         high_m: h + 10,
-        source: "copernicus_2012" as const,
+        source: `copernicus_${year}` as const,
       },
     };
   });
   return {
     ...data,
     buildings,
-    metadata: { ...data.metadata, copernicus_heights: "2012" },
+    metadata: {
+      ...data.metadata,
+      copernicus_heights: String(year),
+      ...(sourceName ? { copernicus_source: sourceName } : {}),
+    },
     index: data.index.withItems(buildings),
     maxHeight: buildings.reduce((h, b) => Math.max(h, b.height.high_m), 0),
   };

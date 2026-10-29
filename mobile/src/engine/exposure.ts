@@ -1,6 +1,7 @@
 import { firstInteriorDistance, rad, unproject } from "./geometry.ts";
 import type { Point } from "./geometry.ts";
-import type { Dataset } from "./data.ts";
+import { isCopernicus } from "./data.ts";
+import type { Dataset, Height } from "./data.ts";
 import type { Exposure } from "../domain/routes.ts";
 import { solarDirection, solarPosition } from "./solar.ts";
 import type { Sun } from "./solar.ts";
@@ -27,7 +28,7 @@ export function classifyAt(
     );
   const end = { x: p.x + v.x * length, y: p.y + v.y * length };
   let uncertain = false,
-    copernicusShade = false;
+    copernicusShade: false | Height["source"] = false;
   // No known prism beyond this length can reach the ground point. Missing heights
   // beyond the corridor still leave exposure unknown because no inventory audit exists.
   for (const building of data.index.ray(p, end))
@@ -43,8 +44,8 @@ export function classifyAt(
       }
       const rayHeight = entry * slope;
       if (rayHeight + 1e-4 < building.height.low_m) {
-        if (building.height.source === "copernicus_2012") {
-          copernicusShade = true;
+        if (isCopernicus(building.height.source)) {
+          copernicusShade = building.height.source;
           continue;
         }
         return { exposure: "shade", reason: building.height.source };
@@ -52,7 +53,7 @@ export function classifyAt(
       if (rayHeight <= building.height.high_m + 1e-4) uncertain = true;
     }
   if (copernicusShade)
-    return { exposure: "estimated_shade", reason: "copernicus_2012" };
+    return { exposure: "estimated_shade", reason: copernicusShade };
   if (at !== undefined && data.treeIndex) {
     for (const tree of data.treeIndex.ray(p, end)) {
       if (!treeHasFoliage(tree, at)) continue;

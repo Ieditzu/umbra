@@ -22,8 +22,11 @@ export function heightLabel(
     return `${metres(height.low_m)} · din OpenStreetMap`;
   if (height.source === "estimated_from_levels")
     return `Estimat: ${levels ?? "?"} etaje → ${Math.round(height.low_m)}–${Math.round(height.high_m)} m`;
-  if (height.source === "copernicus_2012")
-    return `Estimare Copernicus 2012: ${Math.round(height.low_m)}–${Math.round(height.high_m)} m`;
+  if (
+    height.source === "copernicus_2012" ||
+    height.source === "copernicus_2021"
+  )
+    return `Estimare satelitară Copernicus ${height.source.slice(-4)}: ${Math.round(height.low_m)}–${Math.round(height.high_m)} m`;
   if (height.source === "unsupported_elevated")
     return "Clădire suspendată sau doar acoperiș";
   return "Înălțime necunoscută";

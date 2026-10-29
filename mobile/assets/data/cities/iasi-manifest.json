@@ -1,0 +1,31 @@
+{
+  "pilot_id": "iasi-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T09:17:05Z",
+  "sha256": "395ccc3aa9c4933a91f9f113fb88c1a1e0ca03f6bfc686fc801a78f460f7b7b4",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 46346,
+  "directed_edges": 96458,
+  "buildings": 33068,
+  "bytes": 5351378,
+  "raw_bytes": 31132714,
+  "raw_sha256": "c695a38329095f5b517ebe17b96d56493ac205c1baa985d28f7a3ade335d66fc",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    27.47655,
+    47.08482,
+    27.69213,
+    47.2279
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "missing": 28968,
+    "estimated_from_levels": 3068,
+    "osm_height_tag": 962,
+    "unsupported_elevated": 70
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

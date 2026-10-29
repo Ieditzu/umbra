@@ -252,13 +252,13 @@ export default function SettingsScreen() {
           <Text style={styles.small}>
             GPS doar în prim-plan. Coordonatele și destinația sunt trimise
             serverului de pe PC pentru calcul; nu sunt salvate. Umbrele și
-            clădirile sunt calculate pe server din datele pentru Constanța.
-            Căutarea adreselor și harta folosesc Google/Apple sau OpenFreeMap
-            pentru harta OSM de pe iOS. Umbrele sunt estimări geometrice, nu
-            măsurători de temperatură. Măsurătorile din umbră rămân pe telefon;
-            serverul de pe PC primește doar înălțimile confirmate. Dacă pornești
-            contribuția, măsurătorile (fără locația ta) ajung în baza comună și
-            le poți șterge oricând.
+            clădirile sunt calculate pe server din datele OpenStreetMap ale
+            zonei vizualizate. Căutarea adreselor și harta folosesc Google/Apple
+            sau OpenFreeMap pentru harta OSM de pe iOS. Umbrele sunt estimări
+            geometrice, nu măsurători de temperatură. Măsurătorile din umbră
+            rămân pe telefon; serverul de pe PC primește doar înălțimile
+            confirmate. Dacă pornești contribuția, măsurătorile (fără locația
+            ta) ajung în baza comună și le poți șterge oricând.
           </Text>
         )}
       </ScrollView>

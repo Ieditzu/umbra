@@ -43,7 +43,7 @@ const chunks=[[271,C.ink],[5913,C.lilac],[45159,C.copper],[85,'D2CBD7']];
 for(const [v,c] of chunks){const w=bw*v/51428;rect(bx,by,w,bh,c);bx+=w;}
 text('45.159 fără înălțime sau etaje',8.5,4.25,5.5,.32,14,{color:C.white,bold:true,align:'center'});
 text('271 înălțimi OSM · 5.913 doar etaje · 85 alte cazuri',5.95,4.90,9,.3,12);
-text('Instantaneu OSM: 51.428 clădiri; GBA asociat la 40.658 (79,1%).',5.95,5.34,9,.3,12,{color:C.muted});
+text('Instantaneu OSM Constanța: 51.428 clădiri; GBA asociat la 40.658 (79,1%).',5.95,5.34,9,.3,12,{color:C.muted});
 text('Fig. 2  Înălțimea GBA pe etaj scade la blocurile înalte',5.8,6.10,9.5,.35,15,{bold:true});
 const lv=['1-2 floors','3-4 floors','5-8 floors','9-12 floors'].map(k=>stats.levels_by_count[k]);
 const label=['1–2','3–4','5–8','9–12']; const gx=6.55, gy=6.88, gw=8.3, gh=2.45;
@@ -91,7 +91,7 @@ text('Întrebarea științifică',8.35,18.24,6.7,.30,13,{bold:true});
 text('Cât de precis putem estima înălțimea unei clădiri din umbră și cum alegem momentul măsurării?',8.35,18.64,6.7,.70,14,{bold:true});
 text('De la măsurare la recomandare',8.35,19.55,6.7,.32,13,{bold:true,color:C.copper});
 text('Lungimea umbrei + poziția Soarelui → înălțime estimată → confirmare în aplicație → actualizarea umbrelor și traseelor.',8.35,19.98,6.7,.78,12);
-text('Aplicație testată pe teren în Constanța. Umbra compară traseele și integrează înălțimile confirmate de utilizatori.',8.35,20.93,6.7,.67,12,{bold:true});
+text('Testată pe teren în Constanța. Trasee umbrite în București și în toate reședințele de județ; înălțimi confirmate de utilizatori.',8.35,20.93,6.7,.67,12,{bold:true});
 rect(.6,22.00,14.8,.48,C.copper);text('REZULTATE COMPUTAȚIONALE: ANALIZA DATELOR OSM / GBA ȘI SIMULAREA UMBRELOR',.78,22.09,14.3,.26,13,{color:C.white,bold:true});
 text('Surse: OpenStreetMap contributors (ODbL); Zhu et al., GlobalBuildingAtlas, ESSD 2025; NOAA/Meeus; Reda & Andreas, Solar Energy 2004.',.65,22.66,14.5,.48,10,{color:C.muted});
 line(.65,23.22,15.35,23.22);

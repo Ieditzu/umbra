@@ -1,0 +1,31 @@
+{
+  "pilot_id": "cluj-napoca-city-v1",
+  "osm_base_timestamp": "2026-10-28T21:21:02Z",
+  "imported_at": "2026-10-29T09:16:39Z",
+  "sha256": "d936468cae10f98efdea5bbcac5e0f7f16b099061f1c5d5e139c5bd4a5b95291",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors — ODbL 1.0 — https://www.openstreetmap.org/copyright",
+  "nodes": 70457,
+  "directed_edges": 147342,
+  "buildings": 44649,
+  "bytes": 7406646,
+  "raw_bytes": 45195220,
+  "raw_sha256": "723cd8fd853d49d37f061682e7ee0240d757c5d7e4b8d224a721df40dc7ce014",
+  "format": "umbra-gzip-json-v1",
+  "geographic_extract_bounds": [
+    23.49924,
+    46.68997,
+    23.71833,
+    46.86183
+  ],
+  "source_url": "https://download.geofabrik.de/europe/romania.html",
+  "source_file": "romania-261028.osm.pbf",
+  "source_pbf_sha256": "f3dc74b85e658e7f512d628643b2e96e6f4afe513a17931e6fc6ea0518ac7b28",
+  "height_sources": {
+    "missing": 41537,
+    "estimated_from_levels": 2952,
+    "osm_height_tag": 65,
+    "unsupported_elevated": 95
+  },
+  "note": "Real OSM snapshot; not field validated. Geometry rounded to millimetres. Bundled for on-device calculations."
+}

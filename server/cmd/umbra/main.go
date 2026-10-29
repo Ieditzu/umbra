@@ -28,6 +28,8 @@ func main() {
 	refresh := flags.Bool("refresh", false, "explicitly fetch a fresh extract")
 	city := flags.Bool("city", false, "prepare the wider Constanta city extract instead of the central research pilot; use a separate --data path")
 	suceava := flags.Bool("suceava", false, "prepare the Suceava city extract; use a separate --data path")
+	areaFlag := flags.String("area", "", "west,south,east,north routing bounds for a city extract; requires --extract and --id")
+	idFlag := flags.String("id", "", "dataset id for --area, for example cluj-napoca-city-v1")
 	extract := flags.String("extract", "", "optional local OSM JSON extract instead of an Overpass download")
 	auditPath := flags.String("audit", "", "optional reviewed obstruction inventory JSON in EPSG:32635")
 	addrDefault := os.Getenv("UMBRA_ADDR")
@@ -41,7 +43,15 @@ func main() {
 		if *suceava && (*city || *extract == "") {
 			log.Fatal("--suceava requires --extract and cannot be combined with --city")
 		}
-		if (*city || *suceava) && *path == umbra.DefaultDataPath() {
+		var custom *umbra.Bounds
+		if *areaFlag != "" {
+			var b umbra.Bounds
+			if _, err := fmt.Sscanf(*areaFlag, "%g,%g,%g,%g", &b.West, &b.South, &b.East, &b.North); err != nil || b.West >= b.East || b.South >= b.North || *idFlag == "" || *extract == "" || *city || *suceava {
+				log.Fatal("--area needs west,south,east,north plus --id and --extract, without --city or --suceava")
+			}
+			custom = &b
+		}
+		if (*city || *suceava || custom != nil) && *path == umbra.DefaultDataPath() {
 			log.Fatal("--city requires an explicit separate --data path")
 		}
 		var audit *umbra.Audit
@@ -70,6 +80,9 @@ func main() {
 			}
 			if *suceava {
 				area, id = umbra.Bounds{West: 26.09, South: 47.59, East: 26.41, North: 47.77}, "suceava-city-v1"
+			}
+			if custom != nil {
+				area, id = *custom, *idFlag
 			}
 			d, e = umbra.BuildDatasetArea(b, area, id)
 			if e == nil {

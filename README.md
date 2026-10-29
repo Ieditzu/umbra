@@ -1,6 +1,6 @@
 # Umbra
 
-A React Native map with building geometry and estimated solar shadows across Romania, prioritizing București. Shade-aware walking routes use prepared city graphs for Constanța and Suceava. **The PC calculates routes, sunlight and building geometry; the phone displays the map and reads GPS/compass.** No server address needs to be entered in the app. See [the overview](overview.md).
+A React Native map with building geometry and estimated solar shadows across Romania. Shade-aware walking routes use prepared OpenStreetMap city graphs for București and all 41 county seats, generated automatically (see [city coverage](docs/cities.md)). **The PC calculates routes, sunlight and building geometry; the phone displays the map and reads GPS/compass.** No server address needs to be entered in the app. See [the overview](overview.md).
 
 ## Run on your PC and phone
 
@@ -45,12 +45,12 @@ For an emulator, use `npm --prefix mobile run android` or `npm --prefix mobile r
 - **Straturi → Clădiri 3D** enables buildings and tree models. **Înclină / Sus** and two-finger dragging control the camera independently, so models remain visible from above. The standard **Hartă** uses MapLibre/OpenFreeMap on both platforms; satellite uses the native map and Android terrain remains native.
 - **Straturi** controls map style and shadows. **Umbre orientative** adds lighter shadows from map-render heights or a 6 m fallback when source height is missing. Their direction and length use the selected instant and Sun position at the viewed location; map-only assumptions are excluded from route exposure. The option is saved locally. OSM omissions and geometry budgets can limit detail.
 
-In Constanța, 16,243 buildings without OSM height or floor tags also have satellite-derived 2012 height samples from Copernicus Urban Atlas, matched to unambiguous 10 m raster pixels. These old estimates may be wrong for changed buildings; their ±5/10 m range is a heuristic, not a validated confidence interval. Route shadows from this source are marked estimated and receive reduced weight. OSM and user-measured heights take priority. © European Union, Copernicus Land Monitoring Service 2022, European Environment Agency (EEA). See [data provenance](docs/mobile-data.md).
+In the covered cities, buildings without OSM height or floor tags can also receive satellite-derived height estimates from Copernicus Urban Atlas Building Block Height (2012 where the city has a file). They are matched to unambiguous 10 m raster pixels and labelled with their source and year. These old estimates may be wrong for changed buildings; their −5/+10 m range is a heuristic, not a validated confidence interval. Route shadows from this source are marked estimated and receive reduced weight. OSM and user-measured heights take priority; buildings still without a height stay unknown, never counted as sun or shade. © European Union, Copernicus Land Monitoring Service 2022, European Environment Agency (EEA). See [city coverage](docs/cities.md) and [data provenance](docs/mobile-data.md).
 
-Suceava uses a prepared OpenStreetMap graph (34,070 walking nodes, 68,670 directed edges and 34,056 buildings) and Copernicus Urban Atlas 2012 estimates for 1,228 buildings without height or floor tags. The Romania-wide OSM tree dataset supplies mapped trees in both cities. Missing trees and changes since the satellite images can affect the results.
+The Romania-wide OSM tree dataset supplies mapped trees in every covered city. Missing trees and changes since the satellite images can affect the results.
 - **Setări** contains the maximum walking detour.
 
-For Constanța routing and local building coverage, the snapshot has 50,071 walking nodes, 111,552 directed edges and 51,428 building outlines. The server reads the compressed snapshots from `mobile/assets/data/constanta-city.json` and `suceava-city.json`; no separate download/preparation step is needed. It decodes/indexes the data in two Node worker threads. For other areas in Romania, the PC downloads a bounded 3×3 group of OpenFreeMap vector tiles around the viewed position and decodes building footprints on a worker. The first visit needs internet; requests are cached in memory. This is on-demand coverage, not a downloaded nationwide offline model. Tile geometry can be generalized and render heights are assumptions, not verified height tags. The app no longer loads that dataset or performs route/shadow calculations. Server responses are compressed and bounded; the renderer keeps a limited geometry cache. The GPU still draws 3D on the phone, so this does not establish a device frame-rate guarantee.
+The server finds the prepared area for each request by position from `mobile/assets/data/cities/index.json`; no city is named in its code and no separate download/preparation step is needed. It decodes a city the first time it is used (about 3 s) and keeps a few recent ones per worker (`UMBRA_CITY_CACHE`, default 3); startup no longer waits for city data. București is split into overlapping zones; a route can join two neighbouring zones. Constanța and Suceava keep their earlier snapshots (`constanta-city.json`, `suceava-city.json`). For other areas in Romania, the PC downloads a bounded 3×3 group of OpenFreeMap vector tiles around the viewed position and decodes building footprints on a worker. The first visit needs internet; requests are cached in memory. This is on-demand coverage, not a downloaded nationwide offline model. Tile geometry can be generalized and render heights are assumptions, not verified height tags. The app no longer loads that dataset or performs route/shadow calculations. Server responses are compressed and bounded; the renderer keeps a limited geometry cache. The GPU still draws 3D on the phone, so this does not establish a device frame-rate guarantee.
 
 The PC must stay on and reachable for new routes, buildings and shadows. **There is no automatic on-phone calculation fallback.** Basemap tiles and address search also need their providers. An installed standalone app will need a deployed HTTPS backend configured by the developer with `EXPO_PUBLIC_API_URL`; this implementation is configured for PC testing through Expo.
 
@@ -86,16 +86,14 @@ Node tests cover solar references, geometry, routing, server discovery and respo
 
 The Go implementation remains a separate research/reference tool. It is **not** the backend used by `npm start`. Its API lacks the current mobile building-display endpoint and should not replace the Node computation server. See [Go backend documentation](docs/backend/README.md).
 
-To prepare a replacement city dataset from a local OSM extract:
+To rebuild the city snapshots from a new Geofabrik extract (OSM crop, Go importer, packaging, Copernicus heights and the city index):
 
 ```bash
-cd server
-go run ./cmd/umbra prepare --city --extract /absolute/path/to/city-osm.json --data /absolute/path/to/city/dataset.json
-cd ../mobile
-node scripts/prepare-city.mjs /absolute/path/to/city/dataset.json
+uv run --python 3.12 --with osmium==4.3.0 --with rasterio --with pyproj --with 'pyjwt[crypto]' \
+  python -I scripts/build-cities.py /absolute/path/to/romania-YYMMDD.osm.pbf [--only cluj-napoca,iasi]
 ```
 
-Review coverage, height provenance and generated metadata before replacing the snapshot. Preserve ODbL attribution. Go 1.24+ and Python/pyosmium are data-preparation tools only.
+The Copernicus CLMS service key goes in `.umbra-data/copernicus/service-key.json` (ignored by Git; never commit it). See [city coverage](docs/cities.md) for the steps, sources and limitations. Review coverage, height provenance and generated metadata before replacing a snapshot. Preserve ODbL attribution. Go 1.24+ and Python/pyosmium are data-preparation tools only.
 
 Historical parking-camera documents remain in `docs/`; the previous README is in [the archive](docs/archive/README.previous.md).
 

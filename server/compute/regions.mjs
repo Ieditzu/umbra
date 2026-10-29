@@ -1,32 +1,21 @@
 import { ComputeError } from "./pool.mjs";
+import { cityCatalog } from "./city.mjs";
 const ZOOM = 14,
   SIZE = 2 ** ZOOM;
 export const ROMANIA_ENVELOPE = [20.2, 43.5, 30, 48.4];
-const CITIES = [
-  [28.5, 44.075, 28.75, 44.355],
-  [26.09, 47.59, 26.41, 47.77],
-];
 const inside = (p, b) =>
   p.longitude >= b[0] &&
   p.longitude <= b[2] &&
   p.latitude >= b[1] &&
   p.latitude <= b[3];
-export function regionalSelection(q) {
+export function regionalSelection(q, catalog = cityCatalog()) {
   const b = q.bounds;
   const focus = q.focus ?? {
     longitude: (b[0] + b[2]) / 2,
     latitude: (b[1] + b[3]) / 2,
   };
-  if (
-    CITIES.some(
-      (CITY) =>
-        b[0] >= CITY[0] &&
-        b[1] >= CITY[1] &&
-        b[2] <= CITY[2] &&
-        b[3] <= CITY[3],
-    )
-  )
-    return null;
+  // Bundled city snapshots answer viewports that fit entirely inside one of them.
+  if (catalog.covers(b)) return null;
   if (!inside(focus, ROMANIA_ENVELOPE))
     throw new ComputeError(
       "Apropie harta de România pentru clădiri și umbre.",

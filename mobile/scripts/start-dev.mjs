@@ -114,7 +114,7 @@ try {
     const health = await response.json();
     if (health.service !== "umbra-compute" || health.schema_version !== 1)
       throw Error("Portul de calcul este ocupat de alt serviciu.");
-    if (!health.capabilities?.includes("shadow_measurement"))
+    if (!health.capabilities?.includes("city_catalog"))
       throw Error(
         "Rulează o versiune veche a serverului. Oprește comanda veche cu Ctrl+C și repornește npm start.",
       );

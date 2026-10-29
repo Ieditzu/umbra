@@ -693,9 +693,10 @@ export default function MapScreen() {
             </Pressable>
           </View>
           <Text style={styles.subtle}>
-            Coroanele copacilor și umbrele sunt orientative. În Constanța
-            folosim și imagini satelitare din 2019–2020. Traseele folosesc umbra
-            estimată a copacilor cu o pondere redusă.
+            Coroanele copacilor și umbrele sunt orientative. Unde sunt
+            disponibile, folosim și coroane estimate din imagini satelitare din
+            2019–2020. Traseele folosesc umbra estimată a copacilor cu o pondere
+            redusă.
           </Text>
           {shadow.layer?.partialCoverage && (
             <Text style={styles.subtle}>

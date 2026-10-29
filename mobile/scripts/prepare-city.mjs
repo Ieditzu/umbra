@@ -1,15 +1,34 @@
 // Developer-only: ship real OSM data with the app; never run this on user GPS.
+// Legacy: node scripts/prepare-city.mjs DATASET [constanta|suceava]
+// Generic: node scripts/prepare-city.mjs DATASET --id cluj-napoca --out DIR --bounds W,S,E,N
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
-const source = process.argv[2];
-if (
-  process.argv[3] &&
-  process.argv[3] !== "suceava" &&
-  process.argv[3] !== "constanta"
-)
-  throw new Error("Unknown city");
-const city = process.argv[3] === "suceava" ? "suceava" : "constanta";
+import { parseArgs } from "node:util";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+const { positionals, values: options } = parseArgs({
+  allowPositionals: true,
+  options: {
+    id: { type: "string" },
+    out: { type: "string" },
+    bounds: { type: "string" },
+  },
+});
+const source = positionals[0];
+const legacy = {
+  constanta: [28.5, 44.075, 28.75, 44.355],
+  suceava: [26.09, 47.59, 26.41, 47.77],
+};
+const city = options.id ?? positionals[1] ?? "constanta";
+if (!options.id && !legacy[city]) throw new Error("Unknown city");
+if (options.id && !/^[a-z0-9-]+$/.test(options.id))
+  throw new Error("City id must be lowercase ASCII");
+const extractBounds = options.bounds
+  ? options.bounds.split(",").map(Number)
+  : legacy[city];
+if (extractBounds?.length !== 4 || !extractBounds.every(Number.isFinite))
+  throw new Error("Expected --bounds west,south,east,north");
 if (!source)
   throw new Error(
     "Usage: node scripts/prepare-city.mjs /path/to/prepared/city/dataset.json",
@@ -44,7 +63,9 @@ const output = JSON.stringify(data, (key, value) =>
     ? Math.round(value * 1000) / 1000
     : value,
 );
-const folder = new URL("../assets/data/", import.meta.url);
+const folder = options.out
+  ? pathToFileURL(resolve(options.out) + "/")
+  : new URL("../assets/data/", import.meta.url);
 await mkdir(folder, { recursive: true });
 const packed =
   JSON.stringify({
@@ -55,7 +76,11 @@ const packed =
 await writeFile(new URL(`${city}-city.json`, folder), packed);
 await writeFile(
   new URL(
-    city === "constanta" ? "manifest.json" : "suceava-manifest.json",
+    options.id
+      ? `${city}-manifest.json`
+      : city === "constanta"
+        ? "manifest.json"
+        : "suceava-manifest.json",
     folder,
   ),
   JSON.stringify(
@@ -73,10 +98,7 @@ await writeFile(
       raw_bytes: Buffer.byteLength(output),
       raw_sha256: createHash("sha256").update(output).digest("hex"),
       format: "umbra-gzip-json-v1",
-      geographic_extract_bounds:
-        city === "suceava"
-          ? [26.09, 47.59, 26.41, 47.77]
-          : [28.5, 44.075, 28.75, 44.355],
+      geographic_extract_bounds: extractBounds,
       source_url: data.metadata.source_url ?? data.metadata.overpass_endpoint,
       source_file: data.metadata.source_file,
       source_pbf_sha256: data.metadata.source_pbf_sha256,

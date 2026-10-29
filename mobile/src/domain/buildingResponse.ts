@@ -36,6 +36,7 @@ export function parseBuildingFeatures(raw: unknown): BuildingFeatures {
         "osm_height_tag",
         "estimated_from_levels",
         "copernicus_2012",
+        "copernicus_2021",
         "measured_shadow",
       ].includes(p.height_source)
     )

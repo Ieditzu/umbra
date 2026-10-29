@@ -210,8 +210,9 @@ def build(model: Path, output: Path) -> None:
     heading(doc, "2. MATERIALE ȘI METODE")
     para(doc, (
         "**Aplicația.** Interfața este scrisă în TypeScript, cu React Native și Expo, pentru Android și iOS; "
-        "motorul de calcul rulează pe un server Node.js. Datele pentru Constanța sunt păstrate comprimat în "
-        "proiect: 50.071 de noduri și 111.552 de muchii ale rețelei pietonale și 51.428 de contururi de clădiri, "
+        "motorul de calcul rulează pe un server Node.js. Datele OSM sunt pregătite automat pentru București și "
+        "toate reședințele de județ și păstrate comprimat în proiect; analizele de mai jos folosesc instantaneul "
+        "Constanței: 50.071 de noduri și 111.552 de muchii ale rețelei pietonale și 51.428 de contururi de clădiri, "
         "în coordonate metrice (UTM, EPSG:32635). Umbra arborilor este estimată separat, cu pondere redusă; "
         "lucrarea de față se ocupă numai de clădiri. Fiecare "
         "clădire are un interval de înălțime: o înălțime etichetată dă un interval îngust, iar numărul de etaje "

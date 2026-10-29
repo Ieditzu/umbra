@@ -71,16 +71,17 @@ function fixture(
   return tile.finish();
 }
 
-test("Bucharest Cluj Timisoara and Iasi select bounded regional tiles while Constanta keeps its snapshot", () => {
+test("towns without a bundled snapshot use regional tiles while bundled cities keep theirs", () => {
   assert.equal(
     regionalSelection({ bounds: [26.24, 47.64, 26.28, 47.66] }),
     null,
   );
+  // Mangalia, Hunedoara, Mediaș and Turda are not county seats.
   for (const [longitude, latitude] of [
-    [26.102, 44.435],
-    [23.59, 46.77],
-    [21.23, 45.75],
-    [27.59, 47.16],
+    [28.585, 43.815],
+    [22.9, 45.75],
+    [24.35, 46.165],
+    [23.785, 46.57],
   ]) {
     const selection = regionalSelection({
       bounds: [
@@ -131,7 +132,9 @@ test("tile downloads use one shared metadata request at most four connections an
         : tile,
     );
   });
-  const selection = regionalSelection({ bounds: [26.1, 44.43, 26.11, 44.44] });
+  const selection = regionalSelection({
+    bounds: [22.9, 45.75, 22.91, 45.76],
+  });
   const [a, b] = await Promise.all([
     loader.load(selection),
     loader.load(selection),

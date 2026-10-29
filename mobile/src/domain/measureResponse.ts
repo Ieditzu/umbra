@@ -6,6 +6,7 @@ const SOURCES = [
   "osm_height_tag",
   "estimated_from_levels",
   "copernicus_2012",
+  "copernicus_2021",
   "missing",
   "unsupported_elevated",
   "measured_shadow",

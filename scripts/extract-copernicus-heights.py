@@ -1,14 +1,17 @@
-"""Extract non-overlapping Copernicus 2012 raster samples for the bundled city.
+"""Extract non-overlapping Copernicus building-height raster samples for a bundled city.
 
-Run: uv run --python 3.12 --with rasterio --with pyproj python scripts/extract-copernicus-heights.py /path/to/RO501_DHM.tif
+Legacy: uv run --python 3.12 --with rasterio --with pyproj python scripts/extract-copernicus-heights.py \
+    /path/RO501_DHM.tif [constanta|suceava]
+Generic: ... extract-copernicus-heights.py RASTER ID --city-file CITY.json --out HEIGHTS.json \
+    --source "Copernicus Urban Atlas Building Block Height 2021 ..." --year 2021
 Source: © European Union, Copernicus Land Monitoring Service 2022, EEA.
 Pixels are associated only with a single OSM footprint; this is not ground truth.
 """
 
+import argparse
 import base64
 import gzip
 import json
-import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -18,21 +21,30 @@ from pyproj import Transformer
 from rasterio.enums import MergeAlg
 from rasterio.features import rasterize
 
-city = sys.argv[2] if len(sys.argv) > 2 else "constanta"
-if city not in ("constanta", "suceava"):
+LEGACY = {
+    "constanta": "Copernicus Urban Atlas Building Block Height 2012 RO501 v010",
+    "suceava": "Copernicus Urban Atlas Building Block Height 2012 RO512 v010",
+}
+parser = argparse.ArgumentParser()
+parser.add_argument("raster")
+parser.add_argument("city", nargs="?", default="constanta")
+parser.add_argument("--city-file")
+parser.add_argument("--out")
+parser.add_argument("--source")
+parser.add_argument("--year", type=int, default=2012)
+args = parser.parse_args()
+city = args.city
+if not args.city_file and city not in LEGACY:
     raise ValueError("Unsupported city")
+city_file = Path(args.city_file or f"mobile/assets/data/{city}-city.json")
+out_file = Path(args.out or f"mobile/assets/data/{city}-heights-2012.json")
+source = args.source or LEGACY[city]
 raw = json.loads(
-    gzip.decompress(
-        base64.b64decode(
-            json.loads(Path(f"mobile/assets/data/{city}-city.json").read_text())[
-                "payload"
-            ]
-        )
-    )
+    gzip.decompress(base64.b64decode(json.loads(city_file.read_text())["payload"]))
 )
-transformer = Transformer.from_crs(32635, 3035, always_xy=True)
-fpath = sys.argv[1]
+fpath = args.raster
 with rasterio.open(fpath) as ds:
+    transformer = Transformer.from_crs(32635, ds.crs, always_xy=True)
     img = ds.read(1)
     shape = img.shape
     transform = ds.transform
@@ -56,7 +68,10 @@ with rasterio.open(fpath) as ds:
         dtype="uint16",
         merge_alg=MergeAlg.add,
     )
-    mask = (count == 1) & (labels > 0) & (img >= 3) & (img <= 200) & (img != ds.nodata)
+    valid = (img >= 3) & (img <= 200)
+    if ds.nodata is not None:
+        valid &= img != ds.nodata
+    mask = (count == 1) & (labels > 0) & valid
     labels = labels[mask]
     values = img[mask]
     print("valid pixels:", len(values), flush=True)
@@ -64,7 +79,8 @@ with rasterio.open(fpath) as ds:
     for idx, v in zip(labels.tolist(), values.tolist()):
         groups[idx - 1].append(v)
     heights = {
-        raw["buildings"][i]["id"]: float(np.median(v)) for i, v in groups.items()
+        raw["buildings"][i]["id"]: round(float(np.median(v)), 1)
+        for i, v in groups.items()
     }
     print("matched buildings:", len(heights), flush=True)
     samples = []
@@ -97,20 +113,25 @@ with rasterio.open(fpath) as ds:
         err = x[:, 0] - x[:, 1]
         print(
             "tag comparison: median_abs",
-            np.median(abs(err)),
+            round(float(np.median(abs(err))), 2),
             "mean_abs",
-            np.mean(abs(err)),
+            round(float(np.mean(abs(err))), 2),
             "median_bias",
-            np.median(err),
+            round(float(np.median(err)), 2),
             "within 3m",
-            np.mean(abs(err) <= 3),
+            round(float(np.mean(abs(err) <= 3)), 3),
             flush=True,
         )
     if levels:
         x = np.array(levels)
         print(
             "floors comparison: within 2.5-3.5m/floor +3",
-            np.mean((x[:, 0] >= x[:, 1] * 2.5) & (x[:, 0] <= x[:, 1] * 3.5 + 3)),
+            round(
+                float(
+                    np.mean((x[:, 0] >= x[:, 1] * 2.5) & (x[:, 0] <= x[:, 1] * 3.5 + 3))
+                ),
+                3,
+            ),
             flush=True,
         )
     selected = {
@@ -125,10 +146,11 @@ with rasterio.open(fpath) as ds:
     }
     output = {
         "schema_version": 1,
-        "source": f"Copernicus Urban Atlas Building Block Height 2012 {'RO512' if city == 'suceava' else 'RO501'} v010",
+        "source": source,
+        "year": args.year,
         "license": "© European Union, Copernicus Land Monitoring Service 2022, European Environment Agency (EEA)",
         "values": selected,
     }
-    with open(f"mobile/assets/data/{city}-heights-2012.json", "w") as file:
+    with open(out_file, "w") as file:
         file.write(json.dumps(output, separators=(",", ":")) + "\n")
     print("saved previously missing heights:", len(selected), flush=True)

@@ -1,0 +1,144 @@
+{
+ "schema_version": 1,
+ "generated_at": "2026-10-29T09:43:27Z",
+ "osm_source": "https://download.geofabrik.de/europe/romania.html",
+ "osm_base_timestamp": "2026-10-28T21:21:02Z",
+ "selection": "Romanian county seats (OSM admin_centre of ISO3166-2 RO-* counties), ordered by OSM population tags; shared seats counted once",
+ "license": "ODbL-1.0 (OSM); Copernicus heights: © European Union, Copernicus Land Monitoring Service 2022, European Environment Agency (EEA)",
+ "areas": [
+  {
+   "id": "cluj-napoca",
+   "city": "cluj-napoca",
+   "name": "Cluj-Napoca",
+   "counties": [
+    "RO-CJ"
+   ],
+   "rank": 2,
+   "population": 324576,
+   "population_date": null,
+   "file": "cluj-napoca-city.json",
+   "bounds": [
+    23.49924,
+    46.68997,
+    23.71833,
+    46.86183
+   ],
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 70457,
+   "directed_edges": 147342,
+   "buildings": 44649,
+   "bytes": 7406646,
+   "raw_bytes": 45195220,
+   "sha256": "d936468cae10f98efdea5bbcac5e0f7f16b099061f1c5d5e139c5bd4a5b95291"
+  },
+  {
+   "id": "timisoara",
+   "city": "timisoara",
+   "name": "Timișoara",
+   "counties": [
+    "RO-TM"
+   ],
+   "rank": 3,
+   "population": 319279,
+   "population_date": null,
+   "file": "timisoara-city.json",
+   "bounds": [
+    21.11168,
+    45.68382,
+    21.32724,
+    45.83417
+   ],
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 59020,
+   "directed_edges": 131146,
+   "buildings": 60645,
+   "bytes": 8086358,
+   "raw_bytes": 46215751,
+   "sha256": "c4357d74b5dee30d4c0b5a31b0789d374ec3668aec601ffc6a48d4d3ec981acd"
+  },
+  {
+   "id": "iasi",
+   "city": "iasi",
+   "name": "Iași",
+   "counties": [
+    "RO-IS"
+   ],
+   "rank": 4,
+   "population": 290422,
+   "population_date": null,
+   "file": "iasi-city.json",
+   "bounds": [
+    27.47655,
+    47.08482,
+    27.69213,
+    47.2279
+   ],
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 46346,
+   "directed_edges": 96458,
+   "buildings": 33068,
+   "bytes": 5351378,
+   "raw_bytes": 31132714,
+   "sha256": "395ccc3aa9c4933a91f9f113fb88c1a1e0ca03f6bfc686fc801a78f460f7b7b4"
+  },
+  {
+   "id": "constanta",
+   "city": "constanta",
+   "name": "Constanța",
+   "counties": [
+    "RO-CT"
+   ],
+   "rank": 5,
+   "population": 283872,
+   "population_date": "2011",
+   "file": "../constanta-city.json",
+   "heights": "../constanta-heights-2012.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO501 v010",
+   "heights_year": 2012,
+   "heights_count": 16243,
+   "canopy": "../constanta-canopy.json",
+   "bounds": [
+    28.5,
+    44.075,
+    28.75,
+    44.355
+   ],
+   "osm_base_timestamp": "2026-10-25T21:21:21Z",
+   "nodes": 50071,
+   "directed_edges": 111552,
+   "buildings": 51428,
+   "bytes": 7025718,
+   "raw_bytes": 40404655,
+   "sha256": "36aec14d2618936956c385c3948c11224f459223f8a32ed73adfe51da47576c5"
+  },
+  {
+   "id": "suceava",
+   "city": "suceava",
+   "name": "Suceava",
+   "counties": [
+    "RO-SV"
+   ],
+   "rank": 24,
+   "population": 92121,
+   "population_date": null,
+   "file": "../suceava-city.json",
+   "heights": "../suceava-heights-2012.json",
+   "heights_source": "Copernicus Urban Atlas Building Block Height 2012 RO512 v010",
+   "heights_year": 2012,
+   "heights_count": 1228,
+   "bounds": [
+    26.09,
+    47.59,
+    26.41,
+    47.77
+   ],
+   "osm_base_timestamp": "2026-10-28T21:21:02Z",
+   "nodes": 34070,
+   "directed_edges": 68670,
+   "buildings": 34056,
+   "bytes": 4241830,
+   "raw_bytes": 25596478,
+   "sha256": "25bd21cdad1ab207c481f65ec479792e05a5f52caaf81c47420f6cea99299d94"
+  }
+ ]
+}

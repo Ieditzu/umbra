@@ -6,7 +6,7 @@ The native React Native app uses Expo SDK 58 and Expo Router. `mobile/src/app/` 
 
 **Current default: calculations run on the PC.** `services/calculations.ts` discovers the server through the Expo connection and validates responses. `server/compute/` runs the shared TypeScript engine in Node worker threads using the existing city snapshot. No mobile screen imports the dataset loader or performs routing/clipping locally. The Go engine remains a separate preparation/reference tool. See [mobile computation server](backend/mobile-server.md).
 
-The approximately 7 MB compressed city snapshot (40 MB decoded) stays in the repository for the server to load. It covers Constanța, Mamaia, Palazu Mare and a margin; provenance is in [mobile-data.md](mobile-data.md). It is no longer imported into the mobile bundle. Native geocoding and OpenFreeMap/Apple/Google basemaps remain separate services. Server computation and map-display geometry do not resolve missing source heights.
+Compressed city snapshots (about 3–8 MB each, 20–50 MB decoded) stay in the repository for the server to load on demand. They cover București (in zones) and all county seats; see [city coverage](cities.md) and, for the original Constanța snapshot, [mobile-data.md](mobile-data.md). It is no longer imported into the mobile bundle. Native geocoding and OpenFreeMap/Apple/Google basemaps remain separate services. Server computation and map-display geometry do not resolve missing source heights.
 
 ## Phone setup
 
@@ -83,7 +83,7 @@ The SDK-58 dependency audit reports five inherited high-severity findings throug
 
 ## Romania map layers
 
-Building and shadow requests outside the bundled city use bounded OpenFreeMap regions prepared on the PC; see [regional backend details](backend/mobile-server.md). Search no longer appends Constanța, so cities such as București can be located. A far-away destination frames that city rather than the midpoint of a cross-country origin/destination pair. The current route graph remains the prepared Constanța graph. The persistent **Umbre orientative** toggle controls visual render-height/fallback shadows; it does not change route exposure. Routing also uses Copernicus 2012 raster heights for some buildings lacking OSM heights, as uncertain estimates. Unsupported elevated buildings remain uncertain. The layer panel shows the server's Sun elevation/azimuth at the camera location. Native maps and iOS MapLibre render the estimated category more lightly; iOS extrusion lighting uses the same Sun direction.
+Building and shadow requests outside the bundled cities use bounded OpenFreeMap regions prepared on the PC; see [regional backend details](backend/mobile-server.md). Search no longer appends Constanța, so cities such as București can be located. A far-away destination frames that city rather than the midpoint of a cross-country origin/destination pair. The current route graph remains the prepared Constanța graph. The persistent **Umbre orientative** toggle controls visual render-height/fallback shadows; it does not change route exposure. Routing also uses Copernicus 2012 raster heights for some buildings lacking OSM heights, as uncertain estimates. Unsupported elevated buildings remain uncertain. The layer panel shows the server's Sun elevation/azimuth at the camera location. Native maps and iOS MapLibre render the estimated category more lightly; iOS extrusion lighting uses the same Sun direction.
 
 
 ## Route start and renderer lifecycle
@@ -99,7 +99,7 @@ The server loads a derived Romania OSM tree/row snapshot (`romania-trees.json`, 
 
 Canopies use recorded height and crown diameter when usable, otherwise 8 m height and 6 m diameter; the canopy base is assumed at 40% of height. Individual trees are cylindrical and mapped rows are contiguous strips with assumed width, so gaps, crown shape and leaf transmission are simplified. Deciduous or unknown foliage is omitted November–March (UTC month), and evergreen/needleleaved trees retain foliage. Green canopy polygons and estimated shadows appear with the shadow and estimates controls enabled. The server displays at most 500 nearby tree records per view within the existing overall geometry budget. Truncation and absent source data do not prove no trees exist.
 
-Routes in the existing Constanța graph use ray/canopy intersection at estimated passage times and mark tree-derived shade `estimated_shade`, distinct from building-derived shade and unknown. Candidate scoring gives estimated tree shade half the penalty of unknown exposure; it is not verified or a measurement of UV or temperature. The visibility switch affects map display, not route calculation. Further validation against photographs or surveyed trees is needed.
+Routes in every bundled city graph use ray/canopy intersection at estimated passage times and mark tree-derived shade `estimated_shade`, distinct from building-derived shade and unknown. Candidate scoring gives estimated tree shade half the penalty of unknown exposure; it is not verified or a measurement of UV or temperature. The visibility switch affects map display, not route calculation. Further validation against photographs or surveyed trees is needed.
 
 
 ### Constanța satellite canopy supplement

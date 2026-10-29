@@ -9,8 +9,9 @@ import {
   OutsideCoverageError,
 } from "../../mobile/src/engine/overlay.ts";
 
+import { unproject } from "../../mobile/src/engine/geometry.ts";
 import { decodeRegion } from "./tile-buildings.mjs";
-import { loadCity } from "./city.mjs";
+import { cityCatalog, loadAreas, loadTreeCatalog } from "./city.mjs";
 const controllers = new Map();
 const idIndex = new WeakMap();
 /** Building lookup by OSM id for upload verification. */
@@ -23,17 +24,38 @@ function byId(data) {
   return index;
 }
 const regionCache = new Map();
-const { dataPromise, treePromise } = loadCity();
-const suceavaPromise = loadCity({
-  city: "suceava",
-  treeCatalog: treePromise,
-}).dataPromise;
-Promise.all([dataPromise, suceavaPromise])
-  .then(([data]) =>
+const catalog = cityCatalog();
+const treePromise = loadTreeCatalog();
+// Decoded areas are large (roughly 0.2–0.6 GB each); keep only recent ones per worker.
+const AREA_CACHE = Math.max(
+  1,
+  Math.min(16, Number(process.env.UMBRA_CITY_CACHE) || 3),
+);
+const areaCache = new Map();
+function areaData(areas) {
+  const key = areas
+    .map((a) => a.id)
+    .sort()
+    .join("+");
+  let promise = areaCache.get(key);
+  if (promise) {
+    areaCache.delete(key);
+  } else {
+    promise = loadAreas(areas, { treeCatalog: treePromise });
+    promise.catch(() => areaCache.delete(key));
+  }
+  areaCache.set(key, promise);
+  while (areaCache.size > AREA_CACHE)
+    areaCache.delete(areaCache.keys().next().value);
+  return promise;
+}
+const NO_DATA =
+  "Pentru această zonă nu există încă date pietonale și de clădiri pregătite.";
+treePromise
+  .then(() =>
     parentPort.postMessage({
       type: "ready",
-      nodes: data.nodes.length,
-      buildings: data.buildings.length,
+      areas: catalog.areas.length,
     }),
   )
   .catch((error) =>
@@ -48,41 +70,47 @@ parentPort.on("message", async (message) => {
   controllers.set(message.id, controller);
   try {
     const { measured_heights: measured, ...q } = message.payload;
-    const point =
-      q.origin ??
-      q.point ??
-      q.focus ??
-      (q.bounds
-        ? {
-            longitude: (q.bounds[0] + q.bounds[2]) / 2,
-            latitude: (q.bounds[1] + q.bounds[3]) / 2,
-          }
-        : null);
-    const inSuceava =
-      point &&
-      point.longitude >= 26.09 &&
-      point.longitude <= 26.41 &&
-      point.latitude >= 47.59 &&
-      point.latitude <= 47.77;
-    let data = await (inSuceava ? suceavaPromise : dataPromise);
-    if (controller.signal.aborted) throw Error("Calculul a fost oprit.");
-    if (q.__region && message.kind !== "routes") {
+    let data;
+    if (message.kind === "routes") {
+      const areas = catalog.forRoute(q.origin, q.destination);
+      if (!areas)
+        throw new OutsideCoverageError(
+          catalog.at(q.origin) || catalog.at(q.destination)
+            ? "Punctele alese sunt în zone fără o rețea pietonală comună. Alege o destinație mai apropiată."
+            : "Pentru punctele alese nu există încă date pietonale pregătite.",
+        );
+      data = await areaData(areas);
+    } else if (q.__region) {
       data = regionCache.get(q.__region.key);
       if (!data) {
         data = await decodeRegion(q.__region, controller.signal);
-        const catalog = await treePromise;
-        data = withTrees(data, catalog.forArea(data.imported_m));
+        const trees = await treePromise;
+        data = withTrees(data, trees.forArea(data.imported_m));
         if (regionCache.size >= 3)
           regionCache.delete(regionCache.keys().next().value);
         regionCache.set(q.__region.key, data);
       }
+    } else {
+      const point =
+        message.kind === "verify"
+          ? unproject(q.corner)
+          : (q.point ??
+            q.focus ?? {
+              longitude: (q.bounds[0] + q.bounds[2]) / 2,
+              latitude: (q.bounds[1] + q.bounds[3]) / 2,
+            });
+      const area = catalog.at(point);
+      if (!area) {
+        // Measuring outside bundled areas finds no OSM building rather than failing.
+        if (message.kind !== "verify" && message.kind !== "inspect")
+          throw new OutsideCoverageError(NO_DATA);
+      } else data = await areaData([area]);
     }
-    data = withMeasuredHeights(data, measured);
+    if (controller.signal.aborted) throw Error("Calculul a fost oprit.");
+    if (data) data = withMeasuredHeights(data, measured);
     let result;
     if (message.kind === "verify") {
-      const b =
-        byId(await dataPromise).get(q.osm_building) ??
-        byId(await suceavaPromise).get(q.osm_building);
+      const b = data ? byId(data).get(q.osm_building) : undefined;
       result = {
         exists: !!b,
         elevated: b?.height.source === "unsupported_elevated",
@@ -101,9 +129,11 @@ parentPort.on("message", async (message) => {
       };
     } else if (message.kind === "inspect") {
       result = {
-        building: inspectBuilding(data, q.point, Date.parse(q.at)),
+        building: data
+          ? inspectBuilding(data, q.point, Date.parse(q.at))
+          : null,
         attribution: [
-          data.metadata.attribution ?? "© OpenStreetMap contributors",
+          data?.metadata.attribution ?? "© OpenStreetMap contributors",
         ],
       };
     } else if (message.kind === "routes") {
