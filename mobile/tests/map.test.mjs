@@ -94,6 +94,17 @@ const fixture = () => ({
   warnings: [],
 });
 
+test("server tree models are validated and old responses remain compatible", () => {
+  const data = fixture();
+  data.features[0].properties.height_source = "tree_canopy";
+  data.features[0].properties.models = [{ center: [28.635, 44.175], radius: 2, height: 8, seed: 0.5 }];
+  assert.equal(parseShadowLayer(data, at).polygons[0].models.length, 1);
+  data.features[0].properties.models[0].radius = 999;
+  assert.throws(() => parseShadowLayer(data, at), /copaci/);
+  delete data.features[0].properties.models;
+  assert.equal(parseShadowLayer(data, at).polygons[0].models, undefined);
+});
+
 test("live location rejects stale, future and invalid GPS fixes", () => {
   const fix = { ...point, accuracy: 8, timestamp: 100000 };
   assert.equal(freshFix(fix, 105000), true);

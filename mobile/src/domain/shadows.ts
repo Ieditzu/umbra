@@ -7,6 +7,7 @@ export type Bounds = [number, number, number, number];
 export function detailedViewport(bounds: Bounds): boolean {
   return bounds[2] - bounds[0] <= 0.12 && bounds[3] - bounds[1] <= 0.12;
 }
+export type TreeModel = { center: [number, number]; radius: number; height: number; seed: number };
 export type ShadowPolygon = {
   id: string;
   source:
@@ -21,6 +22,7 @@ export type ShadowPolygon = {
     | "unknown";
   canopyHeight?: number;
   canopyBase?: number;
+  models?: TreeModel[];
   coordinates: Coordinate[];
   holes: Coordinate[][];
 };
@@ -108,6 +110,7 @@ export function parseShadowLayer(raw: unknown, instant: string): ShadowLayer {
         building_id?: string;
         canopy_height?: number;
         canopy_base?: number;
+        models?: unknown;
       };
     };
     const geometry = feature?.geometry;
@@ -164,7 +167,19 @@ export function parseShadowLayer(raw: unknown, instant: string): ShadowLayer {
         canopyBase! > canopyHeight!)
     )
       throw new Error("Înălțime de coroană invalidă.");
+    const models = feature.properties?.models;
+    if (models !== undefined && (
+      !["tree_canopy", "satellite_canopy"].includes(source ?? "") ||
+      !Array.isArray(models) || models.length > 64 ||
+      !models.every((model: TreeModel) =>
+        model && Array.isArray(model.center) && model.center.length === 2 &&
+        isCoordinate({ longitude: model.center[0], latitude: model.center[1] }) &&
+        Number.isFinite(model.radius) && model.radius > 0 && model.radius <= 7 &&
+        Number.isFinite(model.height) && model.height > 0 && model.height <= 35 &&
+        Number.isFinite(model.seed) && model.seed >= 0 && model.seed < 1)
+    )) throw new Error("Modele de copaci invalide.");
     return {
+      ...(models !== undefined ? { models: models as TreeModel[] } : {}),
       canopyHeight,
       canopyBase,
       id:

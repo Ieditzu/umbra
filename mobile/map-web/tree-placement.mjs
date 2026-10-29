@@ -135,7 +135,7 @@ export function placeCanopy(feature) {
 }
 export function planTrees(features, limit = 700, obstacles = null) {
   const groups = features
-    .map(placeCanopy)
+    .map((feature) => feature.properties?.models ?? placeCanopy(feature))
     .map((group) =>
       obstacles ? group.filter((tree) => !obstacles.blocked(tree)) : group,
     )

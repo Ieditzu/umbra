@@ -113,6 +113,7 @@ export function shadowFeatures(layer: ShadowLayer | null) {
           source: p.source as string,
           height,
           base,
+          ...(p.models ? { models: p.models } : {}),
           model_kind: p.id.startsWith("tree-")
             ? "individual"
             : p.id.startsWith("row-")

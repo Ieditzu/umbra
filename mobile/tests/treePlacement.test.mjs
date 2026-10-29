@@ -48,3 +48,13 @@ test("individually mapped trees stay individual and candidate budget is shared a
     [],
   );
 });
+
+
+test("server prepared tree candidates keep the same layout and obey obstacle filtering", () => {
+  const f = feature("area", [outer]);
+  const models = placeCanopy(f);
+  const prepared = { ...f, properties: { ...f.properties, models } };
+  assert.deepEqual(planTrees([prepared], 10), planTrees([f], 10));
+  assert.deepEqual(planTrees([prepared], 10, { blocked: () => true }), []);
+  assert.deepEqual(planTrees([{ ...prepared, geometry: null }], 1), models.slice(0, 1));
+});

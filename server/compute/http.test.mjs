@@ -163,6 +163,7 @@ test(
     assert.ok(shadows.polygons.length > 0);
     assert.ok(shadows.polygons.some((p) => p.source === "display_estimate"));
     assert.ok(shadows.polygons.some((p) => p.source === "tree_canopy"));
+    assert.ok(shadows.polygons.some((p) => p.source === "tree_canopy" && p.models?.length));
     assert.ok(shadows.polygons.some((p) => p.source === "tree_estimate"));
     assert.ok(
       shadows.polygons.some(

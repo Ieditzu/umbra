@@ -3,6 +3,7 @@ import { withMeasuredHeights } from "../../mobile/src/engine/data.ts";
 import { inspectBuilding } from "../../mobile/src/engine/measureTarget.ts";
 import { withTrees } from "../../mobile/src/engine/trees.ts";
 import { compareLocalRoutes } from "../../mobile/src/engine/routing.ts";
+import { placeCanopy } from "../../mobile/map-web/tree-placement.mjs";
 import { visibleBuildings } from "../../mobile/src/engine/buildings.ts";
 import {
   localShadows,
@@ -11,6 +12,7 @@ import {
 
 import { unproject } from "../../mobile/src/engine/geometry.ts";
 import { decodeRegion } from "./tile-buildings.mjs";
+import { simplifyDisplayRing } from "./display-geometry.mjs";
 import { cityCatalog, loadAreas, loadTreeCatalog } from "./city.mjs";
 const controllers = new Map();
 const idIndex = new WeakMap();
@@ -158,6 +160,10 @@ parentPort.on("message", async (message) => {
         q.focus,
         { maxFeatures: 2500, maxVertices: 70000, marginM: 150 },
       );
+      // Courtyards keep their exact topology; simplification is for display only.
+      for (const f of result.features)
+        if (f.geometry.coordinates.length === 1)
+          f.geometry.coordinates[0] = simplifyDisplayRing(f.geometry.coordinates[0]);
       // Display coordinates only: ~11 cm precision reduces transmission/parse cost.
       for (const f of result.features)
         for (const ring of f.geometry.coordinates)
@@ -183,6 +189,7 @@ parentPort.on("message", async (message) => {
           "Contururi generalizate de hartă și înălțimi de randare; surse orientative, nu măsurători verificate.",
         );
       }
+      let modelCount = 0;
       result = {
         type: "FeatureCollection",
         at: layer.at,
@@ -192,22 +199,35 @@ parentPort.on("message", async (message) => {
         partial_coverage: layer.partialCoverage,
         attribution: layer.attribution,
         warnings: layer.warnings,
-        features: layer.polygons.map((p) => ({
-          type: "Feature",
-          properties: {
-            building_id: p.id,
-            height_source: p.source,
-            ...(p.canopyHeight !== undefined
-              ? { canopy_height: p.canopyHeight, canopy_base: p.canopyBase }
-              : {}),
-          },
-          geometry: {
-            type: "Polygon",
-            coordinates: [p.coordinates, ...p.holes].map((r) =>
-              r.map((c) => [c.longitude, c.latitude]),
-            ),
-          },
-        })),
+        features: layer.polygons.map((p) => {
+          const coordinates = [p.coordinates, ...p.holes].map((r) =>
+            r.map((c) => [c.longitude, c.latitude]),
+          );
+          const canopy = p.source === "tree_canopy" || p.source === "satellite_canopy";
+          const models = canopy ? placeCanopy({
+            geometry: { coordinates },
+            properties: {
+              source: p.source,
+              height: p.canopyHeight ?? 8,
+              model_kind: p.id.startsWith("tree-") ? "individual" : p.id.startsWith("row-") ? "row" : "area",
+            },
+          }) : undefined;
+          // Bound the extra payload; older clients and oversized patches can plan locally.
+          const prepared = models && modelCount + models.length <= 6000 ? models : undefined;
+          modelCount += prepared?.length ?? 0;
+          return {
+            type: "Feature",
+            properties: {
+              building_id: p.id,
+              height_source: p.source,
+              ...(p.canopyHeight !== undefined
+                ? { canopy_height: p.canopyHeight, canopy_base: p.canopyBase }
+                : {}),
+              ...(prepared ? { models: prepared } : {}),
+            },
+            geometry: { type: "Polygon", coordinates },
+          };
+        }),
       };
     }
     if (controller.signal.aborted) throw Error("Calculul a fost oprit.");
