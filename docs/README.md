@@ -23,6 +23,12 @@ the current application.
 
 ## Research and presentation
 
+The paper, poster and measurement documentation share this primary question:
+**What error do shadow-based building-height estimates have, and when are shadow
+tips unobstructed?** The application uses the resulting height ranges for shadow
+maps and walking-route comparisons. Weather-based recommendation is a separate
+implemented extension, with its own evaluation question.
+
 - [GBA comparison](research/gba-heights/README.md): aggregate analysis and figures.
 - [Scientific paper PDF](paper/umbra-lucrare.pdf) and [editable Word file](paper/umbra-lucrare.docx).
 - [Poster files and Canva design](poster/scientific/README.md): use this document

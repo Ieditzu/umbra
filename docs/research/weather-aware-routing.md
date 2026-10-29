@@ -1,14 +1,14 @@
 # Trasee adaptate la nori și vreme
 
-**Stadiu: prototip implementat, nevalidat în teren.**
+**Stadiu: implementat în aplicație; evaluarea avantajului meteo este un studiu separat.**
 
 Serverul compară alternativele deja generate folosind prognoza Open-Meteo pentru mijlocul aproximativ al traseului. Scorul experimental adună timpul de mers și radiația directă modelată împărțită la 150 W/m²; valoarea este o alegere provizorie, nu un prag validat. Folosește interpolare orară, un cache de 20 de minute și revine la calculul anterior când prognoza lipsește. Nu estimează poziția norilor pe străzi și nu calculează doza UV. Experimentele de mai jos rămân de făcut.
 
 ## Ideea pe înțelesul tuturor
 
-Umbra caută în prezent trasee pietonale cu umbră estimată de clădiri și copaci. Când Soarele este puternic, un mic ocol prin umbră poate fi util. Când norii reduc mult lumina directă, același ocol poate să nu mai merite: aplicația ar putea recomanda drumul mai scurt și să păstreze traseul umbrit ca alternativă.
+Umbra caută trasee pietonale cu umbră estimată de clădiri și copaci. Când Soarele este puternic, un mic ocol prin umbră poate fi util. Când prognoza indică puțină radiație directă, scorul poate prefera drumul mai rapid; celelalte alternative rămân selectabile.
 
-Aplicația ar folosi prognoza pentru locul și ora deplasării, împreună cu poziția Soarelui și geometria urbană. Ar putea afișa, de exemplu, „Traseu mai rapid: prognoza indică puțin soare direct” sau „Mai multă umbră, cu 3 minute în plus”. Acestea sunt exemple de interfață, nu rezultate măsurate. Nu presupunem că utilizatorul vrea mereu traseul cel mai scurt: alegerea dintre alternative rămâne disponibilă.
+Aplicația folosește prognoza pentru locul și ora deplasării, împreună cu poziția Soarelui și geometria urbană. Varianta aleasă primește marcajul **Recomandat**. Opțiunea **Straturi → Nori** ascunde pictograma decorativă; nu dezactivează prognoza sau calculul. Alegerea dintre alternative rămâne disponibilă.
 
 ## Ce ne spune cercetarea
 
@@ -17,13 +17,13 @@ Aplicația ar folosi prognoza pentru locul și ora deplasării, împreună cu po
 - [Open-Meteo Weather Forecast API](https://open-meteo.com/en/docs) oferă, în funcție de model, acoperirea cu nori, radiația solară directă și difuză, indicele UV și prognoza de precipitații. Radiația orară este, de regulă, o medie pentru ora precedentă; momentul reprezentat trebuie tratat corect.
 - Prognozele folosesc celule de ordinul kilometrilor, care depind de model și regiune. Prin urmare, nu putem afirma că știm exact unde se află umbra unui nor pe fiecare stradă. Pe distanțe scurte, două trasee pot primi aceeași prognoză; diferența locală continuă să vină în principal din clădiri și copaci.
 
-## Propunerea pentru Umbra
+## Modelul implementat
 
-1. Serverul cere prognoza pentru zona traseului și ora plecării: radiație directă și difuză, nori și, opțional, indice UV. Pentru trasee mai lungi, evaluează timpul estimat de trecere și celulele meteo distincte; evită cererile repetate pentru aceeași celulă și interval.
-2. Motorul existent continuă să calculeze dacă un segment este în umbra geometrică a unei clădiri sau a unui copac. Separat, prognoza estimează câtă lumină directă este disponibilă în acea zonă și la acel moment. **Umbra necunoscută rămâne necunoscută**, iar norii nu sunt tratați ca umbră certă.
-3. Un scor experimental compară durata și expunerea la **radiație solară directă estimată**, cu o limită aleasă de utilizator pentru ocol. Segmentele în umbră geometrică primesc un cost direct mai mic; estimările pentru copaci și înălțimile incerte își păstrează incertitudinea. Unitatea propusă pentru comparație este W/m² × minute, nu o doză UV personală.
-4. Când prognoza indică radiație directă scăzută și diferența estimată dintre trasee este mică, se poate prefera traseul mai rapid. Când radiația directă este mai mare, un ocol umbrit poate deveni mai valoros. Pragurile sunt ipoteze de testat, nu valori stabilite științific.
-5. Interfața arată durata, umbra geometrică estimată, ora prognozei și motivul recomandării. Dacă datele meteo lipsesc, sunt prea vechi sau ora cerută este în afara prognozei, aplicația revine la traseele actuale și spune că vremea nu a fost inclusă. Nu substituie valori fictive.
+1. Serverul cere `direct_radiation_instant` și `cloud_cover` pentru mijlocul traseului, rotunjit la 0,02°. Păstrează prognoza în memorie timp de 20 de minute. Nu cere în acest flux radiație difuză, UV sau o prognoză separată pentru fiecare stradă.
+2. Motorul geometric păstrează clasificarea segmentelor. La evaluarea meteo, umbra are factor 0, umbra estimată factor 0,5, iar celelalte categorii factor 1. Necunoscutul nu devine soare confirmat.
+3. Scorul este `durata_s + Σ(radiația_directă × factor × durata_segmentului_s) / 150`. Prognoza se interpolează între ore și se evaluează la momentele parcurgerii, în subintervale de cel mult cinci minute. Ponderea de 150 W/m² este o alegere de model.
+4. Se recomandă scorul minim dintre alternativele deja generate, care respectă ocolul acceptat. Această etapă nu inventează trasee și nu caută un optim global nou.
+5. Fără prognoză utilizabilă sau acoperire temporală completă, serverul marchează vremea indisponibilă și păstrează comparația geometrică.
 
 Radiația solară de bandă largă nu este echivalentă cu radiația UV și nici cu temperatura resimțită. Indicele UV ar fi prezentat separat, ca informație regională de prognoză, nu ca măsurare personală sau dovadă că un traseu este sigur. Probabilitatea și intensitatea ploii ar putea deveni un alt criteriu, ulterior; nu presupunem că un copac sau o clădire protejează sigur de ploaie.
 
@@ -37,8 +37,8 @@ Pentru validare în teren ar fi utile măsurători independente și sincronizate
 
 ## Implementare și limitări
 
-Prototipul ar integra un client meteo pe serverul Node deja folosit de aplicație, cu cache limitat, expirare explicită, timeout și teste pentru lipsă de rețea, noapte, fus orar, trecerea dintre ore și valori lipsă. Ar păstra modul actual disponibil fără internet. Prognoza ar putea primi o coordonată rotunjită la celula meteo; furnizorul extern primește totuși locația cerută, deci acest lucru trebuie explicat utilizatorului.
+Clientul meteo este în `server/compute/weather.mjs`, iar testele deterministe sunt în `server/compute/weather.test.mjs`. Cererea are un timeout de 1,8 s; cache-ul conține cel mult 100 de locații. Coordonata rotunjită este trimisă către Open-Meteo; cererile meteo necesită internet. Calculele geometrice pe datele pregătite nu depind de disponibilitatea prognozei.
 
 Serviciul gratuit Open-Meteo permite utilizare necomercială în limitele publicate și cere atribuirea datelor; condițiile și eventualul cost trebuie reverificate înainte de lansare. [Termenii Open-Meteo](https://open-meteo.com/en/terms). Sursele, ora emiterii și ora prognozei trebuie păstrate în rezultatele experimentului, ca acesta să poată fi reprodus.
 
-**Primul pas recomandat:** un prototip care compară traseul actual cu cel rapid pe aceleași date meteo, fără să schimbe încă recomandarea implicită. Numai după evaluare merită aleasă regula automată.
+**Evaluare următoare:** comparația descrisă mai sus între traseul rapid, alegerea geometrică și recomandarea meteo, pe aceleași puncte, ore și limite de ocol. Această evaluare este separată de studiul OSM/GBA și al umbrelor din lucrarea și posterul curente.

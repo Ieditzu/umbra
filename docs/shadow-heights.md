@@ -19,9 +19,16 @@ The idea: **run Umbra's shadow engine backwards.** The app already knows where t
 
 ## 2. Research question and hypotheses
 
-> **„Poate un telefon să măsoare înălțimea clădirilor din umbra lor, folosind poziția calculată a Soarelui, mai precis decât seturile de date globale — și cât de mult îmbunătățește asta traseele umbrite din Constanța?"**
+> **„Cu ce eroare estimăm înălțimea clădirilor din umbre și când rămân vârfurile umbrelor neobstrucționate?”**
 >
-> *Can a phone measure building heights from their shadows, using the computed position of the Sun, more accurately than global datasets — and how much does that improve shaded routes in Constanța?*
+> *What error do shadow-based building-height estimates have, and when are shadow tips unobstructed?*
+
+This is the primary question used by the current paper and poster. The reported
+computational study compares GBA with OSM, propagates assumed measurement errors
+and simulates obstruction by other buildings. The application applies confirmed
+height ranges to its shadow map and routes. The hypotheses below define further
+field/reference and route-effect experiments; their thresholds are not measured
+results of the computational study.
 
 | # | Hypothesis | How it is tested |
 | --- | --- | --- |

@@ -271,6 +271,25 @@ database backups and Copernicus credentials; `.umbra-data/` is ignored by Git.
 
 ## Research and document reproduction
 
+The primary question, shared with the paper and poster, is:
+
+> **Cu ce eroare estimăm înălțimea clădirilor din umbre și când rămân vârfurile umbrelor neobstrucționate?**
+
+It has two measurable outputs: height error as a function of shadow-length and
+solar-angle uncertainty, and the share of buildings whose shadow tips are not
+blocked by other modeled buildings at the selected instants. The GBA/OSM
+comparison identifies limitations in existing height sources. Height measurement
+then supplies the application workflow: **shadow length → height range → shadow
+map → route comparison**. Field reference exports support a separate measured
+accuracy evaluation; the obstruction simulation alone does not establish it.
+
+The latest application adds Copernicus 2012 estimates for eligible buildings
+without OSM heights, regional Open-Meteo recommendations and a published catalogue
+of 41 cities in 49 areas. Constanța has 16,243 Copernicus height estimates in the
+current index. This is a count of available estimates, not an accuracy result.
+OSM tags and confirmed measurements retain priority. The regional forecast does
+not model cloud shadows street by street.
+
 The [GBA analysis](research/gba-heights/README.md) and
 [`paper/measurability.json`](paper/measurability.json) supply the paper/poster
 figures. The original Constanța analysis reports 51,428 OSM building footprints,
@@ -305,6 +324,13 @@ The current [paper PDF](paper/umbra-lucrare.pdf) and
 [editable Canva poster and print source](poster/scientific/README.md). Follow
 the poster instructions to identify its current design; older similarly named
 Canva designs and camera-project paperwork are historical.
+
+The 29 October poster places the research question beneath the masthead and
+explains these current app features alongside the study figures. Its editable
+Canva source contains 122 text elements and separate vector graph components;
+the illustration and repository QR code are the two images. The current print
+file is A0 (841 × 1189 mm). The paper remains five A4 pages and includes the
+Copernicus/Open-Meteo sources without replacing the original study results.
 
 ## Checks and troubleshooting
 
