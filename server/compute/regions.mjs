@@ -8,14 +8,14 @@ const inside = (p, b) =>
   p.longitude <= b[2] &&
   p.latitude >= b[1] &&
   p.latitude <= b[3];
-export function regionalSelection(q, catalog = cityCatalog()) {
+export function regionalSelection(q, catalog = cityCatalog(), preferCity = false) {
   const b = q.bounds;
   const focus = q.focus ?? {
     longitude: (b[0] + b[2]) / 2,
     latitude: (b[1] + b[3]) / 2,
   };
   // Bundled city snapshots answer viewports that fit entirely inside one of them.
-  if (catalog.covers(b)) return null;
+  if (catalog.covers(b) || (preferCity && catalog.at(focus))) return null;
   if (!inside(focus, ROMANIA_ENVELOPE))
     throw new ComputeError(
       "Apropie harta de România pentru clădiri și umbre.",

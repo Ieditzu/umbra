@@ -198,6 +198,15 @@ test("street names move below 3d geometry while points of interest stay above", 
   assert.ok(ids.indexOf("poi") < ids.indexOf("road_shield"));
 });
 
+test("buildings fade gradually between distant and city zoom", () => {
+  const { map } = renderer();
+  assert.deepEqual(
+    Array.from(map.getLayer("umbra-buildings").paint["fill-extrusion-opacity"], (value) =>
+      Array.isArray(value) ? Array.from(value) : value),
+    ["interpolate", ["linear"], ["zoom"], 9, 0, 12.5, 1],
+  );
+});
+
 test("wide view releases building geometry and allows it to reload", () => {
   const { bridge, map } = renderer();
   const value = { type: "FeatureCollection", features: [{ id: "building" }] };

@@ -48,6 +48,7 @@ export function LocalRouteMap(props: RouteMapProps) {
   const [view, setView] = useState({
     bounds: initialBounds,
     center: { latitude: 44.175, longitude: 28.64 },
+    zoom: 14.7,
   });
   const [foreground, setForeground] = useState(
     AppState.currentState === "active",
@@ -63,6 +64,7 @@ export function LocalRouteMap(props: RouteMapProps) {
   const overviewed = useRef(props.overview);
   const buildingTicket = useRef(0);
   const detailed = detailedViewport(view.bounds);
+  const showBuildings = view.zoom > 9;
   const boundsKey = [
     ...view.bounds,
     view.center.longitude,
@@ -90,7 +92,7 @@ export function LocalRouteMap(props: RouteMapProps) {
   // heightsKey refetches when confirmed measurements change building heights.
   useEffect(() => {
     if (!ready || !foreground) return;
-    if (!detailed) {
+    if (!showBuildings) {
       send({ type: "clearBuildings" });
       return;
     }
@@ -119,7 +121,7 @@ export function LocalRouteMap(props: RouteMapProps) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [ready, foreground, boundsKey, send, props.heightsKey, detailed]);
+  }, [ready, foreground, boundsKey, send, props.heightsKey, showBuildings]);
   useEffect(() => {
     if (ready)
       send({
@@ -294,8 +296,8 @@ export function LocalRouteMap(props: RouteMapProps) {
             send({ type: "tilt", value: current.current.tilted });
           } else if (message.type === "viewport") {
             lastCamera.current = message;
-            setView({ bounds: message.bounds, center: message.center });
-            if (!detailedViewport(message.bounds))
+            setView({ bounds: message.bounds, center: message.center, zoom: message.zoom });
+            if (message.zoom <= 9)
               setError((previous) => previous.startsWith("Clădirile nu au putut") ? "" : previous);
             current.current.onBounds(message.bounds, message.center);
             const tilted = message.pitch > 2;

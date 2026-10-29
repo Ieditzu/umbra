@@ -328,7 +328,7 @@
             ],
             "fill-extrusion-height": ["get", "display_height"],
             "fill-extrusion-base": 0,
-            "fill-extrusion-opacity": 1,
+            "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 9, 0, 12.5, 1],
           },
         },
         before,
