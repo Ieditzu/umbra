@@ -330,6 +330,7 @@ export function RouteMap({
           onTap?.(event.nativeEvent.coordinate);
         }}
         mapType={nativeMapType(mapStyle, Platform.OS)}
+        customMapStyle={Platform.OS === "android" ? [{ featureType: "transit.station.bus", stylers: [{ visibility: "off" }] }] : undefined}
         showsBuildings={threeD}
         pitchEnabled
         showsCompass={false}

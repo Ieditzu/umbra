@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import test from "node:test";
 
-function renderer(models = false) {
+function renderer(models = false, style = null) {
   const messages = [],
     instances = [];
   class Map {
@@ -78,6 +78,9 @@ function renderer(models = false) {
     }
     getStyle() {
       return { layers: Object.values(this.layers) };
+    }
+    setStyle(value) {
+      this.loadedStyle = value;
     }
     setLight(value) {
       this.light = value;
@@ -166,8 +169,9 @@ function renderer(models = false) {
       setTimeout,
       clearTimeout,
       AbortController,
-      fetch: () => {
-        throw new Error("Network disabled in test");
+      fetch: async () => {
+        if (!style) throw new Error("Network disabled in test");
+        return { ok: true, json: async () => style };
       },
     },
   );
@@ -175,6 +179,24 @@ function renderer(models = false) {
   map.emit("style.load");
   return { bridge: window.umbraMap, map, messages, instances };
 }
+
+test("bus stops are filtered from all POI layers without removing other symbols", async () => {
+  const style = { layers: [
+    { id: "poi", type: "symbol", "source-layer": "poi", filter: ["==", ["get", "rank"], 1] },
+    { id: "transit", type: "symbol", "source-layer": "poi" },
+    { id: "places", type: "symbol", "source-layer": "place" },
+  ] };
+  const { map } = renderer(false, style);
+  await map.events.load();
+  const layers = map.loadedStyle.layers;
+  assert.equal(layers[0].filter[0], "all");
+  assert.equal(layers[0].filter[1][0], "==");
+  for (const layer of layers.slice(0, 2)) {
+    assert.ok(JSON.stringify(layer.filter).includes('"bus_stop"'));
+    assert.ok(JSON.stringify(layer.filter).includes('"bus_station"'));
+  }
+  assert.equal(layers[2].filter, undefined);
+});
 
 test("street names move below 3d geometry while points of interest stay above", () => {
   const { map } = renderer(true);

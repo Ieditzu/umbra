@@ -723,6 +723,13 @@
         );
         for (const layer of style.layers) {
           const id = layer.id.toLowerCase();
+          if (layer.type === "symbol" && layer["source-layer"] === "poi")
+            layer.filter = [
+              "all",
+              layer.filter ?? ["literal", true],
+              ["!", ["in", ["coalesce", ["get", "class"], ""], ["literal", ["bus", "bus_stop", "bus_station"]]]],
+              ["!", ["in", ["coalesce", ["get", "subclass"], ""], ["literal", ["bus", "bus_stop", "bus_station"]]]],
+            ];
           if (layer.type === "background")
             layer.paint = { ...layer.paint, "background-color": "#f5f4ed" };
           if (layer.type === "fill" && /water/.test(id))
