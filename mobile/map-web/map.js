@@ -231,19 +231,21 @@
       if (!map.getSource(`umbra-${name}`))
         map.addSource(`umbra-${name}`, { type: "geojson", data: saved[name] });
     const layers = map.getStyle().layers;
-    // Roads and their names belong on the ground. Liberty also has one-way
-    // symbols before bridge roads, so the first symbol is not a safe anchor.
-    let lastGroundLayer = -1;
+    const streetName = (layer) =>
+      layer.type === "symbol" &&
+      layer["source-layer"] === "transportation_name" &&
+      !/shield/i.test(layer.id);
+    // Move only street names below the 3D models; POIs stay above them.
+    let lastRoad = -1;
     layers.forEach((layer, index) => {
-      if (
-        (layer["source-layer"] === "transportation" && layer.type !== "symbol") ||
-        (layer["source-layer"] === "transportation_name" && layer.type === "symbol")
-      )
-        lastGroundLayer = index;
+      if (layer["source-layer"] === "transportation" && layer.type !== "symbol")
+        lastRoad = index;
     });
     const before = layers.find(
-      (layer, index) => index > lastGroundLayer && layer.type === "symbol",
+      (layer, index) => index > lastRoad && layer.type === "symbol" && !streetName(layer),
     )?.id;
+    if (before)
+      for (const layer of layers.filter(streetName)) map.moveLayer(layer.id, before);
     if (!map.getLayer("umbra-shadows"))
       map.addLayer(
         {

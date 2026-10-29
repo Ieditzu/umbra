@@ -66,6 +66,12 @@ function renderer(models = false) {
       this.layers[layer.id] = layer;
       this.insertions.push({ id: layer.id, before });
     }
+    moveLayer(id, before) {
+      const layers = Object.values(this.layers).filter((layer) => layer.id !== id);
+      const index = layers.findIndex((layer) => layer.id === before);
+      layers.splice(index < 0 ? layers.length : index, 0, this.layers[id]);
+      this.layers = Object.fromEntries(layers.map((layer) => [layer.id, layer]));
+    }
     setLayoutProperty(id, name, value) {
       this.layers[id].layout ??= {};
       this.layers[id].layout[name] = value;
@@ -170,20 +176,26 @@ function renderer(models = false) {
   return { bridge: window.umbraMap, map, messages, instances };
 }
 
-test("3d geometry sits above roads and street names but below place labels", () => {
+test("street names move below 3d geometry while points of interest stay above", () => {
   const { map } = renderer(true);
   map.layers = {
     road: { id: "road", type: "line", "source-layer": "transportation" },
     arrow: { id: "arrow", type: "symbol", "source-layer": "transportation" },
     bridge: { id: "bridge", type: "line", "source-layer": "transportation" },
+    poi: { id: "poi", type: "symbol", "source-layer": "poi" },
     streets: { id: "streets", type: "symbol", "source-layer": "transportation_name" },
+    shield: { id: "road_shield", type: "symbol", "source-layer": "transportation_name" },
     labels: { id: "labels", type: "symbol", "source-layer": "place" },
   };
   map.insertions = [];
   map.emit("style.load");
   for (const id of ["umbra-buildings", "umbra-tree-models", "umbra-tree-volume", "umbra-tree-trunk"]) {
-    assert.equal(map.insertions.find((item) => item.id === id)?.before, "labels");
+    assert.equal(map.insertions.find((item) => item.id === id)?.before, "poi");
   }
+  const ids = Object.keys(map.layers);
+  assert.ok(ids.indexOf("bridge") < ids.indexOf("streets"));
+  assert.ok(ids.indexOf("streets") < ids.indexOf("poi"));
+  assert.ok(ids.indexOf("poi") < ids.indexOf("road_shield"));
 });
 
 test("data updates and taps preserve building meshes and chosen pitch without recreating the map", () => {
