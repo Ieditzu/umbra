@@ -24,7 +24,7 @@ export function SolarPanel({ point, roofId, footprint, loading, error, onClose }
   const [priceNote, setPriceNote] = useState("Eurostat · sem. I 2026");
   const priceEdited = useRef(false);
   const pricePeriod = useRef("2026-S1");
-  const [result, setResult] = useState<{ energy_kwh: number; min_energy_kwh: number; unshaded_kwh: number; uncertain_hours: number; blocked_hours: number; mode: "clear_sky"; reference_dates: string[] } | null>(null);
+  const [result, setResult] = useState<{ energy_kwh: number; min_energy_kwh: number; unshaded_kwh: number; uncertain_hours: number; blocked_hours: number; mode: "historical"; reference_dates: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [request, setRequest] = useState<{ point: Coordinate; roofId: string; date: string; watts: number; tilt: number; azimuth: number } | null>(null);
@@ -71,7 +71,7 @@ export function SolarPanel({ point, roofId, footprint, loading, error, onClose }
     {!!point && <Text style={styles.note}>≈ {Math.round(roof.area)} m² contur · maximum teoretic {roof.panels} panouri (2 m², 400 W/panou)</Text>}
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     <Pressable accessibilityRole="button" accessibilityLabel="Alege ziua" onPress={() => { setDraft(day); setPicker(true); }} style={styles.date}><Text style={styles.label}>{day.toLocaleDateString("ro-RO")}</Text></Pressable>
-    <Text style={styles.note}>Cer senin</Text>
+    <Text style={styles.note}>Media lunară PVGIS</Text>
     <View style={styles.row}>
       <View style={styles.field}><Text style={styles.caption}>Putere totală W</Text><TextInput accessibilityLabel="Puterea totală a panourilor în wați" keyboardType="numeric" value={watts} onChangeText={(v) => change(setWatts, v)} style={styles.input} /></View>
       <View style={styles.field}><Text style={styles.caption}>Înclinare °</Text><TextInput accessibilityLabel="Înclinarea panoului în grade" keyboardType="numeric" value={tilt} onChangeText={(v) => change(setTilt, v)} style={styles.input} /></View>
@@ -90,7 +90,7 @@ export function SolarPanel({ point, roofId, footprint, loading, error, onClose }
       {savings !== null
         ? <Text style={styles.result}>≈ {minSavings !== null && minSavings < savings ? `${minSavings.toFixed(2)}–` : ""}{savings.toFixed(2)} lei valoarea energiei / zi</Text>
         : <Text style={styles.error}>Introdu un preț între 0 și 100 lei/kWh.</Text>}
-      <Text style={styles.note}>Umbră calculată într-un punct · Nu include copacii{result.uncertain_hours > 0 ? " · Umbre parțial incerte" : ""}</Text>
+      <Text style={styles.note}>PVGIS {result.reference_dates.join("–")} · Umbră calculată într-un punct · Nu include copacii{result.uncertain_hours > 0 ? " · Umbre parțial incerte" : ""}</Text>
     </View>}
     {!!message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
     {picker && (Platform.OS === "android" ? pickerView : <Modal transparent animationType="slide" onRequestClose={() => setPicker(false)}><View style={styles.backdrop}><View style={styles.sheet}>{pickerView}<View style={styles.row}><Pressable onPress={() => setPicker(false)}><Text style={styles.close}>Anulează</Text></Pressable><Pressable onPress={() => { setDay(draft); setRequest(null); setBusy(false); setResult(null); setPicker(false); }}><Text style={styles.close}>Confirmă</Text></Pressable></View></View></View></Modal>)}
