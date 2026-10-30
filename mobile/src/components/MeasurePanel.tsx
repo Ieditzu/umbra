@@ -192,9 +192,6 @@ export function MeasurePanel({
         {!!store.error && <Text style={styles.error}>{store.error}</Text>}
         {!target && !loading && (
           <View style={{ gap: 6 }}>
-            <Text style={styles.subtle}>
-              Pe hartă, conturul clădirilor arată sursa înălțimii:
-            </Text>
             {[
               ["#2F8F4E", "Măsurată"],
               ["#2F62C9", "Din OpenStreetMap"],
@@ -206,11 +203,6 @@ export function MeasurePanel({
                 <Text style={styles.subtle}>{label}</Text>
               </View>
             ))}
-            <Text style={styles.subtle}>
-              {store.settings.contribute
-                ? "Partajarea e pornită: măsurătorile noi sunt trimise bazei comune (fără locație sau nume)."
-                : "Măsurătorile rămân pe telefon. Poți porni partajarea din Setări."}
-            </Text>
           </View>
         )}
         {target && (
@@ -244,9 +236,7 @@ export function MeasurePanel({
                 {metres(estimate.height)} ± {metres(estimate.sigma)} din{" "}
                 {estimate.count}{" "}
                 {estimate.count === 1 ? "măsurătoare" : "măsurători"} ·
-                neconfirmată. Mai măsoară o dată, la cel puțin 10 minute
-                distanță sau cu alt observator, ori folosește ruleta, laserul
-                sau drona.
+                neconfirmată
               </Text>
             )}
             <Text style={styles.subtle}>
@@ -381,8 +371,7 @@ export function MeasurePanel({
               </View>
             )}
             <Text style={styles.attribution}>
-              Contur © OpenStreetMap contributors · ODbL. Înălțimea măsurată
-              este o estimare geometrică, nu o măsurătoare oficială.
+              Contur © OpenStreetMap contributors · ODbL
             </Text>
           </>
         )}
@@ -423,8 +412,8 @@ function ReferenceForm({
       <Text style={styles.methodTitle}>Înălțime de referință</Text>
       <Text style={styles.subtle}>
         {hidden
-          ? "În modul orb, referința o introduce altă persoană decât cea care măsoară umbra."
-          : "Măsurată independent, de exemplu cu funcția de înălțime a laserului."}
+          ? "Referința se introduce de alt observator."
+          : "Măsurată independent."}
       </Text>
       <View style={styles.methods}>
         {(Object.keys(referenceLabel) as ReferenceMethod[]).map((m) => (
@@ -645,9 +634,6 @@ function MeasureAttempt({
             ? ` · ${reasonLabel[draft.reason] ?? draft.reason}`
             : ""}
         </Text>
-        <Text style={styles.subtle}>
-          Salvează și încercările respinse: studiul are nevoie de toate.
-        </Text>
         <View style={styles.row}>
           <Pressable
             accessibilityRole="button"
@@ -679,8 +665,8 @@ function MeasureAttempt({
     <>
       <Text style={styles.subtle}>
         {blind
-          ? "Linia portocalie pornește din colțul ales în direcția umbrei."
-          : "Linia portocalie pornește din colțul ales în direcția umbrei. Cifrele arată unde ar cădea vârful pentru acea înălțime."}
+          ? "Linia portocalie indică direcția umbrei."
+          : "Linia indică umbra; cifrele arată înălțimea."}
       </Text>
       <View style={styles.methods}>
         {(["tape_laser", "phone_gps", "drone_nadir"] as MeasureMethod[]).map(
@@ -722,14 +708,12 @@ function MeasureAttempt({
       ))}
       {sunTooLow && method !== "drone_nadir" ? (
         <Text style={styles.error}>
-          Soarele e prea jos acum. Poți introduce o fotografie de dronă făcută
-          mai devreme.
+          Soarele e prea jos. Poți folosi o fotografie de dronă.
         </Text>
       ) : method === "tape_laser" ? (
         <View style={{ gap: 6 }}>
           <Text style={styles.subtle}>
-            Măsoară de la baza colțului până la mijlocul marginii încețoșate a
-            umbrei, de-a lungul liniei.
+            Măsoară de la colț până la vârful umbrei.
           </Text>
           <View style={styles.row}>
             <TextInput
@@ -766,8 +750,7 @@ function MeasureAttempt({
       ) : method === "phone_gps" ? (
         <View style={{ gap: 6 }}>
           <Text style={styles.subtle}>
-            Stai nemișcat pe vârful umbrei colțului, pe linia portocalie.
-            Telefonul face media pozițiilor GPS {GPS_SECONDS} secunde.
+            Stai pe vârful umbrei timp de {GPS_SECONDS} secunde.
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -794,9 +777,7 @@ function MeasureAttempt({
       ) : (
         <View style={{ gap: 6 }}>
           <Text style={styles.subtle}>
-            Fotografie drept în jos, cu clădirea aproape de centru. Măsoară în
-            pixeli umbra de la colț la vârf. Respectă regulile AACR și zonele
-            interzise.
+            Fotografiază vertical și măsoară umbra în pixeli.
           </Text>
           {(
             [

@@ -83,7 +83,7 @@ export function WeatherSummary({
           />
         )}
         <Text style={styles.text}>
-          Prognoza nu este disponibilă · trasee calculate fără vreme
+          Prognoză indisponibilă
         </Text>
       </View>
     );
@@ -149,9 +149,6 @@ export function WeatherSummary({
       <View style={styles.copy}>
         <Text style={styles.title}>
           {description} · nori {weather.cloud_percent}%
-        </Text>
-        <Text style={styles.text}>
-          Soare direct {weather.direct_wm2} W/m² · prognoză Open-Meteo
         </Text>
       </View>
     </View>

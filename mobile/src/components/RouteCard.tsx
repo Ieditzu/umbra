@@ -68,20 +68,9 @@ export function RouteCard({
           />
         )}
       </View>
-      {totals.estimated_shade > 0 && (
+      {totals.unknown > 0 && totals.unknown < route.duration_s - 1 && (
         <Text style={styles.detail}>
-          {minutes(totals.estimated_shade)} umbră estimată · copaci sau clădiri
-        </Text>
-      )}
-      {totals.unshaded_estimate > 0 && (
-        <Text style={styles.detail}>
-          {minutes(totals.unshaded_estimate)} fără umbră identificată · date
-          incomplete, vremea poate schimba rezultatul
-        </Text>
-      )}
-      {totals.unknown > 0 && (
-        <Text style={styles.detail}>
-          {minutes(totals.unknown)} cu expunere necunoscută
+          {minutes(totals.unknown)} expunere necunoscută
         </Text>
       )}
     </Pressable>

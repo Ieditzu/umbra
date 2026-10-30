@@ -122,12 +122,9 @@ export default function SettingsScreen() {
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={styles.option}>Contribuie la baza comună</Text>
             <Text style={styles.small}>
-              Opțional. Se trimit doar: clădirea OSM, colțul ales, lungimea
-              umbrei, ora, metoda, răspunsurile la verificări și un cod anonim
-              al instalării. Nu se trimit numele, istoricul locațiilor sau
-              fotografii. Înălțimile combinate devin publice (licență ODbL).
-              Dacă ai sub 16 ani, cere acordul unui părinte sau al
-              coordonatorului.
+              Se trimit datele măsurătorii și un cod anonim, fără nume,
+              fotografii sau istoricul locațiilor. Înălțimile devin publice
+              (ODbL). Sub 16 ani, cere acordul unui părinte sau coordonator.
             </Text>
           </View>
           <Pressable
@@ -196,16 +193,11 @@ export default function SettingsScreen() {
           autoCapitalize="characters"
           style={[styles.input, { marginTop: 8 }]}
         />
-        <Text style={styles.small}>
-          Rămân pe telefon; servesc la compararea măsurătorilor între
-          observatori.
-        </Text>
         <View style={styles.switchRow}>
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={styles.option}>Mod orb</Text>
             <Text style={styles.small}>
-              Ascunde înălțimile cunoscute, referințele și cifrele de pe riglă
-              cât timp măsori, ca să nu influențeze unde marchezi vârful.
+              Ascunde înălțimile și referințele în timpul măsurării.
             </Text>
           </View>
           <Pressable

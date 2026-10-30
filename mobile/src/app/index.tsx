@@ -656,15 +656,8 @@ export default function MapScreen() {
               />
             </Pressable>
           </View>
-          {threeD && (
-            <Text style={styles.subtle}>
-              {mapStyle === "map"
-                ? "Clădiri OSM. Înălțimile lipsă folosesc volume orientative."
-                : `Detaliile 3D depind de acoperirea ${Platform.OS === "ios" ? "Apple Maps" : "Google Maps"}.`}
-            </Text>
-          )}
           <View style={styles.layerHeader}>
-            <Text style={styles.panelTitle}>Nori</Text>
+            <Text style={styles.panelTitle}>Pictogramă meteo</Text>
             <Pressable
               accessibilityRole="switch"
               accessibilityLabel="Afișează pictograma meteo"
@@ -687,9 +680,6 @@ export default function MapScreen() {
               />
             </Pressable>
           </View>
-          <Text style={styles.subtle}>
-            Pictograma meteo animată din trasee. Prognoza rămâne activă.
-          </Text>
           <View style={styles.layerHeader}>
             <Text style={styles.panelTitle}>Umbre</Text>
             <Pressable
@@ -712,12 +702,6 @@ export default function MapScreen() {
               ? (shadowStatus[shadow.status] ?? "Indisponibile")
               : "Oprite"}
           </Text>
-          {shadow.layer?.sun && (
-            <Text style={styles.subtle}>
-              Soare {shadow.layer.sun.elevation.toFixed(1)}° · azimut{" "}
-              {shadow.layer.sun.azimuth.toFixed(0)}°
-            </Text>
-          )}
           <View style={styles.layerHeader}>
             <Text style={styles.panelTitle}>Estimări și copaci</Text>
             <Pressable
@@ -739,12 +723,6 @@ export default function MapScreen() {
               />
             </Pressable>
           </View>
-          <Text style={styles.subtle}>
-            Coroanele copacilor și umbrele sunt orientative. Unde sunt
-            disponibile, folosim și coroane estimate din imagini satelitare din
-            2019–2020. Traseele folosesc umbra estimată a copacilor cu o pondere
-            redusă.
-          </Text>
           {shadow.layer?.partialCoverage && (
             <Text style={styles.subtle}>
               Acoperire parțială · apropie harta
