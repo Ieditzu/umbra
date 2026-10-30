@@ -1,0 +1,27 @@
+{
+  "times": [
+    20,
+    45,
+    55,
+    60,
+    60,
+    60
+  ],
+  "total": 300,
+  "words": [
+    35,
+    86,
+    92,
+    99,
+    100,
+    101
+  ],
+  "speeches": [
+    "Pe aceeași stradă, un trotuar poate fi în soare, iar celălalt în umbră. UMBRA ține cont de această diferență când alegem un traseu. În spatele hărții stă o întrebare simplă: de unde aflăm înălțimea clădirilor?",
+    "Am pornit de la datele folosite de aplicație pentru Constanța, Mamaia și Palazu Mare. Setul conține peste cincizeci și una de mii de clădiri. Pentru aproape optzeci și opt la sută nu există informații despre înălțime sau numărul de etaje. Numai două sute șaptezeci și una au înălțimea trecută direct în OpenStreetMap. Alte clădiri au numărul de etaje, din care se poate face o estimare. Aici este problema pe care o tratăm: putem desena conturul unei clădiri, dar pentru umbra ei avem nevoie și de înălțime.",
+    "Am verificat și GlobalBuildingAtlas, un set global de înălțimi estimate. Am găsit valori pentru aproximativ șaptezeci și nouă la sută dintre clădirile din datele noastre. Graficul arată diferența medie dintre aceste valori și înălțimile etichetate în OpenStreetMap. La clădirile joase diferența este mică. În grupul între douăzeci și patruzeci de metri, valorile GBA sunt în medie cu cincisprezece virgulă șapte metri mai mici. Grupul are zece clădiri, deci nu îl confundăm cu întregul oraș. Comparația este între două baze de date. Etichetele OSM sunt referința acestei analize, nu măsurători făcute de noi.",
+    "Metoda folosește o relație geometrică simplă. Pe teren plan, înălțimea unei clădiri este lungimea umbrei înmulțită cu tangenta unghiului Soarelui. Unghiul se calculează din loc, dată și oră. Lungimea se măsoară între baza colțului clădirii și marginea umbrei produse de acel colț. Nu alegem vârful unei umbre care vine de la un copac sau de la o construcție de pe acoperiș. Astfel, o lungime măsurată la sol ne dă o estimare a înălțimii. Formula este cunoscută. Rolul ei în UMBRA este să lege o măsurare accesibilă de datele de care are nevoie harta și, mai departe, de calculul traseelor.",
+    "Ora la care măsurăm contează mult. În exemplul de pe slide, păstrăm aceeași eroare de cinci metri la lungimea umbrei. Calculul arată o eroare de aproximativ trei virgulă doi metri în înălțime la amiază, în octombrie. Pentru o poziție înaltă a Soarelui, în iunie, efectul crește la treisprezece virgulă doi metri. Acestea sunt valori calculate cu modelul geometric. Un Soare mai jos reduce această amplificare, dar produce umbre mai lungi, care pot ajunge pe alte clădiri. De aceea contează împreună ora, terenul și marginea umbrei. La verificare comparăm aceleași clădiri cu o înălțime de referință și păstrăm condițiile de măsurare.",
+    "În aplicație, informația urmează un traseu clar. Măsurarea umbrei ne ajută să estimăm înălțimea. Înălțimea, împreună cu sursa și precizia ei, intră în harta clădirilor. Din această hartă și poziția Soarelui se calculează umbrele la ora deplasării. Apoi comparăm durata și expunerea estimată pe trasee, în limita ocolului ales. Telefonul afișează harta, iar calculatorul execută calculele. Rutarea folosește în prezent rețeaua pregătită pentru Constanța. Același mod de lucru se poate aplica altor orașe, cu date potrivite pentru fiecare. Aceasta este legătura pe care o construiește UMBRA: măsurarea unei clădiri are un rol direct în felul în care alegem drumul. Vă mulțumim!"
+  ]
+}

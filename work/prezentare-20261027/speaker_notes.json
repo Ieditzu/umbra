@@ -1,0 +1,62 @@
+[
+  {
+    "slide": 1,
+    "title": "UMBRA SmartRoute",
+    "start": "00:00",
+    "end": "00:20",
+    "seconds": 20,
+    "speech": "Bună ziua! Vă prezentăm UMBRA SmartRoute, un proiect despre trasee pietonale cu expunere redusă la soare. Am pornit de la harta umbrelor și am ajuns la o problemă esențială: cât de bine cunoaștem înălțimile clădirilor care produc aceste umbre?",
+    "cue": "Privește juriul. La 00:20 treci la aplicație.",
+    "sources": ["README.md", "docs/paper/umbra-lucrare.pdf"]
+  },
+  {
+    "slide": 2,
+    "title": "Harta, ora și traseul",
+    "start": "00:20",
+    "end": "01:10",
+    "seconds": 50,
+    "speech": "În aplicație, utilizatorul alege destinația, data, ora și ocolul acceptat. Sistemul folosește contururile clădirilor și poziția Soarelui pentru a estima umbrele și expunerea de-a lungul traseului. Telefonul afișează harta și citește poziția, iar serverul de pe calculator execută calculele. Rutarea folosește deocamdată datele pregătite pentru Constanța, Mamaia și Palazu Mare. Clădirile și umbrele orientative se pot încărca și pentru alte regiuni din România. Această acoperire vizuală nu înseamnă că avem rutare validată în toate orașele. Prototipul actual necesită calculatorul pornit, iar testele software nu demonstrează încă precizia umbrelor în teren.",
+    "cue": "Arată schema telefon–PC și limita geografică. Pauză scurtă înainte de problema datelor.",
+    "sources": ["README.md", "docs/backend/mobile-server.md", "docs/mobile-verification.md", "https://www.openstreetmap.org/copyright"]
+  },
+  {
+    "slide": 3,
+    "title": "Înălțimile lipsă schimbă umbrele",
+    "start": "01:10",
+    "end": "02:10",
+    "seconds": 60,
+    "speech": "Calitatea unei umbre calculate depinde de înălțimea clădirii. În setul nostru de 51.428 de clădiri, 45.159 nu au informații OSM despre înălțime sau etaje. Asta înseamnă 87,8 la sută. Am comparat apoi datele cu GlobalBuildingAtlas, un set global de înălțimi estimate, care acoperă 79,1 la sută dintre clădirile noastre. Comparația locală arată diferențe mai mari la clădirile înalte: pentru grupul etichetat între 20 și 40 de metri, GBA este în medie cu 15,7 metri mai jos. Grupul are doar zece clădiri. Important, referința este eticheta OSM, care poate conține erori. Acesta este un rezultat al comparației dintre baze de date, nu o eroare măsurată față de clădiri verificate pe teren.",
+    "cue": "Arată 87,8%, apoi GBA și grupul de 20–40 m. Accentuează limita referinței OSM.",
+    "sources": ["docs/research/gba-heights/summary.json", "docs/research/gba-heights/README.md", "mobile/assets/data/manifest.json", "https://doi.org/10.5194/essd-17-6647-2025"]
+  },
+  {
+    "slide": 4,
+    "title": "Înălțimea din umbră",
+    "start": "02:10",
+    "end": "03:05",
+    "seconds": 55,
+    "speech": "Ideea de cercetare este să folosim același model geometric în sens invers. Pentru o clădire verticală și teren plan, înălțimea este lungimea umbrei înmulțită cu tangenta unghiului Soarelui. Aplicația poate calcula unghiul din poziție, dată și oră. Utilizatorul trebuie să măsoare lungimea dintre colțul clădirii și marginea corectă a umbrei. Cercetăm dacă această măsurare poate îmbunătăți înălțimile disponibile și apoi rutele. Ora contează: când Soarele este foarte sus, aceeași eroare de lungime produce o eroare mai mare de înălțime. Formula este cunoscută. Contribuția urmărită este integrarea măsurării și a incertitudinii în aplicație. Modulul de măsurare și validarea lui sunt încă propuse.",
+    "cue": "Indică h, L și e pe schemă. Separă principiul geometric cunoscut de contribuția proiectului.",
+    "sources": ["docs/shadow-heights.md, secțiunile 2–3 și 6", "docs/paper/principiu.png", "https://gml.noaa.gov/grad/solcalc/calcdetails.html"]
+  },
+  {
+    "slide": 5,
+    "title": "Cum verificăm în realitate",
+    "start": "03:05",
+    "end": "04:20",
+    "seconds": 75,
+    "speech": "Planul de validare începe cu un pilot, apoi cu cel puțin treizeci de clădiri de înălțimi diferite, selectate înainte de a vedea rezultatele. Pentru fiecare avem nevoie de o înălțime de referință independentă. Măsurăm apoi umbra cu ruleta sau telemetrul, la ore diferite, și comparăm separat măsurarea prin GPS. Cel puțin doi observatori lucrează fără să cunoască referința. Obiectivul de pe ecran, o eroare de maximum trei metri pentru cel puțin optzeci la sută dintre clădirile cu umbră clară pe teren plat, este o ipoteză. Nu este un rezultat obținut. Păstrăm separat calibrarea și testarea, includem încercările eșuate și raportăm eroarea, nu doar exemplele reușite. Ultimul pas este să recalculăm umbrele și aceleași trasee cu fiecare sursă de înălțime. Astfel putem verifica dacă o înălțime mai bine estimată aduce și o îmbunătățire utilă a rutării, în același buget de ocol.",
+    "cue": "Urmărește etapele din schemă. Spune explicit că ±3 m / 80% este ipoteză. Fără demonstrație live în acest interval.",
+    "sources": ["docs/shadow-heights.md, H1 și secțiunea 7", "docs/paper/umbra-lucrare.pdf, protocolul propus"]
+  },
+  {
+    "slide": 6,
+    "title": "Ce avem și ce urmează",
+    "start": "04:20",
+    "end": "05:00",
+    "seconds": 40,
+    "speech": "Avem un prototip pentru hartă, umbre și rutare și o analiză locală care evidențiază limitele datelor de înălțime. Urmează măsurătorile de teren, integrarea înălțimilor verificate și evaluarea efectului asupra traseelor. Extinderea în alte orașe cere același audit al datelor. Modelul descrie expunerea la soare direct, fără să măsoare temperatura sau doza UV. Am declarat asistența AI pentru redactare și design. Rezultatele prezentate provin din analiza documentată a datelor. Obiectivul nostru rămâne simplu: înălțimi verificate pentru rute umbrite mai bine fundamentate. Vă mulțumim!",
+    "cue": "Încheie la 05:00. Rămâi pe acest slide pentru întrebări. Durata reală se verifică prin repetiție cronometrată.",
+    "sources": ["README.md", "docs/shadow-heights.md", "docs/research/gba-heights/summary.json"]
+  }
+]

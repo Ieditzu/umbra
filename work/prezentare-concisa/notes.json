@@ -1,0 +1,27 @@
+{
+  "times": [
+    20,
+    55,
+    55,
+    60,
+    65,
+    45
+  ],
+  "total": 300,
+  "words": [
+    34,
+    82,
+    72,
+    87,
+    89,
+    52
+  ],
+  "speeches": [
+    "UMBRA pornește de la o idee simplă: o umbră ne poate da informații despre obiectul care o produce. În prezent, folosim această idee pentru a calcula trasee pietonale și a compara expunerea la soare.",
+    "La înscriere, am studiat dacă umbra unei persoane poate apărea într-o imagine înaintea persoanei, la un colț fără vizibilitate. Am comparat o scenă goală cu o filmare de mers și o vedere de referință. Apoi am folosit geometria umbrelor în altă aplicație: traseele pietonale. Pentru a calcula umbra unei clădiri avem nevoie de înălțimea ei, care lipsește adesea din hartă. De aici vine întrebarea noastră: în ce condiții putem estima înălțimea din umbră și cât de precisă este metoda față de GlobalBuildingAtlas?",
+    "În UMBRA alegem destinația și ora plecării. Calculatorul folosește clădirile, rețeaua pietonală și poziția Soarelui ca să estimeze umbrele și să compare drumurile. Telefonul afișează harta, clădirile tridimensionale și navigarea prin GPS. Aplicația poate propune până la trei variante: traseul rapid, unul echilibrat și unul cu mai multă umbră, în limita ocolului ales. Pentru fiecare sunt afișate distanța, durata și umbra modelată. Traseele folosesc rețeaua pregătită pentru Constanța, Mamaia și Palazu Mare.",
+    "Am analizat datele pentru zona Constanța. Din cele cincizeci și una de mii patru sute douăzeci și opt de clădiri, aproape optzeci și opt la sută nu au înălțime sau număr de etaje în setul folosit. Am comparat și estimările GlobalBuildingAtlas cu înălțimile etichetate în OpenStreetMap. Pentru grupul de zece clădiri între douăzeci și patruzeci de metri, valorile GBA sunt, în medie, cu cincisprezece virgulă șapte metri mai mici decât cele din OSM. Este o comparație între două baze de date; ea nu înlocuiește măsurătorile de teren.",
+    "Modul de măsurare folosește relația dintre înălțime, lungimea umbrei și unghiul Soarelui. Pe teren plan, înălțimea este lungimea umbrei înmulțită cu tangenta unghiului solar. Aplicația calculează unghiul după loc, dată și oră. Lungimea poate fi obținută cu ruleta sau laserul, prin GPS ori dintr-o fotografie aeriană. O măsurare confirmată poate intra în calculul umbrei și al traseelor. În exemplul calculat, aceeași abatere de cinci metri la lungime produce aproximativ trei virgulă doi metri eroare în octombrie și treisprezece virgulă doi în iunie. Rezultatul arată de ce momentul măsurării contează.",
+    "Aceste părți lucrează împreună. Datele despre clădiri și poziția Soarelui dau o estimare a umbrelor. Apoi aplicația compară variantele de traseu după timp și expunere. Utilizatorul alege cât timp în plus acceptă să meargă și ce drum preferă. Astfel, informația obținută din umbre devine un criteriu practic în alegerea traseului. Vă mulțumim!"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "times": [
+    20,
+    45,
+    50,
+    35,
+    55,
+    45,
+    50
+  ],
+  "total": 300,
+  "words": [
+    37,
+    74,
+    71,
+    65,
+    80,
+    72,
+    80
+  ],
+  "speeches": [
+    "Pe aceeași stradă, un trotuar poate fi în soare, iar celălalt în umbră. UMBRA este o aplicație care ține cont de această diferență când alegem drumul. Vă arătăm cum funcționează și de unde obține informațiile despre clădiri.",
+    "În aplicație alegem destinația și ora plecării. Harta arată clădirile și umbrele estimate pentru momentul ales. Telefonul folosește poziția GPS și afișează traseul, iar calculatorul calculează geometria clădirilor, poziția Soarelui, umbrele și variantele de drum. Putem vedea și clădirile în trei dimensiuni. Pe parcurs, aplicația afișează distanța rămasă și ora estimată a sosirii. Harta și umbrele sunt disponibile pe zone din România; traseele se calculează pe rețeaua pregătită pentru Constanța, Mamaia și Palazu Mare.",
+    "Aplicația compară până la trei variante: Rapid, Echilibrat și Mai multă umbră. Pentru fiecare vedem durata, distanța și timpul estimat în umbră. Putem stabili cât timp în plus acceptăm să mergem. Alegem apoi traseul potrivit și îl urmărim pe hartă. Pentru calcul, aplicația folosește rețeaua pietonală și umbra estimată pe segmentele drumului, la momentul în care sunt parcurse. Acolo unde datele nu ajung pentru o estimare, expunerea este afișată ca necunoscută.",
+    "O hartă bună are nevoie de mai mult decât conturul clădirilor. În datele pentru Constanța, Mamaia și Palazu Mare avem cincizeci și una de mii patru sute douăzeci și opt de clădiri, dar aproape optzeci și opt la sută nu au informații despre înălțime sau etaje. Pentru a calcula umbra unei clădiri, avem nevoie și de înălțimea ei. Aici intervine partea de cercetare a proiectului.",
+    "Din butonul de măsurare alegem o clădire și urmărim pe hartă direcția umbrei. Lungimea se poate introduce după o măsurare cu ruleta sau laserul, cu poziția GPS ori dintr-o fotografie făcută de sus. Aplicația calculează unghiul Soarelui în funcție de loc, dată și oră și estimează înălțimea prin formula de pe ecran. O măsurare confirmată poate fi folosită în calculul umbrelor și al traseelor. Pe teren plan, trebuie să alegem umbra colțului clădirii, nu umbra unui obiect de pe acoperiș.",
+    "Ora măsurării contează. În acest exemplu calculat, folosim aceeași abatere de cinci metri la lungimea umbrei. La un unghi solar de treizeci și două virgulă nouă grade, efectul asupra înălțimii este de aproximativ trei virgulă doi metri. La șaizeci și nouă virgulă două grade, ajunge la treisprezece virgulă doi metri. Un Soare mai jos reduce această amplificare, dar umbrele mai lungi pot întâlni obstacole. Valorile de aici sunt calculate cu modelul geometric.",
+    "De la măsurare la alegerea unui drum, toate părțile lucrează împreună. Înălțimea unei clădiri ajută la calculul umbrei; harta și ora aleasă arată unde poate cădea aceasta; iar traseele compară durata și expunerea estimată. Utilizatorul hotărăște cât ocol acceptă și ce variantă alege. Rețeaua de rutare folosită acum este pentru Constanța și împrejurimi; aceeași metodă poate fi aplicată și în alte orașe, cu datele necesare. UMBRA adaugă un criteriu simplu când alegem drumul: cât timp petrecem la umbră. Vă mulțumim!"
+  ]
+}

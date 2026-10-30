@@ -1,0 +1,5 @@
+import urllib.request,json,pathlib
+urls=json.loads("[\"https://export-download.canva.com/ae91924f-dd2f-49d9-bc2a-f743d21e570f/0/0001-9031363448382520254.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261027%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261027T095850Z&X-Amz-Expires=13762&X-Amz-Signature=19f77b85401e6cd363731f5970cd65fd347fd0451c55bfcdbdf8624529e8fb2b&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Tue%2C%2027%20Oct%202026%2013%3A48%3A12%20GMT\",\"https://export-download.canva.com/b10a9961-72e7-4132-8188-50f5c442333a/0/0006-4160720450564880080.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261027%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261027T063202Z&X-Amz-Expires=29379&X-Amz-Signature=0090f85d9d5fc889bebbb5bd06ffe2385ecf1389c1165b38124a2a66149893a7&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Tue%2C%2027%20Oct%202026%2014%3A41%3A41%20GMT\"]")
+p=pathlib.Path('/Users/maneacezar/Documents/GitHub/umbra/work/prezentare-concisa/canva-preview')
+for i,u in zip([1,6],urls): urllib.request.urlretrieve(u,p/f'end-{i}.png')
+
