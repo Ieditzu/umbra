@@ -8,7 +8,7 @@ export async function solarPower(q, { shade = async (times) => times.map(() => "
   if (!q.point || !Number.isFinite(q.point.latitude) || !Number.isFinite(q.point.longitude) || q.point.latitude < 43.5 || q.point.latitude > 48.4 || q.point.longitude < 20.2 || q.point.longitude > 30 ||
       typeof q.roof_id !== "string" || !/^(way|relation)\/\d{1,15}$/.test(q.roof_id) ||
       !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== q.date || date.getUTCFullYear() < 2000 || date.getUTCFullYear() > 2100 ||
-      !Number.isFinite(q.watts) || q.watts < 50 || q.watts > 10000 || !Number.isFinite(q.tilt) || q.tilt < 0 || q.tilt > 90 || !Number.isFinite(q.azimuth) || q.azimuth < -180 || q.azimuth > 180)
+      !Number.isFinite(q.watts) || q.watts < 50 || q.watts > 1000000 || !Number.isFinite(q.tilt) || q.tilt < 0 || q.tilt > 90 || !Number.isFinite(q.azimuth) || q.azimuth < -180 || q.azimuth > 180)
     throw new ComputeError("Datele panoului sunt invalide.", 422, "invalid");
   const tilt = q.tilt * Math.PI / 180;
   const hours = [];

@@ -11,6 +11,8 @@ test("clear sky potential accounts for seasons and building shade", async () => 
   const uncertain = await solarPower(q, { shade: async (times) => times.map(() => "uncertain") });
   assert.equal(summer.mode, "clear_sky");
   assert.ok(summer.energy_kwh > winter.energy_kwh && winter.energy_kwh > 0);
+  const large = await solarPower({ ...q, watts: 20000 }, { shade: clear });
+  assert.ok(large.energy_kwh > summer.energy_kwh * 49);
   assert.ok(blocked.energy_kwh < summer.energy_kwh && blocked.energy_kwh > 0);
   assert.equal(blocked.unshaded_kwh, summer.energy_kwh);
   assert.equal(uncertain.energy_kwh, summer.energy_kwh);
