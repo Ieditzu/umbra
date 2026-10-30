@@ -1,0 +1,273 @@
+UMBRA
+Indirect imaging and early approach warning at blind spots
+
+CURRENT DIRECTION - 20 OCTOBER 2026
+
+The accepted project direction is to help people observe blind spots before
+entering them, initially a car-park exit with an obstructed pavement view.
+The intended use includes parking assistance and complementary perception
+for autonomous vehicles. See docs/umbra-idea.en.md for the full idea.
+
+The main application is now the Parking camera at /parking.html. The local
+research server and Vite development root open this view. Browser/USB cameras,
+local video replay and private-LAN RTSP cameras use a pretrained road-user
+detector without per-scene training. The interface shows current detections,
+image-space exit-path and lateral-approach warnings, optional mirrored guides
+and warning sound. A separate automatic ground-shadow channel checks colour
+attenuation, preserved ground texture and temporal movement while stopped.
+It can warn without a visible-person detection, outlines measured shadow
+contours, and logs manually reviewed frame-time lead (including late cues).
+The channel suspends on unsupported camera movement or lighting changes.
+Frame-time lead excludes processing/transport/display latency. Detection of fully hidden
+pedestrians or traffic, physical distance and collision avoidance are not
+established. See docs/parking-camera.md.
+
+Real parking performance needs controlled recordings and independent labels.
+The original recorded cast-shadow workflow remains a separate baseline below.
+
+ORIGINAL CAST-SHADOW BASELINE: This part is the earlier research design. README.md and
+docs/competition/ describe the current software. The estimator is
+heuristic. Lead time is measured on the main camera (shadow onset vs
+the moment a person enters the frame). It is not Bouman-style
+non-line-of-sight reconstruction and does not invert sun/corner
+geometry.
+
+1. The idea in one sentence
+
+Umbra watches the pavement beside a building corner. When someone
+approaches from the hidden side, their shadow can reach that pavement
+before their body does. Umbra investigates whether changes in this
+indirect visual evidence support a reliable warning of an occluded
+approach, under sunlight and artificial illumination. It measures the
+warning gained, the false alarms introduced, and when an estimate
+should be withheld.
+
+It is not a camera that sees through walls. It is not the faint
+penumbra method from Bouman et al. 2017. It uses a normal, visible
+cast shadow as a precursor to line-of-sight.
+
+2. What Umbra is trying to solve
+
+At a blind corner a camera (or a driver, or a pedestrian) only reacts
+after the other person appears. The practical question is:
+
+Under which lighting, scene geometry, and camera conditions can a
+fixed RGB camera infer an occluded approach from a visible cast
+shadow, with useful lead time at a controlled false-alert rate?
+
+The research contribution to investigate is a measured operating
+range: when indirect shadow evidence is informative, how uncertainty
+changes as conditions vary, and how well a method transfers to an
+unseen corner. The intended CCTV application is early approach
+warning. Shadow evidence alone does not establish criminal intent
+or demonstrate robbery prevention.
+
+3. Core principle
+
+Sunlight (or another strong directional light) throws a hard shadow of
+the hidden walker onto the visible ground near the edge. That shadow
+is ordinary photometry: dark pixels on pavement. It is not a 0.1%
+penumbra.
+
+Sequence in one continuous main-camera clip:
+
+1. Empty pavement (matches the calibration).
+2. Shadow creeps in / grows toward the corner. The walker is still
+   out of frame.
+3. The walker steps into view.
+
+Umbra timestamps (2) and (3). Lead time is t_line_of_sight minus
+t_shadow. A useful system warns in (2) and does not invent a person
+when the corner stays empty.
+
+4. System design
+
+Inputs
+
+- A fixed RGB camera with a wide, clear view of the vertical corner
+  edge, the visible pavement where the shadow will arrive, and the
+  full body of the walker after they clear the edge. This is a route
+  view, not a close facial shot.
+- A short empty-scene calibration video (same lock-off, nobody
+  approaching).
+- Optional second camera on the hidden path for independent labels
+  (ArUco 10 near the corner, 11 far). If markers are unavailable,
+  the local dashboard can save a manual review: click a corner-side
+  reference point, a far reference point, and the walker in selected
+  frames. Not used for the warning.
+
+Processing
+
+1. Detect the corner edge and a pavement region of interest. If that
+   selection misses the shadow path, a reviewer can mark the pavement
+   on the phone clip. The first 1.8 seconds of that clip then form a
+   scene-specific empty baseline for the selected patch.
+2. Build a background from the empty calibration.
+3. On the trial clip, measure darkening in the pavement ROI (shadow)
+   and anonymous foreground residual in a broad entry zone above it
+   (the full body becoming visible).
+4. Track a coarse 1-D shadow position along the pavement.
+   If the shadow travels clearly before the body enters view, show a
+   schematic relative-motion estimate in the corner-trial video. A
+   nearby static wall edge can be estimated from the empty calibration;
+   Camera setup can use a prior visible walk to pair anonymous body
+   centres with complete, unclipped ground-shadow tips. Save an empirical
+   one-dimensional camera/route/light mapping after checking enough motion
+   and internal consistency. It estimates on-screen body height, not lamp
+   or person height in metres. No hidden-route clicks or drone video are
+   required. Calibration may inspect its complete source recording, but
+   deployment uses only that saved mapping and current/past incoming frames.
+   Both recorded Corner trials and live browser/LAN RTSP cameras use the
+   same causal tracker. Show a green estimated-body-centre dot with an
+   error/extrapolation ring behind the wall; remove it on missing/clipped
+   shadow evidence, camera mismatch, excessive extrapolation, or body entry.
+   New analyses without a saved mapping withhold the previous fixed-depth
+   shadow-ray dot. Never normalize the live dot by a future body entry or
+   animate a gait. A replay of the calibration walk is flagged as such,
+   not counted as independent live validation. The mapping assumes the
+   same fixed view, dominant light, route and roughly similar body height;
+   internal residuals are not calibrated field-error bounds. Night position
+   previews do not override the separate reviewed-streetlamp warning gate.
+   Live sessions are bounded, stop on disconnect and expire when unused.
+   Shadow alone does not support reliable identity, limb pose or body shape.
+5. Gate on calibration quality, shadow strength, and temporal
+   coherence. Refuse when the scene or signal is unusable.
+   Use the scene's recording date, time, and coordinates to calculate
+   sun elevation and azimuth. When the sun is below the horizon, accept
+   a reviewed streetlamp-lit pavement area instead of a solar-shadow
+   region, provided the empty calibration shows adequate stable light.
+   Withhold the warning at night if that area is missing or too dark.
+   Night-time visible-body evidence uses a separate low-light upright
+   foreground detector. The first 18 trial samples must be empty; they
+   supply a fixed baseline with exposure correction and per-pixel noise
+   thresholds. An upright core separates the body from a connected long
+   pavement shadow. Require two consecutive observations, keep observing
+   stopped foreground, and remove the box when evidence disappears.
+   Replay these exact recorded boxes in the analysis video. This is a
+   silhouette heuristic, not semantic person recognition or pose recovery;
+   it does not override the night-time shadow-warning coverage gate.
+   The live scene clock shows the sun position for its displayed time,
+   including a frozen/editable time. Sun bearing or lamp illumination
+   alone cannot locate a person behind a wall without calibrated camera
+   and ground geometry.
+6. For controlled evaluation, use ArUco labels when available or
+   clearly label a markerless truth video as operator-reviewed. A
+   reviewer can also mark the first full-body entry frame in the main
+   video; that timestamp is reported as manual, not automatic.
+
+Outputs
+
+- no coverage / no reliable signal / approaching (shadow only) /
+  early warning (shadow then person) / entered view (person with no
+  prior shadow).
+- Shadow onset time, line-of-sight onset time, lead time in seconds.
+- Coarse shadow position range, approach direction, speed class.
+- Confidence and explicit refusal reasons.
+- A replayable analysis video: corner edge, pavement shadow region,
+  anonymous entry zone, darkening pixels, signal scores, and the
+  detected shadow/body events drawn over the main footage. A small
+  shadow-derived motion overlay appears only for qualifying pre-entry
+  shadow travel; it is not a behind-wall body detection.
+
+5. Research question
+
+How much warning can visible shadow evidence provide about an
+occluded approach at a fixed camera, and can that warning be retained
+across unseen corners, lighting conditions, and camera noise without
+an unacceptable increase in false alerts?
+
+Hypotheses to evaluate
+
+H1: When the geometry exposes a shadow before the walker, pavement
+tracking provides positive warning time relative to direct visibility.
+H2: Temporal coherence and refusal gates reduce false alerts from
+lighting changes compared with a fixed darkening threshold, at a
+matched detection rate.
+H3: Calibration quality and lighting conditions explain changes in
+performance on unseen scenes and later recording sessions.
+H4: A stable streetlamp can provide warning evidence at night, but
+multiple lights, flicker, and moving headlights alter the reliability
+of that evidence.
+H5: Performance changes across recording locations and sessions;
+the size and causes of this variation can be measured.
+
+These are research hypotheses, not established results. The full
+protocol, proposed comparisons, and reporting requirements are in
+docs/research-plan.md.
+
+6. What this is not
+
+- Not "seeing around corners" from penumbra (Bouman 2017). Cite that
+  paper as related work and as a stricter, harder method. Umbra's
+  contribution is a measurable early-warning protocol on a visible
+  shadow.
+- Not identity, pose, or through-wall imaging.
+- Not a trained detector that you feed random clips. Analysis is
+  per-trial residual comparison. A reviewed phone pavement region
+  tunes one trial's signal; it is not evidence of generalization.
+  The optional PyTorch net remains synthetic/advisory.
+
+7. Controlled experiment
+
+Camera 1 (main): full route view — visible pavement + edge + shadow
+path + enough of the opening to show the walker's full body after
+entry. Tape it down. Same pose for empty and trial.
+
+Camera 2 (optional ground truth): hidden path, markers 10 and 11.
+When you cannot use markers, film the whole route stably; in Umbra's
+Manual labels panel, click the near/far route endpoints once and the
+walker's feet in several paused frames. These become manual labels,
+not model predictions.
+
+For every trial
+
+- Empty calibration, 8–15 s, nobody on either side.
+- One continuous main clip: walker starts fully hidden, shadow should
+  appear first, then their full body enters the frame.
+- Sun must throw the shadow toward the main camera. If the shadow
+  falls behind the walker, pick another corner or time of day.
+- Empty-target trials (nobody comes) for false alerts.
+
+Compare
+
+1. Frame/background differencing on the whole image.
+2. A fixed shadow-energy threshold.
+3. Coverage/coherence without a shadow tracker.
+4. Umbra: scene-normalized pavement residual, shadow tracker,
+   line-of-sight band, lead time, confidence gate.
+
+Measure
+
+- Shadow-onset precision/recall vs empty trials.
+- Lead time (seconds) when the person does enter.
+- Fraction of approaches with lead time > 0.
+- False-alert rate on empty scenes.
+- Correct-refusal rate when there is no usable edge or light.
+
+8. Honest limits
+
+Needs directional light and a geometry where the shadow hits the
+visible pavement before the body does. Fails in overcast light, when
+the sun is behind the walker, on busy/reflective ground, or if the
+camera moves. A hard shadow in the main camera is line-of-sight
+photometry of the shadow, not reconstruction of a hidden scene.
+
+The full-body view is used only to make the entry timestamp and the
+shadow-to-body comparison reviewable. Umbra does not identify the
+walker, infer pose, or reconstruct appearance; keep the camera a
+wide route view rather than a close facial shot.
+
+9. Technology
+
+Local laptop. Python, OpenCV, FastAPI, optional PyTorch. Browser
+dashboard for import, recording, analysis, and evidence export. No
+cloud.
+
+10. Starting literature (related, not implemented)
+
+Bouman et al., "Turning Corners Into Cameras," ICCV 2017 — penumbra
+NLOS; Umbra does not run that inverse problem.
+
+The project investigates the relationship between occlusion, visible
+shadow evidence, warning time, and false alarms. Its value depends on
+controlled comparisons and independently reviewed results.
