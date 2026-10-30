@@ -1,4 +1,5 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import type { Coordinate } from "../domain/routes";
@@ -17,10 +18,11 @@ export function SolarPanel({ point, roofId, loading, error, onClose }: { point: 
   const [watts, setWatts] = useState("400");
   const [tilt, setTilt] = useState("30");
   const [direction, setDirection] = useState("0");
-  const [price, setPrice] = useState("");
-  const [priceNote, setPriceNote] = useState("Se încarcă prețul mediu…");
+  const [price, setPrice] = useState("1,4584");
+  const [priceNote, setPriceNote] = useState("Eurostat · sem. I 2026 · consum 2.500–4.999 kWh/an, cu taxe. Poți modifica prețul.");
   const priceEdited = useRef(false);
-  const [result, setResult] = useState<{ energy_kwh: number; min_energy_kwh: number; unshaded_kwh: number; uncertain_hours: number; blocked_hours: number; mode: "forecast" | "historical"; reference_dates: string[] } | null>(null);
+  const pricePeriod = useRef("2026-S1");
+  const [result, setResult] = useState<{ energy_kwh: number; min_energy_kwh: number; unshaded_kwh: number; uncertain_hours: number; blocked_hours: number; mode: "clear_sky"; reference_dates: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [request, setRequest] = useState<{ point: Coordinate; roofId: string; date: string; watts: number; tilt: number; azimuth: number } | null>(null);
@@ -29,14 +31,21 @@ export function SolarPanel({ point, roofId, loading, error, onClose }: { point: 
   const minSavings = result ? solarSavings(result.min_energy_kwh, price) : null;
   useEffect(() => {
     const controller = new AbortController();
-    void getElectricityPrice(controller.signal).then(({ price: average, period }) => {
-      if (!controller.signal.aborted && !priceEdited.current) {
+    const apply = ({ price: average, period }: { price: number; period: string }) => {
+      if (!controller.signal.aborted && !priceEdited.current && Number.isFinite(average) && average > 0 && average <= 100 && /^\d{4}-S[12]$/.test(period) && period >= pricePeriod.current) {
+        pricePeriod.current = period;
         setPrice(String(average).replace(".", ","));
         setPriceNote(`Eurostat · sem. ${period.endsWith("S1") ? "I" : "II"} ${period.slice(0, 4)} · consum 2.500–4.999 kWh/an, cu taxe. Poți modifica prețul.`);
       }
-    }).catch(() => {
-      if (!controller.signal.aborted && !priceEdited.current) setPriceNote("Prețul mediu nu este disponibil. Introdu prețul de pe factură.");
-    });
+    };
+    void (async () => {
+      try { const saved = await AsyncStorage.getItem("umbra.electricityPrice"); if (saved) apply(JSON.parse(saved)); } catch { /* Keep the included Eurostat value. */ }
+      try {
+        const latest = await getElectricityPrice(controller.signal);
+        apply(latest);
+        if (latest.period >= pricePeriod.current) await AsyncStorage.setItem("umbra.electricityPrice", JSON.stringify(latest));
+      } catch { /* Keep the last known Eurostat value. */ }
+    })();
     return () => controller.abort();
   }, []);
   useEffect(() => {
@@ -59,7 +68,7 @@ export function SolarPanel({ point, roofId, loading, error, onClose }: { point: 
     <Text style={styles.note}>{loading ? "Se verifică clădirea…" : point ? "Acoperiș selectat · apasă altă clădire pentru a-l schimba" : "Apasă pe o clădire de pe hartă."}</Text>
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     <Pressable accessibilityRole="button" accessibilityLabel="Alege ziua" onPress={() => { setDraft(day); setPicker(true); }} style={styles.date}><Text style={styles.label}>{day.toLocaleDateString("ro-RO")}</Text></Pressable>
-    <Text style={styles.note}>Pentru date îndepărtate folosim o medie istorică, nu o prognoză.</Text>
+    <Text style={styles.note}>Estimare pentru cer senin, fără prognoză meteo.</Text>
     <View style={styles.row}>
       <View style={styles.field}><Text style={styles.caption}>Putere W</Text><TextInput accessibilityLabel="Puterea panoului în wați" keyboardType="numeric" value={watts} onChangeText={(v) => change(setWatts, v)} style={styles.input} /></View>
       <View style={styles.field}><Text style={styles.caption}>Înclinare °</Text><TextInput accessibilityLabel="Înclinarea panoului în grade" keyboardType="numeric" value={tilt} onChangeText={(v) => change(setTilt, v)} style={styles.input} /></View>
@@ -77,13 +86,13 @@ export function SolarPanel({ point, roofId, loading, error, onClose }: { point: 
     {result && <View>
       <Text style={styles.result}>≈ {result.min_energy_kwh < result.energy_kwh ? `${result.min_energy_kwh.toFixed(2)}–` : ""}{result.energy_kwh.toFixed(2)} kWh / zi</Text>
       {savings !== null
-        ? <Text style={styles.result}>≈ {minSavings !== null && minSavings < savings ? `${minSavings.toFixed(2)}–` : ""}{savings.toFixed(2)} lei economisiți / zi</Text>
+        ? <Text style={styles.result}>≈ {minSavings !== null && minSavings < savings ? `${minSavings.toFixed(2)}–` : ""}{savings.toFixed(2)} lei valoarea energiei / zi</Text>
         : <Text style={styles.error}>Introdu un preț între 0 și 100 lei/kWh.</Text>}
-      <Text style={styles.note}>{result.mode === "forecast" ? "Prognoză meteo" : `Medie istorică: ${result.reference_dates.map((date) => date.slice(0, 4)).join(", ")}`}. Fără umbră calculată: {result.unshaded_kwh.toFixed(2)} kWh/zi. Economie estimată dacă folosești toată energia produsă.</Text>
+      <Text style={styles.note}>Cer senin. Fără umbră calculată: {result.unshaded_kwh.toFixed(2)} kWh/zi. Valoarea este producția înmulțită cu prețul energiei; nu reprezintă venitul din vânzare.</Text>
       <Text style={styles.note}>{result.uncertain_hours > 0 ? "Intervalul include ore cu înălțimi sau acoperire incerte. " : ""}Umbră estimată doar de la clădirile cartografiate; copacii și detaliile acoperișului nu sunt incluse.</Text>
     </View>}
     {!!message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
-    <Text style={styles.note}>Open-Meteo · pierderi estimate 14%.</Text>
+    <Text style={styles.note}>Model solar simplificat · pierderi estimate 14%.</Text>
     {picker && (Platform.OS === "android" ? pickerView : <Modal transparent animationType="slide" onRequestClose={() => setPicker(false)}><View style={styles.backdrop}><View style={styles.sheet}>{pickerView}<View style={styles.row}><Pressable onPress={() => setPicker(false)}><Text style={styles.close}>Anulează</Text></Pressable><Pressable onPress={() => { setDay(draft); setRequest(null); setBusy(false); setResult(null); setPicker(false); }}><Text style={styles.close}>Confirmă</Text></Pressable></View></View></View></Modal>)}
   </ScrollView>;
 }
