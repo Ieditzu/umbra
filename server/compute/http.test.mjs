@@ -308,7 +308,7 @@ test("solar estimate is available through the Expo proxy", async (t) => {
     assert.deepEqual(payload.instants, [123]);
     return JSON.stringify({ shades: ["blocked"] });
   } };
-  const app = createComputeServer({ pool, solar: async (q, options) => ({ date: q.date, energy_kwh: (await options.shade([123]))[0] === "blocked" ? 0.4 : 0.83 }) });
+  const app = createComputeServer({ pool, electricityPrice: async () => ({ price_ron_kwh: 1.4584, period: "2026-S1", band: "2500-4999", source: "Eurostat" }), solar: async (q, options) => ({ date: q.date, energy_kwh: (await options.shade([123]))[0] === "blocked" ? 0.4 : 0.83 }) });
   await listen(app.server);
   t.after(() => app.close());
   const proxyServer = createServer(proxy((req, res) => { res.statusCode = 404; res.end(); }, app.server.address().port));
@@ -318,4 +318,8 @@ test("solar estimate is available through the Expo proxy", async (t) => {
   assert.equal(response.status, 200);
   assert.equal((await response.json()).energy_kwh, 0.4);
   assert.equal((await post(base, "/umbra-api/v1/solar-power", { unknown: true })).status, 422);
+  const price = await post(base, "/umbra-api/v1/electricity-price", {});
+  assert.equal(price.status, 200);
+  assert.equal((await price.json()).price_ron_kwh, 1.4584);
+  assert.equal((await post(base, "/umbra-api/v1/electricity-price", { unknown: true })).status, 422);
 });

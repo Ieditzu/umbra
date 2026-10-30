@@ -55,4 +55,7 @@ test("distant dates average three historical days without claiming a forecast", 
   assert.deepEqual(years, ["2025-07-15", "2024-07-15", "2023-07-15"]);
   assert.deepEqual(result.reference_dates, years);
   assert.equal(result.energy_kwh, 0.83);
+  const further = await solarPower({ ...q, date: "2050-07-15" }, { now, fetcher, shade: clear });
+  assert.equal(further.mode, "historical");
+  assert.deepEqual(further.reference_dates, ["2025-07-15", "2024-07-15", "2023-07-15"]);
 });

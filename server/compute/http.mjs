@@ -5,6 +5,7 @@ import { ComputeError, ComputePool } from "./pool.mjs";
 import { IdleCache } from "./idle-cache.mjs";
 import { RegionTiles, regionalSelection } from "./regions.mjs";
 import { solarPower } from "./solar-power.mjs";
+import { createElectricityPriceService } from "./electricity-price.mjs";
 import { heightsRoute, RateLimiter } from "../heights/routes.mjs";
 import { createWeatherService, applyWeather } from "./weather.mjs";
 const compress = promisify(gzip);
@@ -115,6 +116,7 @@ export function createComputeServer({
   heights = null,
   weather = createWeatherService(),
   solar = solarPower,
+  electricityPrice = createElectricityPriceService(),
   limiter = new RateLimiter({
     post_contributor: 30,
     post_ip: 60,
@@ -223,6 +225,12 @@ export function createComputeServer({
         }))
       )
         return;
+      if (path === "/v1/electricity-price" && req.method === "POST") {
+        const q = await readJson();
+        if (!q || Array.isArray(q) || typeof q !== "object" || Object.keys(q).length) throw new ComputeError("Cerere invalidă.", 422, "invalid");
+        await reply(200, JSON.stringify(await electricityPrice()));
+        return;
+      }
       if (path === "/v1/solar-power" && req.method === "POST") {
         const peer = req.socket.remoteAddress ?? "unknown";
         const forwarded = req.headers["x-forwarded-for"];

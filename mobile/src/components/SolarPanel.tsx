@@ -1,9 +1,9 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import type { Coordinate } from "../domain/routes";
 import { solarSavings } from "../domain/solarSavings";
-import { calculateSolarPower } from "../services/calculations";
+import { calculateSolarPower, getElectricityPrice } from "../services/calculations";
 import { colors } from "../theme";
 
 const dateString = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -17,7 +17,9 @@ export function SolarPanel({ point, roofId, loading, error, onClose }: { point: 
   const [watts, setWatts] = useState("400");
   const [tilt, setTilt] = useState("30");
   const [direction, setDirection] = useState("0");
-  const [price, setPrice] = useState("1");
+  const [price, setPrice] = useState("");
+  const [priceNote, setPriceNote] = useState("Se încarcă prețul mediu…");
+  const priceEdited = useRef(false);
   const [result, setResult] = useState<{ energy_kwh: number; min_energy_kwh: number; unshaded_kwh: number; uncertain_hours: number; blocked_hours: number; mode: "forecast" | "historical"; reference_dates: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -25,6 +27,18 @@ export function SolarPanel({ point, roofId, loading, error, onClose }: { point: 
   const selectedDate = dateString(day);
   const savings = result ? solarSavings(result.energy_kwh, price) : null;
   const minSavings = result ? solarSavings(result.min_energy_kwh, price) : null;
+  useEffect(() => {
+    const controller = new AbortController();
+    void getElectricityPrice(controller.signal).then(({ price: average, period }) => {
+      if (!controller.signal.aborted && !priceEdited.current) {
+        setPrice(String(average).replace(".", ","));
+        setPriceNote(`Eurostat · sem. ${period.endsWith("S1") ? "I" : "II"} ${period.slice(0, 4)} · consum 2.500–4.999 kWh/an, cu taxe. Poți modifica prețul.`);
+      }
+    }).catch(() => {
+      if (!controller.signal.aborted && !priceEdited.current) setPriceNote("Prețul mediu nu este disponibil. Introdu prețul de pe factură.");
+    });
+    return () => controller.abort();
+  }, []);
   useEffect(() => {
     if (!request) return;
     const controller = new AbortController();
@@ -36,7 +50,7 @@ export function SolarPanel({ point, roofId, loading, error, onClose }: { point: 
     return () => controller.abort();
   }, [request]);
   const change = (setter: (value: string) => void, value: string) => { setter(value); setRequest(null); setBusy(false); setResult(null); setMessage(""); };
-  const pickerView = <DateTimePicker value={draft} mode="date" minimumDate={new Date(today.getFullYear(), 0, 1)} maximumDate={new Date(today.getFullYear() + 1, 11, 31)} display={Platform.OS === "ios" ? "spinner" : "default"} themeVariant="light" textColor={colors.ink} onChange={(event, value) => {
+  const pickerView = <DateTimePicker value={draft} mode="date" minimumDate={new Date(2000, 0, 1)} maximumDate={new Date(2100, 11, 31)} display={Platform.OS === "ios" ? "spinner" : "default"} themeVariant="light" textColor={colors.ink} onChange={(event, value) => {
     if (Platform.OS === "android") { setPicker(false); if (event.type === "set" && value) { setDay(value); setRequest(null); setBusy(false); setResult(null); } }
     else if (value) setDraft(value);
   }} />;
@@ -44,21 +58,16 @@ export function SolarPanel({ point, roofId, loading, error, onClose }: { point: 
     <View style={styles.row}><Text style={styles.title}>Panou solar</Text><Pressable accessibilityRole="button" accessibilityLabel="Închide panoul solar" onPress={onClose}><Text style={styles.close}>Închide</Text></Pressable></View>
     <Text style={styles.note}>{loading ? "Se verifică clădirea…" : point ? "Acoperiș selectat · apasă altă clădire pentru a-l schimba" : "Apasă pe o clădire de pe hartă."}</Text>
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-    <View style={styles.row}>
-      {[["Vară", 6], ["Iarnă", 0]].map(([label, month]) => <Pressable key={label} accessibilityRole="button" onPress={() => {
-        let date = new Date(today.getFullYear(), Number(month), 15, 12);
-        if (date.getTime() < today.getTime()) date = new Date(today.getFullYear() + 1, Number(month), 15, 12);
-        setDay(date); setRequest(null); setBusy(false); setResult(null); setMessage("");
-      }} style={styles.date}><Text style={styles.label}>{label}</Text></Pressable>)}
-    </View>
     <Pressable accessibilityRole="button" accessibilityLabel="Alege ziua" onPress={() => { setDraft(day); setPicker(true); }} style={styles.date}><Text style={styles.label}>{day.toLocaleDateString("ro-RO")}</Text></Pressable>
+    <Text style={styles.note}>Pentru date îndepărtate folosim o medie istorică, nu o prognoză.</Text>
     <View style={styles.row}>
       <View style={styles.field}><Text style={styles.caption}>Putere W</Text><TextInput accessibilityLabel="Puterea panoului în wați" keyboardType="numeric" value={watts} onChangeText={(v) => change(setWatts, v)} style={styles.input} /></View>
       <View style={styles.field}><Text style={styles.caption}>Înclinare °</Text><TextInput accessibilityLabel="Înclinarea panoului în grade" keyboardType="numeric" value={tilt} onChangeText={(v) => change(setTilt, v)} style={styles.input} /></View>
       <View style={styles.field}><Text style={styles.caption}>Direcție °</Text><TextInput accessibilityLabel="Direcția panoului în grade față de sud" keyboardType="numbers-and-punctuation" value={direction} onChangeText={(v) => change(setDirection, v)} style={styles.input} /></View>
     </View>
     <Text style={styles.note}>Direcție: 0° sud, −90° est, 90° vest.</Text>
-    <View style={styles.row}><Text style={styles.note}>Preț energie (lei/kWh)</Text><TextInput accessibilityLabel="Prețul energiei în lei pe kilowatt-oră" keyboardType="decimal-pad" value={price} onChangeText={setPrice} style={[styles.input, styles.price]} /></View>
+    <View style={styles.row}><Text style={styles.note}>Preț energie (lei/kWh)</Text><TextInput accessibilityLabel="Prețul energiei în lei pe kilowatt-oră" keyboardType="decimal-pad" value={price} onChangeText={(value) => { priceEdited.current = true; setPrice(value); setPriceNote("Preț introdus manual."); }} style={[styles.input, styles.price]} /></View>
+    <Text style={styles.note}>{priceNote}</Text>
     <Pressable accessibilityRole="button" disabled={!point || busy || loading} onPress={() => {
       const capacity = Number(watts), angle = Number(tilt), bearing = Number(direction);
       setResult(null);
@@ -74,7 +83,7 @@ export function SolarPanel({ point, roofId, loading, error, onClose }: { point: 
       <Text style={styles.note}>{result.uncertain_hours > 0 ? "Intervalul include ore cu înălțimi sau acoperire incerte. " : ""}Umbră estimată doar de la clădirile cartografiate; copacii și detaliile acoperișului nu sunt incluse.</Text>
     </View>}
     {!!message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
-    <Text style={styles.note}>Open-Meteo · pierderi estimate 14% · prețul inițial este un exemplu.</Text>
+    <Text style={styles.note}>Open-Meteo · pierderi estimate 14%.</Text>
     {picker && (Platform.OS === "android" ? pickerView : <Modal transparent animationType="slide" onRequestClose={() => setPicker(false)}><View style={styles.backdrop}><View style={styles.sheet}>{pickerView}<View style={styles.row}><Pressable onPress={() => setPicker(false)}><Text style={styles.close}>Anulează</Text></Pressable><Pressable onPress={() => { setDay(draft); setRequest(null); setBusy(false); setResult(null); setPicker(false); }}><Text style={styles.close}>Confirmă</Text></Pressable></View></View></View></Modal>)}
   </ScrollView>;
 }

@@ -22,6 +22,11 @@ export function setMeasuredHeights(list: MeasuredHeight[]) {
 /** Omitted when empty, so a PC server without this feature keeps working. */
 const withMeasured = <T extends object>(payload: T) =>
   measured.length ? { ...payload, measured_heights: measured } : payload;
+export async function getElectricityPrice(signal: AbortSignal) {
+  const value = await requestCalculation(base(), "/v1/electricity-price", {}, signal) as Record<string, unknown>;
+  if (typeof value.price_ron_kwh !== "number" || !Number.isFinite(value.price_ron_kwh) || value.price_ron_kwh <= 0 || value.price_ron_kwh > 100 || typeof value.period !== "string" || !/^\d{4}-S[12]$/.test(value.period) || value.band !== "2500-4999" || value.source !== "Eurostat") throw new Error("Preț mediu invalid.");
+  return { price: value.price_ron_kwh, period: value.period };
+}
 export async function calculateRoutes(
   request: RouteRequest,
   signal: AbortSignal,

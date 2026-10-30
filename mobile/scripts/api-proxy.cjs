@@ -4,6 +4,7 @@ const paths = new Set([
   "/v1/routes/compare",
   "/v1/shadows",
   "/v1/solar-power",
+  "/v1/electricity-price",
   "/v1/buildings",
   "/v1/buildings/inspect",
 ]);

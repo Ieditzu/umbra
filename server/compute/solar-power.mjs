@@ -9,7 +9,7 @@ export async function solarPower(q, { fetcher = fetch, now = Date.now(), shade =
   const todayMs = Date.parse(`${today}T00:00:00Z`);
   if (!q.point || !Number.isFinite(q.point.latitude) || !Number.isFinite(q.point.longitude) || q.point.latitude < 43.5 || q.point.latitude > 48.4 || q.point.longitude < 20.2 || q.point.longitude > 30 ||
       typeof q.roof_id !== "string" || !/^(way|relation)\/\d{1,15}$/.test(q.roof_id) ||
-      !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== q.date || date.getUTCFullYear() < new Date(todayMs).getUTCFullYear() || date.getUTCFullYear() > new Date(todayMs).getUTCFullYear() + 1 ||
+      !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== q.date || date.getUTCFullYear() < 2000 || date.getUTCFullYear() > 2100 ||
       !Number.isFinite(q.watts) || q.watts < 50 || q.watts > 10000 || !Number.isFinite(q.tilt) || q.tilt < 0 || q.tilt > 90 || !Number.isFinite(q.azimuth) || q.azimuth < -180 || q.azimuth > 180)
     throw new ComputeError("Datele panoului sunt invalide.", 422, "invalid");
   const isForecast = date.getTime() >= todayMs && date.getTime() <= todayMs + 14 * 86400000;
