@@ -8,7 +8,7 @@ import type { Sun } from "./solar.ts";
 export function roofShade(data: Dataset, coordinate: Coordinate, roof: Building | undefined, sun: Sun): "blocked" | "uncertain" | "clear" {
   const point = project(coordinate);
   if (!roof || !roof.geometry.some((poly) => polygonContains(poly, point)) ||
-      roof.height.source === "missing" || roof.height.source === "unsupported_elevated" || sun.elevation < 5)
+      roof.height.source === "unsupported_elevated" || sun.elevation < 5)
     return "uncertain";
   const slope = Math.tan(rad(sun.elevation));
   const reach = Math.max(500, data.maxHeight / slope + 1);
@@ -25,8 +25,8 @@ export function roofShade(data: Dataset, coordinate: Coordinate, roof: Building 
         continue;
       }
       const height = distance * slope;
-      if (height + roof.height.high_m < building.height.low_m) return "blocked";
-      if (height + roof.height.low_m <= building.height.high_m) uncertain = true;
+      if (roof.height.source !== "missing" && height + roof.height.high_m < building.height.low_m) return "blocked";
+      if (height + (roof.height.source === "missing" ? 0 : roof.height.low_m) <= building.height.high_m) uncertain = true;
     }
   }
   return uncertain ? "uncertain" : "clear";

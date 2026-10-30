@@ -12,6 +12,6 @@ export function solarRoof(footprint: Coordinate[]) {
     twiceArea += (a.x - origin.x) * (b.y - origin.y) - (b.x - origin.x) * (a.y - origin.y);
   }
   const area = Math.abs(twiceArea) / 2;
-  const panels = Math.floor((area * 0.5 + 0.0001) / 2);
+  const panels = Math.floor((area + 0.0001) / 2);
   return { area, panels, watts: panels * 400 };
 }

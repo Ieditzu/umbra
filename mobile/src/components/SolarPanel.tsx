@@ -68,7 +68,7 @@ export function SolarPanel({ point, roofId, footprint, loading, error, onClose }
   return <ScrollView style={{ maxHeight: screenHeight * 0.6 }} contentContainerStyle={styles.panel} keyboardShouldPersistTaps="handled">
     <View style={styles.row}><Text style={styles.title}>Panou solar</Text><Pressable accessibilityRole="button" accessibilityLabel="Închide panoul solar" onPress={onClose}><Text style={styles.close}>Închide</Text></Pressable></View>
     <Text style={styles.note}>{loading ? "Se verifică clădirea…" : point ? "Acoperiș selectat" : "Alege o clădire pe hartă"}</Text>
-    {!!point && <Text style={styles.note}>≈ {Math.round(roof.area)} m² contur · {roof.panels} panouri estimate (50% din suprafață, 400 W/panou)</Text>}
+    {!!point && <Text style={styles.note}>≈ {Math.round(roof.area)} m² contur · maximum teoretic {roof.panels} panouri (2 m², 400 W/panou)</Text>}
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     <Pressable accessibilityRole="button" accessibilityLabel="Alege ziua" onPress={() => { setDraft(day); setPicker(true); }} style={styles.date}><Text style={styles.label}>{day.toLocaleDateString("ro-RO")}</Text></Pressable>
     <Text style={styles.note}>Cer senin</Text>

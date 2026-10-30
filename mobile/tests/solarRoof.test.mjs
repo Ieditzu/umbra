@@ -8,7 +8,7 @@ test("roof capacity scales with projected building area", () => {
   const roof = [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]].map(([x, y]) => unproject({ x: o.x + x, y: o.y + y }));
   const result = solarRoof(roof);
   assert.ok(Math.abs(result.area - 100) < 0.01);
-  assert.equal(result.panels, 25);
+  assert.equal(result.panels, 50);
   assert.equal(result.watts, result.panels * 400);
   assert.equal(solarRoof([]).watts, 0);
 });
