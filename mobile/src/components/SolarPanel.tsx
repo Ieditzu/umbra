@@ -19,7 +19,7 @@ export function SolarPanel({ point, roofId, loading, error, onClose }: { point: 
   const [tilt, setTilt] = useState("30");
   const [direction, setDirection] = useState("0");
   const [price, setPrice] = useState("1,4584");
-  const [priceNote, setPriceNote] = useState("Eurostat · sem. I 2026 · consum 2.500–4.999 kWh/an, cu taxe. Poți modifica prețul.");
+  const [priceNote, setPriceNote] = useState("Eurostat · sem. I 2026");
   const priceEdited = useRef(false);
   const pricePeriod = useRef("2026-S1");
   const [result, setResult] = useState<{ energy_kwh: number; min_energy_kwh: number; unshaded_kwh: number; uncertain_hours: number; blocked_hours: number; mode: "clear_sky"; reference_dates: string[] } | null>(null);
@@ -35,7 +35,7 @@ export function SolarPanel({ point, roofId, loading, error, onClose }: { point: 
       if (!controller.signal.aborted && !priceEdited.current && Number.isFinite(average) && average > 0 && average <= 100 && /^\d{4}-S[12]$/.test(period) && period >= pricePeriod.current) {
         pricePeriod.current = period;
         setPrice(String(average).replace(".", ","));
-        setPriceNote(`Eurostat · sem. ${period.endsWith("S1") ? "I" : "II"} ${period.slice(0, 4)} · consum 2.500–4.999 kWh/an, cu taxe. Poți modifica prețul.`);
+        setPriceNote(`Eurostat · sem. ${period.endsWith("S1") ? "I" : "II"} ${period.slice(0, 4)}`);
       }
     };
     void (async () => {
@@ -65,18 +65,17 @@ export function SolarPanel({ point, roofId, loading, error, onClose }: { point: 
   }} />;
   return <ScrollView style={{ maxHeight: screenHeight * 0.6 }} contentContainerStyle={styles.panel} keyboardShouldPersistTaps="handled">
     <View style={styles.row}><Text style={styles.title}>Panou solar</Text><Pressable accessibilityRole="button" accessibilityLabel="Închide panoul solar" onPress={onClose}><Text style={styles.close}>Închide</Text></Pressable></View>
-    <Text style={styles.note}>{loading ? "Se verifică clădirea…" : point ? "Acoperiș selectat · apasă altă clădire pentru a-l schimba" : "Apasă pe o clădire de pe hartă."}</Text>
+    <Text style={styles.note}>{loading ? "Se verifică clădirea…" : point ? "Acoperiș selectat" : "Alege o clădire pe hartă"}</Text>
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     <Pressable accessibilityRole="button" accessibilityLabel="Alege ziua" onPress={() => { setDraft(day); setPicker(true); }} style={styles.date}><Text style={styles.label}>{day.toLocaleDateString("ro-RO")}</Text></Pressable>
-    <Text style={styles.note}>Estimare pentru cer senin, fără prognoză meteo.</Text>
+    <Text style={styles.note}>Cer senin</Text>
     <View style={styles.row}>
       <View style={styles.field}><Text style={styles.caption}>Putere W</Text><TextInput accessibilityLabel="Puterea panoului în wați" keyboardType="numeric" value={watts} onChangeText={(v) => change(setWatts, v)} style={styles.input} /></View>
       <View style={styles.field}><Text style={styles.caption}>Înclinare °</Text><TextInput accessibilityLabel="Înclinarea panoului în grade" keyboardType="numeric" value={tilt} onChangeText={(v) => change(setTilt, v)} style={styles.input} /></View>
       <View style={styles.field}><Text style={styles.caption}>Direcție °</Text><TextInput accessibilityLabel="Direcția panoului în grade față de sud" keyboardType="numbers-and-punctuation" value={direction} onChangeText={(v) => change(setDirection, v)} style={styles.input} /></View>
     </View>
     <Text style={styles.note}>Direcție: 0° sud, −90° est, 90° vest.</Text>
-    <View style={styles.row}><Text style={styles.note}>Preț energie (lei/kWh)</Text><TextInput accessibilityLabel="Prețul energiei în lei pe kilowatt-oră" keyboardType="decimal-pad" value={price} onChangeText={(value) => { priceEdited.current = true; setPrice(value); setPriceNote("Preț introdus manual."); }} style={[styles.input, styles.price]} /></View>
-    <Text style={styles.note}>{priceNote}</Text>
+    <View style={styles.row}><Text style={[styles.note, { flex: 1 }]}>Preț energie (lei/kWh){priceNote ? ` · ${priceNote}` : ""}</Text><TextInput accessibilityLabel="Prețul energiei în lei pe kilowatt-oră" keyboardType="decimal-pad" value={price} onChangeText={(value) => { priceEdited.current = true; setPrice(value); setPriceNote(""); }} style={[styles.input, styles.price]} /></View>
     <Pressable accessibilityRole="button" disabled={!point || busy || loading} onPress={() => {
       const capacity = Number(watts), angle = Number(tilt), bearing = Number(direction);
       setResult(null);
@@ -88,11 +87,9 @@ export function SolarPanel({ point, roofId, loading, error, onClose }: { point: 
       {savings !== null
         ? <Text style={styles.result}>≈ {minSavings !== null && minSavings < savings ? `${minSavings.toFixed(2)}–` : ""}{savings.toFixed(2)} lei valoarea energiei / zi</Text>
         : <Text style={styles.error}>Introdu un preț între 0 și 100 lei/kWh.</Text>}
-      <Text style={styles.note}>Cer senin. Fără umbră calculată: {result.unshaded_kwh.toFixed(2)} kWh/zi. Valoarea este producția înmulțită cu prețul energiei; nu reprezintă venitul din vânzare.</Text>
-      <Text style={styles.note}>{result.uncertain_hours > 0 ? "Intervalul include ore cu înălțimi sau acoperire incerte. " : ""}Umbră estimată doar de la clădirile cartografiate; copacii și detaliile acoperișului nu sunt incluse.</Text>
+      <Text style={styles.note}>Fără umbră: {result.unshaded_kwh.toFixed(2)} kWh/zi · Nu include copacii{result.uncertain_hours > 0 ? " · Umbre parțial incerte" : ""}</Text>
     </View>}
     {!!message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
-    <Text style={styles.note}>Model solar simplificat · pierderi estimate 14%.</Text>
     {picker && (Platform.OS === "android" ? pickerView : <Modal transparent animationType="slide" onRequestClose={() => setPicker(false)}><View style={styles.backdrop}><View style={styles.sheet}>{pickerView}<View style={styles.row}><Pressable onPress={() => setPicker(false)}><Text style={styles.close}>Anulează</Text></Pressable><Pressable onPress={() => { setDay(draft); setRequest(null); setBusy(false); setResult(null); setPicker(false); }}><Text style={styles.close}>Confirmă</Text></Pressable></View></View></View></Modal>)}
   </ScrollView>;
 }
