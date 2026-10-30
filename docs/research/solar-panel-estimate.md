@@ -11,11 +11,13 @@ Stadiu: funcție experimentală; nu a fost comparată cu măsurători ale unui p
 
 ## Metodă în Umbra
 
-Utilizatorul selectează o clădire pe hartă, o zi dintre următoarele 15 zile, puterea nominală în W, înclinarea și direcția. Serverul solicită GTI orar pentru ziua locală din România, incluzând intervalul care se încheie la miezul nopții următoare, și însumează mediile orare pentru iradierea zilnică H în kWh/m². Pentru zilele cu schimbarea orei sunt posibile 23 sau 25 de intervale orare.
+Utilizatorul selectează o clădire pe hartă, o zi din anul curent sau următor, puterea nominală în W, înclinarea și direcția. Pentru următoarele 15 zile se utilizează prognoza; pentru celelalte zile se folosește media aceleiași zile calendaristice din cei mai recenți trei ani anteriori, pe baza arhivei istorice Open-Meteo. Este o comparație sezonieră pe un eșantion mic, nu prognoza vremii din ziua aleasă sau o medie climatică reprezentativă. Pentru 29 februarie se folosesc ultimii trei ani bisecți. Serverul solicită GTI orar pentru ziua locală din România, incluzând intervalul care se încheie la miezul nopții următoare, și însumează mediile orare pentru iradierea zilnică H în kWh/m². Pentru zilele cu schimbarea orei sunt posibile 23 sau 25 de intervale orare.
 
 Estimarea simplificată este **E ≈ (P / 1000) × H × 0,86 kWh**, unde P este puterea nominală în W. Valoarea presupune comportament liniar la 1000 W/m² și un factor global de pierderi de 14%; nu modelează temperatura celulelor, eficiența invertorului separat, degradarea, zăpada ori geometria electrică a mai multor panouri. Nu este implementarea completă PVWatts.
 
 **Limită esențială:** punctul selectează o clădire și coordonatele prognozei, dar nu reconstruiește acoperișul și nu calculează umbrirea locală a panoului. Radiația prognozată are rezoluție meteo, nu la nivel de acoperiș. Nu se garantează instalabilitatea, producția, economiile sau performanța financiară. Rezultatul nu trebuie descris ca energie măsurată sau umbrire calculată de Umbra.
+
+Economia afișată este energia estimată înmulțită cu prețul introdus de utilizator. Se presupune că întreaga energie este consumată pe loc la acel preț; nu sunt modelate consumul orar, energia injectată, compensația, taxele sau costul instalației. Prețul inițial de 1 leu/kWh este doar un exemplu editabil.
 
 ## Validare propusă
 

@@ -1,13 +1,15 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import type { Coordinate } from "../domain/routes";
+import { solarSavings } from "../domain/solarSavings";
 import { calculateSolarPower } from "../services/calculations";
 import { colors } from "../theme";
 
 const dateString = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 export function SolarPanel({ point, loading, error, onClose }: { point: Coordinate | null; loading: boolean; error: string; onClose: () => void }) {
+  const { height: screenHeight } = useWindowDimensions();
   const [today] = useState(() => new Date());
   const [day, setDay] = useState(today);
   const [draft, setDraft] = useState(day);
@@ -15,11 +17,13 @@ export function SolarPanel({ point, loading, error, onClose }: { point: Coordina
   const [watts, setWatts] = useState("400");
   const [tilt, setTilt] = useState("30");
   const [direction, setDirection] = useState("0");
-  const [result, setResult] = useState<{ energy_kwh: number; irradiation_kwh_m2: number } | null>(null);
+  const [price, setPrice] = useState("1");
+  const [result, setResult] = useState<{ energy_kwh: number; irradiation_kwh_m2: number; mode: "forecast" | "historical"; reference_dates: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [request, setRequest] = useState<{ point: Coordinate; date: string; watts: number; tilt: number; azimuth: number } | null>(null);
   const selectedDate = dateString(day);
+  const savings = result ? solarSavings(result.energy_kwh, price) : null;
   useEffect(() => {
     if (!request) return;
     const controller = new AbortController();
@@ -31,14 +35,21 @@ export function SolarPanel({ point, loading, error, onClose }: { point: Coordina
     return () => controller.abort();
   }, [request]);
   const change = (setter: (value: string) => void, value: string) => { setter(value); setRequest(null); setBusy(false); setResult(null); setMessage(""); };
-  const pickerView = <DateTimePicker value={draft} mode="date" minimumDate={today} maximumDate={new Date(today.getTime() + 14 * 86400000)} display={Platform.OS === "ios" ? "spinner" : "default"} themeVariant="light" textColor={colors.ink} onChange={(event, value) => {
+  const pickerView = <DateTimePicker value={draft} mode="date" minimumDate={new Date(today.getFullYear(), 0, 1)} maximumDate={new Date(today.getFullYear() + 1, 11, 31)} display={Platform.OS === "ios" ? "spinner" : "default"} themeVariant="light" textColor={colors.ink} onChange={(event, value) => {
     if (Platform.OS === "android") { setPicker(false); if (event.type === "set" && value) { setDay(value); setRequest(null); setBusy(false); setResult(null); } }
     else if (value) setDraft(value);
   }} />;
-  return <View style={styles.panel}>
+  return <ScrollView style={{ maxHeight: screenHeight * 0.6 }} contentContainerStyle={styles.panel} keyboardShouldPersistTaps="handled">
     <View style={styles.row}><Text style={styles.title}>Panou solar</Text><Pressable accessibilityRole="button" accessibilityLabel="Închide panoul solar" onPress={onClose}><Text style={styles.close}>Închide</Text></Pressable></View>
     <Text style={styles.note}>{loading ? "Se verifică clădirea…" : point ? "Acoperiș selectat · apasă altă clădire pentru a-l schimba" : "Apasă pe o clădire de pe hartă."}</Text>
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+    <View style={styles.row}>
+      {[["Vară", 6], ["Iarnă", 0]].map(([label, month]) => <Pressable key={label} accessibilityRole="button" onPress={() => {
+        let date = new Date(today.getFullYear(), Number(month), 15, 12);
+        if (date.getTime() < today.getTime()) date = new Date(today.getFullYear() + 1, Number(month), 15, 12);
+        setDay(date); setRequest(null); setBusy(false); setResult(null); setMessage("");
+      }} style={styles.date}><Text style={styles.label}>{label}</Text></Pressable>)}
+    </View>
     <Pressable accessibilityRole="button" accessibilityLabel="Alege ziua" onPress={() => { setDraft(day); setPicker(true); }} style={styles.date}><Text style={styles.label}>{day.toLocaleDateString("ro-RO")}</Text></Pressable>
     <View style={styles.row}>
       <View style={styles.field}><Text style={styles.caption}>Putere W</Text><TextInput accessibilityLabel="Puterea panoului în wați" keyboardType="numeric" value={watts} onChangeText={(v) => change(setWatts, v)} style={styles.input} /></View>
@@ -46,18 +57,25 @@ export function SolarPanel({ point, loading, error, onClose }: { point: Coordina
       <View style={styles.field}><Text style={styles.caption}>Direcție °</Text><TextInput accessibilityLabel="Direcția panoului în grade față de sud" keyboardType="numbers-and-punctuation" value={direction} onChangeText={(v) => change(setDirection, v)} style={styles.input} /></View>
     </View>
     <Text style={styles.note}>Direcție: 0° sud, −90° est, 90° vest.</Text>
+    <View style={styles.row}><Text style={styles.note}>Preț energie (lei/kWh)</Text><TextInput accessibilityLabel="Prețul energiei în lei pe kilowatt-oră" keyboardType="decimal-pad" value={price} onChangeText={setPrice} style={[styles.input, styles.price]} /></View>
     <Pressable accessibilityRole="button" disabled={!point || busy || loading} onPress={() => {
       const capacity = Number(watts), angle = Number(tilt), bearing = Number(direction);
       setResult(null);
       if (!point || !watts.trim() || !tilt.trim() || !direction.trim() || !Number.isFinite(capacity) || capacity < 50 || capacity > 10000 || !Number.isFinite(angle) || angle < 0 || angle > 90 || !Number.isFinite(bearing) || bearing < -180 || bearing > 180) { setMessage("Verifică puterea și unghiurile panoului."); return; }
       setMessage(""); setBusy(true); setRequest({ point, date: selectedDate, watts: capacity, tilt: angle, azimuth: bearing });
     }} style={[styles.button, (!point || busy || loading) && { opacity: 0.45 }]}>{busy ? <ActivityIndicator color={colors.white} /> : <Text style={styles.buttonText}>Calculează</Text>}</Pressable>
-    {result && <Text style={styles.result}>≈ {result.energy_kwh.toFixed(2)} kWh în ziua aleasă</Text>}
+    {result && <View>
+      <Text style={styles.result}>≈ {result.energy_kwh.toFixed(2)} kWh / zi</Text>
+      {savings !== null
+        ? <Text style={styles.result}>≈ {savings.toFixed(2)} lei economisiți / zi</Text>
+        : <Text style={styles.error}>Introdu un preț între 0 și 100 lei/kWh.</Text>}
+      <Text style={styles.note}>{result.mode === "forecast" ? "Prognoză meteo" : `Medie istorică: ${result.reference_dates.map((date) => date.slice(0, 4)).join(", ")}`}. Economie estimată dacă folosești toată energia produsă.</Text>
+    </View>}
     {!!message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
-    <Text style={styles.note}>Prognoză Open-Meteo · pierderi estimate 14% · umbra acoperișului și a obstacolelor nu este inclusă.</Text>
+    <Text style={styles.note}>Open-Meteo · pierderi estimate 14% · prețul inițial este un exemplu · umbrirea locală nu este inclusă.</Text>
     {picker && (Platform.OS === "android" ? pickerView : <Modal transparent animationType="slide" onRequestClose={() => setPicker(false)}><View style={styles.backdrop}><View style={styles.sheet}>{pickerView}<View style={styles.row}><Pressable onPress={() => setPicker(false)}><Text style={styles.close}>Anulează</Text></Pressable><Pressable onPress={() => { setDay(draft); setRequest(null); setBusy(false); setResult(null); setPicker(false); }}><Text style={styles.close}>Confirmă</Text></Pressable></View></View></View></Modal>)}
-  </View>;
+  </ScrollView>;
 }
 const styles = StyleSheet.create({
-  panel: { backgroundColor: colors.white, borderRadius: 20, padding: 16, gap: 8 }, row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }, title: { fontSize: 19, fontWeight: "700", color: colors.ink }, close: { color: colors.green, fontWeight: "600", padding: 8 }, note: { color: colors.muted, fontSize: 12, lineHeight: 17 }, error: { color: colors.error, fontSize: 13 }, field: { flex: 1 }, caption: { color: colors.muted, fontSize: 11 }, input: { color: colors.ink, borderColor: colors.line, borderWidth: 1, borderRadius: 8, padding: 6, minHeight: 38 }, label: { color: colors.ink, fontSize: 13 }, date: { borderColor: colors.line, borderWidth: 1, borderRadius: 8, padding: 10 }, button: { backgroundColor: colors.green, borderRadius: 12, minHeight: 42, justifyContent: "center", alignItems: "center" }, buttonText: { color: colors.white, fontWeight: "700" }, result: { color: colors.green, fontSize: 18, fontWeight: "700" }, backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "#0006" }, sheet: { backgroundColor: colors.white, padding: 24, paddingBottom: 40 },
+  panel: { backgroundColor: colors.white, borderRadius: 20, padding: 16, gap: 8 }, row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }, title: { fontSize: 19, fontWeight: "700", color: colors.ink }, close: { color: colors.green, fontWeight: "600", padding: 8 }, note: { color: colors.muted, fontSize: 12, lineHeight: 17 }, error: { color: colors.error, fontSize: 13 }, field: { flex: 1 }, caption: { color: colors.muted, fontSize: 11 }, input: { color: colors.ink, borderColor: colors.line, borderWidth: 1, borderRadius: 8, padding: 6, minHeight: 38 }, label: { color: colors.ink, fontSize: 13 }, price: { width: 76 }, date: { borderColor: colors.line, borderWidth: 1, borderRadius: 8, padding: 10 }, button: { backgroundColor: colors.green, borderRadius: 12, minHeight: 42, justifyContent: "center", alignItems: "center" }, buttonText: { color: colors.white, fontWeight: "700" }, result: { color: colors.green, fontSize: 18, fontWeight: "700" }, backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "#0006" }, sheet: { backgroundColor: colors.white, padding: 24, paddingBottom: 40 },
 });

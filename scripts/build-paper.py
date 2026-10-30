@@ -234,8 +234,10 @@ def build(model: Path, output: Path) -> None:
     ))
     para(doc, (
         "**Estimare fotovoltaică experimentală.** Utilizatorul alege o clădire, ziua, puterea nominală, "
-        "înclinarea și orientarea panoului. Prognoza Open-Meteo [10] furnizează radiația orară pe plan "
-        "înclinat, iar energia este aproximată prin puterea nominală, iradierea zilnică și un factor global "
+        "înclinarea și orientarea panoului. Open-Meteo [10] furnizează radiația orară pe plan înclinat: "
+        "prognoza pentru zile apropiate sau media a trei zile istorice pentru sezon. Economia presupune "
+        "autoconsum și prețul introdus. Energia este aproximată prin puterea nominală, iradierea zilnică "
+        "și un factor global "
         "de pierderi de 14%. Acesta este un model simplificat, nu o implementare completă PVWatts [11]; "
         "nu calculează umbrirea locală a acoperișului și nu a fost validat cu un panou real. PVGIS [12] "
         "și Google Solar API [13] oferă abordări de referință; rezultatele lor nu sunt reproduse aici."
@@ -398,8 +400,8 @@ def build(model: Path, output: Path) -> None:
         "and open database for 200+ million individual buildings”, Scientific Data, nr. 10, 2023.",
         "[9] Copernicus Land Monitoring Service, Urban Atlas Building Block Height 2012, raster 10 m, "
         "land.copernicus.eu/en/products/urban-atlas/building-height-2012, accesat la 29.10.2026.",
-        "[10] Open-Meteo, Weather Forecast API, open-meteo.com/en/docs, variabile direct_radiation_instant "
-        "și cloud_cover, accesat la 29.10.2026.",
+        "[10] Open-Meteo, Weather Forecast API, open-meteo.com/en/docs; arhivă: "
+        "open-meteo.com/en/docs/historical-weather-api, accesat la 30.10.2026.",
         "[11] NREL, PVWatts Version 5 Manual, pvwatts.nrel.gov/downloads/pvwattsv5.pdf, accesat la 30.10.2026.",
         "[12] Comisia Europeană, PVGIS, joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis_en, accesat la 30.10.2026.",
         "[13] Google, Solar API Building Insights, developers.google.com/maps/documentation/solar/building-insights, accesat la 30.10.2026.",
