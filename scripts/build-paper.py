@@ -233,6 +233,14 @@ def build(model: Path, output: Path) -> None:
         "datele OSM/GBA și simulările descrise mai jos."
     ))
     para(doc, (
+        "**Estimare fotovoltaică experimentală.** Utilizatorul alege o clădire, ziua, puterea nominală, "
+        "înclinarea și orientarea panoului. Prognoza Open-Meteo [10] furnizează radiația orară pe plan "
+        "înclinat, iar energia este aproximată prin puterea nominală, iradierea zilnică și un factor global "
+        "de pierderi de 14%. Acesta este un model simplificat, nu o implementare completă PVWatts [11]; "
+        "nu calculează umbrirea locală a acoperișului și nu a fost validat cu un panou real. PVGIS [12] "
+        "și Google Solar API [13] oferă abordări de referință; rezultatele lor nu sunt reproduse aici."
+    ))
+    para(doc, (
         "**Măsoară clădirea.** Utilizatorul selectează clădirea și un colț al acoperișului pe rigla umbrei. "
         "Introduce distanța măsurată cu ruleta/laserul, folosește GPS-ul sau datele unei fotografii verticale "
         "din dronă. Aplicația calculează h și incertitudinea la momentul măsurării, verifică terenul și "
@@ -392,6 +400,9 @@ def build(model: Path, output: Path) -> None:
         "land.copernicus.eu/en/products/urban-atlas/building-height-2012, accesat la 29.10.2026.",
         "[10] Open-Meteo, Weather Forecast API, open-meteo.com/en/docs, variabile direct_radiation_instant "
         "și cloud_cover, accesat la 29.10.2026.",
+        "[11] NREL, PVWatts Version 5 Manual, pvwatts.nrel.gov/downloads/pvwattsv5.pdf, accesat la 30.10.2026.",
+        "[12] Comisia Europeană, PVGIS, joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis_en, accesat la 30.10.2026.",
+        "[13] Google, Solar API Building Insights, developers.google.com/maps/documentation/solar/building-insights, accesat la 30.10.2026.",
     ]:
         para(doc, ref, align=WD_ALIGN_PARAGRAPH.LEFT, size=10, after=2, spacing=1.0)
 

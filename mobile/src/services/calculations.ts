@@ -81,3 +81,16 @@ export async function inspectBuilding(
     ),
   );
 }
+
+export async function calculateSolarPower(
+  point: Coordinate,
+  date: string,
+  watts: number,
+  tilt: number,
+  azimuth: number,
+  signal: AbortSignal,
+): Promise<{ energy_kwh: number; irradiation_kwh_m2: number }> {
+  const result = await requestCalculation(base(), "/v1/solar-power", { point, date, watts, tilt, azimuth }, signal) as Record<string, unknown>;
+  if (result.date !== date || result.watts !== watts || result.tilt !== tilt || result.azimuth !== azimuth || result.shading_included !== false || typeof result.energy_kwh !== "number" || !Number.isFinite(result.energy_kwh) || result.energy_kwh < 0 || typeof result.irradiation_kwh_m2 !== "number" || !Number.isFinite(result.irradiation_kwh_m2) || result.irradiation_kwh_m2 < 0) throw new Error("Estimare solară invalidă.");
+  return { energy_kwh: result.energy_kwh, irradiation_kwh_m2: result.irradiation_kwh_m2 };
+}

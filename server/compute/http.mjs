@@ -4,6 +4,7 @@ import { promisify } from "node:util";
 import { ComputeError, ComputePool } from "./pool.mjs";
 import { IdleCache } from "./idle-cache.mjs";
 import { RegionTiles, regionalSelection } from "./regions.mjs";
+import { solarPower } from "./solar-power.mjs";
 import { heightsRoute, RateLimiter } from "../heights/routes.mjs";
 import { createWeatherService, applyWeather } from "./weather.mjs";
 const compress = promisify(gzip);
@@ -113,9 +114,11 @@ export function createComputeServer({
   regions = new RegionTiles(),
   heights = null,
   weather = createWeatherService(),
+  solar = solarPower,
   limiter = new RateLimiter({
     post_contributor: 30,
     post_ip: 60,
+    solar_ip: 120,
     delete_ip: 120,
   }),
 } = {}) {
@@ -220,6 +223,17 @@ export function createComputeServer({
         }))
       )
         return;
+      if (path === "/v1/solar-power" && req.method === "POST") {
+        const peer = req.socket.remoteAddress ?? "unknown";
+        const forwarded = req.headers["x-forwarded-for"];
+        const ip = /^(127\.0\.0\.1|::1|::ffff:127\.0\.0\.1)$/.test(peer) && typeof forwarded === "string" && forwarded ? forwarded.split(",")[0].trim() : peer;
+        if (!limiter.allow("solar_ip", ip)) throw new ComputeError("Prea multe estimări. Încearcă mai târziu.", 429, "rate_limited");
+        const q = await readJson();
+        if (!q || Array.isArray(q) || typeof q !== "object" || Object.keys(q).some((k) => !["point", "date", "watts", "tilt", "azimuth"].includes(k)))
+          throw new ComputeError("Cerere invalidă.", 422, "invalid");
+        await reply(200, JSON.stringify(await solar(q)));
+        return;
+      }
       const kind = kinds.get(path);
       if (!kind) {
         await reply(404, JSON.stringify({ detail: "Not found" }));

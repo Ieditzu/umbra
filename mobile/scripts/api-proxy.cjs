@@ -3,6 +3,7 @@ const paths = new Set([
   "/health",
   "/v1/routes/compare",
   "/v1/shadows",
+  "/v1/solar-power",
   "/v1/buildings",
   "/v1/buildings/inspect",
 ]);

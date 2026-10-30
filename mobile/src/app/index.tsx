@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DeparturePicker } from "../components/DeparturePicker";
 import { PlaceSearch } from "../components/PlaceSearch";
+import { SolarPanel } from "../components/SolarPanel";
 import { RouteCard } from "../components/RouteCard";
 import { WeatherSummary } from "../components/WeatherSummary";
 import { solarPosition } from "../engine/solar";
@@ -79,6 +80,11 @@ export default function MapScreen() {
   const [layersOpen, setLayersOpen] = useState(false);
   const measurements = useMeasurements();
   const [measuring, setMeasuring] = useState(false);
+  const [solarMode, setSolarMode] = useState(false);
+  const [solarPoint, setSolarPoint] = useState<Coordinate | null>(null);
+  const [solarRoof, setSolarRoof] = useState<MeasureTarget | null>(null);
+  const [solarLoading, setSolarLoading] = useState(false);
+  const [solarError, setSolarError] = useState("");
   const [target, setTarget] = useState<MeasureTarget | null>(null);
   const [targetLoading, setTargetLoading] = useState(false);
   const [targetError, setTargetError] = useState("");
@@ -287,8 +293,39 @@ export default function MapScreen() {
     setTargetError("");
     setTargetLoading(false);
   }
+  function selectSolarRoof(point: Coordinate) {
+    if (!isCoordinate(point)) return;
+    inspecting.current?.abort();
+    const controller = new AbortController();
+    inspecting.current = controller;
+    setSolarLoading(true);
+    setSolarError("");
+    setSolarPoint(null);
+    setSolarRoof(null);
+    inspectBuilding(point, new Date().toISOString(), controller.signal)
+      .then((roof) => {
+        if (controller.signal.aborted) return;
+        if (!roof) { setSolarError("Nu am găsit o clădire aici. Apasă pe conturul ei."); return; }
+        setSolarPoint(point);
+        setSolarRoof(roof);
+      })
+      .catch((error) => { if (!controller.signal.aborted) setSolarError(error instanceof Error ? error.message : "Clădirea nu a putut fi încărcată."); })
+      .finally(() => { if (!controller.signal.aborted) setSolarLoading(false); });
+  }
+  function stopSolar() {
+    inspecting.current?.abort();
+    setSolarMode(false);
+    setSolarPoint(null);
+    setSolarRoof(null);
+    setSolarLoading(false);
+    setSolarError("");
+  }
   function pick(point: Coordinate) {
     if (!isCoordinate(point)) return;
+    if (solarMode) {
+      selectSolarRoof(point);
+      return;
+    }
     if (measuring) {
       selectBuilding(point);
       return;
@@ -335,9 +372,10 @@ export default function MapScreen() {
           onPan={() => setFollowing(false)}
           onPick={pick}
           onTap={(point) => {
-            if (measuring) selectBuilding(point);
+            if (solarMode) selectSolarRoof(point);
+            else if (measuring) selectBuilding(point);
           }}
-          measure={measureOverlay}
+          measure={solarMode && solarRoof && solarPoint ? { outline: solarRoof.footprint, corner: solarPoint, ruler: [], marks: [], tip: null } : measureOverlay}
           measuring={measuring}
           heightsKey={measurements.heightsKey}
           onBounds={(bounds, focus) =>
@@ -469,6 +507,7 @@ export default function MapScreen() {
             onPress={() => {
               if (measuring) stopMeasuring();
               else {
+                stopSolar();
                 setMeasuring(true);
                 setLayersOpen(false);
                 setFollowing(false);
@@ -477,6 +516,14 @@ export default function MapScreen() {
             style={[styles.round, measuring && styles.controlSelected]}
           >
             <MaterialCommunityIcons name="ruler" size={23} color={MAP_ACCENT} />
+          </Pressable>
+        )}
+        {!navigating && (
+          <Pressable accessibilityRole="button" accessibilityLabel="Estimează energia unui panou solar" accessibilityState={{ selected: solarMode }} onPress={() => {
+            if (solarMode) stopSolar();
+            else { stopMeasuring(); setSolarMode(true); setLayersOpen(false); setFollowing(false); }
+          }} style={[styles.round, solarMode && styles.controlSelected]}>
+            <MaterialCommunityIcons name="solar-power" size={23} color={MAP_ACCENT} />
           </Pressable>
         )}
         {!navigating && (
@@ -752,7 +799,9 @@ export default function MapScreen() {
             <Text style={styles.subtle}>{locationLabel}</Text>
           </Pressable>
         )}
-        {measuring && !navigating ? (
+        {solarMode && !navigating ? (
+          <SolarPanel key={solarPoint ? `${solarPoint.latitude},${solarPoint.longitude}` : "select"} point={solarPoint} loading={solarLoading} error={solarError} onClose={stopSolar} />
+        ) : measuring && !navigating ? (
           <MeasurePanel
             target={target}
             loading={targetLoading}
