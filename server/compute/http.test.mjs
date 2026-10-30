@@ -173,6 +173,18 @@ test(
     );
     assert.ok(shadows.polygons.some((p) => p.source === "satellite_estimate"));
     assert.ok(shadows.sun.elevation > 0);
+    const nightAt = "2026-06-21T22:00:00.000Z";
+    const nightShadows = parseShadowLayer(
+      await (await post(base, "/v1/shadows", { bounds, at: nightAt })).json(),
+      nightAt,
+    );
+    assert.equal(nightShadows.state, "night");
+    const dayAgain = parseShadowLayer(
+      await (await post(base, "/v1/shadows", { bounds, at })).json(),
+      at,
+    );
+    assert.equal(dayAgain.state, "available");
+    assert.ok(dayAgain.polygons.length > 0);
     const measuredOnly = parseShadowLayer(
       await (
         await post(base, "/v1/shadows", {

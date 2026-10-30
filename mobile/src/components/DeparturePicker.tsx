@@ -1,7 +1,6 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useState } from "react";
 import {
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -83,41 +82,16 @@ export function DeparturePicker({
           </Text>
         </Pressable>
       </View>
-      {Platform.OS === "android" ? (
-        picker
-      ) : (
-        <Modal
-          visible={mode !== null}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setMode(null)}
-        >
-          <View style={styles.backdrop}>
-            <View style={styles.sheet}>
-              <Text style={styles.title}>Plecare</Text>
-              {picker}
-              <View style={styles.row}>
-                <Pressable
-                  style={styles.chip}
-                  onPress={() => setMode(null)}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.text}>Anulează</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.chip, styles.selected]}
-                  onPress={() => {
-                    onChange(draft);
-                    setMode(null);
-                  }}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.text}>Confirmă</Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        </Modal>
+      {picker}
+      {Platform.OS === "ios" && mode !== null && (
+        <View style={styles.row}>
+          <Pressable style={styles.chip} onPress={() => setMode(null)} accessibilityRole="button">
+            <Text style={styles.text}>Anulează</Text>
+          </Pressable>
+          <Pressable style={[styles.chip, styles.selected]} onPress={() => { onChange(draft); setMode(null); }} accessibilityRole="button">
+            <Text style={styles.text}>Confirmă</Text>
+          </Pressable>
+        </View>
       )}
     </View>
   );
@@ -135,13 +109,4 @@ const styles = StyleSheet.create({
   },
   selected: { backgroundColor: colors.greenLight, borderColor: colors.green },
   text: { color: colors.ink, fontSize: 13 },
-  backdrop: { flex: 1, backgroundColor: "#0006", justifyContent: "flex-end" },
-  sheet: {
-    backgroundColor: colors.white,
-    padding: 24,
-    paddingBottom: 40,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  title: { fontSize: 20, fontWeight: "600", color: colors.ink },
 });
