@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Coordinate } from "../domain/routes";
 import { searchPlaces } from "../services/placeSearch";
 import type { SearchPlace } from "../services/placeSearch";
@@ -23,6 +23,7 @@ export function PlaceSearch({ target, near, onClose, onChoose }: {
   onClose: () => void;
   onChoose: (place: Place) => void;
 }) {
+  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchPlace[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
@@ -52,9 +53,8 @@ export function PlaceSearch({ target, near, onClose, onChoose }: {
   }
 
   return (
-    <Modal visible={target !== null} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.page}>
+    <Modal visible={target !== null} animationType="none" statusBarTranslucent onRequestClose={onClose}>
+      <View style={[styles.page, { paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}>
         <View style={styles.searchBar}>
           <Pressable accessibilityRole="button" accessibilityLabel="Înapoi" onPress={onClose} style={styles.iconButton}>
             <Ionicons name="arrow-back" size={24} color={colors.ink} />
@@ -89,8 +89,7 @@ export function PlaceSearch({ target, near, onClose, onChoose }: {
           </Pressable>
           <Text style={styles.attribution}>Căutare: Photon · © OpenStreetMap contributors</Text>
         </ScrollView>
-        </SafeAreaView>
-      </SafeAreaProvider>
+      </View>
     </Modal>
   );
 }
