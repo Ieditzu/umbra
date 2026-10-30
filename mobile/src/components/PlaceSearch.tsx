@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import type { Coordinate } from "../domain/routes";
 import { searchPlaces } from "../services/placeSearch";
 import type { SearchPlace } from "../services/placeSearch";
@@ -53,7 +53,8 @@ export function PlaceSearch({ target, near, onClose, onChoose }: {
 
   return (
     <Modal visible={target !== null} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.page}>
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.page}>
         <View style={styles.searchBar}>
           <Pressable accessibilityRole="button" accessibilityLabel="Înapoi" onPress={onClose} style={styles.iconButton}>
             <Ionicons name="arrow-back" size={24} color={colors.ink} />
@@ -88,7 +89,8 @@ export function PlaceSearch({ target, near, onClose, onChoose }: {
           </Pressable>
           <Text style={styles.attribution}>Căutare: Photon · © OpenStreetMap contributors</Text>
         </ScrollView>
-      </SafeAreaView>
+        </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 }
