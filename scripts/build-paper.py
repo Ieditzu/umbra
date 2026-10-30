@@ -239,7 +239,9 @@ def build(model: Path, output: Path) -> None:
         "autoconsum și prețul introdus. Energia este aproximată prin puterea nominală, iradierea zilnică "
         "și un factor global "
         "de pierderi de 14%. Acesta este un model simplificat, nu o implementare completă PVWatts [11]; "
-        "nu calculează umbrirea locală a acoperișului și nu a fost validat cu un panou real. PVGIS [12] "
+        "estimează umbra directă a clădirilor la punctul selectat, cu interval pentru înălțimi incerte, "
+        "dar nu include copacii, umbra difuză sau geometria completă a acoperișului; nu a fost validat "
+        "cu un panou real. PVGIS [12] "
         "și Google Solar API [13] oferă abordări de referință; rezultatele lor nu sunt reproduse aici."
     ))
     para(doc, (

@@ -302,15 +302,20 @@ test("route responses include weather recommendations and fall back when unavail
 });
 
 test("solar estimate is available through the Expo proxy", async (t) => {
-  const pool = { ready: true, close: async () => {} };
-  const app = createComputeServer({ pool, solar: async (q) => ({ date: q.date, energy_kwh: 0.83 }) });
+  const pool = { ready: true, close: async () => {}, run: async (kind, payload) => {
+    assert.equal(kind, "solar-shade");
+    assert.equal(payload.roof_id, "way/123");
+    assert.deepEqual(payload.instants, [123]);
+    return JSON.stringify({ shades: ["blocked"] });
+  } };
+  const app = createComputeServer({ pool, solar: async (q, options) => ({ date: q.date, energy_kwh: (await options.shade([123]))[0] === "blocked" ? 0.4 : 0.83 }) });
   await listen(app.server);
   t.after(() => app.close());
   const proxyServer = createServer(proxy((req, res) => { res.statusCode = 404; res.end(); }, app.server.address().port));
   const base = await listen(proxyServer);
   t.after(() => new Promise((resolve) => proxyServer.close(resolve)));
-  const response = await post(base, "/umbra-api/v1/solar-power", { date: "2026-10-30" });
+  const response = await post(base, "/umbra-api/v1/solar-power", { date: "2026-10-30", roof_id: "way/123", point: { latitude: 44.17, longitude: 28.63 } });
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).energy_kwh, 0.83);
+  assert.equal((await response.json()).energy_kwh, 0.4);
   assert.equal((await post(base, "/umbra-api/v1/solar-power", { unknown: true })).status, 422);
 });

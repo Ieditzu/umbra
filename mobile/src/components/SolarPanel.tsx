@@ -8,7 +8,7 @@ import { colors } from "../theme";
 
 const dateString = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
-export function SolarPanel({ point, loading, error, onClose }: { point: Coordinate | null; loading: boolean; error: string; onClose: () => void }) {
+export function SolarPanel({ point, roofId, loading, error, onClose }: { point: Coordinate | null; roofId: string | null; loading: boolean; error: string; onClose: () => void }) {
   const { height: screenHeight } = useWindowDimensions();
   const [today] = useState(() => new Date());
   const [day, setDay] = useState(today);
@@ -18,16 +18,17 @@ export function SolarPanel({ point, loading, error, onClose }: { point: Coordina
   const [tilt, setTilt] = useState("30");
   const [direction, setDirection] = useState("0");
   const [price, setPrice] = useState("1");
-  const [result, setResult] = useState<{ energy_kwh: number; irradiation_kwh_m2: number; mode: "forecast" | "historical"; reference_dates: string[] } | null>(null);
+  const [result, setResult] = useState<{ energy_kwh: number; min_energy_kwh: number; unshaded_kwh: number; uncertain_hours: number; blocked_hours: number; mode: "forecast" | "historical"; reference_dates: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const [request, setRequest] = useState<{ point: Coordinate; date: string; watts: number; tilt: number; azimuth: number } | null>(null);
+  const [request, setRequest] = useState<{ point: Coordinate; roofId: string; date: string; watts: number; tilt: number; azimuth: number } | null>(null);
   const selectedDate = dateString(day);
   const savings = result ? solarSavings(result.energy_kwh, price) : null;
+  const minSavings = result ? solarSavings(result.min_energy_kwh, price) : null;
   useEffect(() => {
     if (!request) return;
     const controller = new AbortController();
-    void calculateSolarPower(request.point, request.date, request.watts, request.tilt, request.azimuth, controller.signal).then((value) => {
+    void calculateSolarPower(request.point, request.roofId, request.date, request.watts, request.tilt, request.azimuth, controller.signal).then((value) => {
       if (!controller.signal.aborted) { setResult(value); setMessage(""); }
     }).catch((reason) => {
       if (!controller.signal.aborted) setMessage(reason instanceof Error ? reason.message : "Estimarea nu este disponibilă.");
@@ -61,18 +62,19 @@ export function SolarPanel({ point, loading, error, onClose }: { point: Coordina
     <Pressable accessibilityRole="button" disabled={!point || busy || loading} onPress={() => {
       const capacity = Number(watts), angle = Number(tilt), bearing = Number(direction);
       setResult(null);
-      if (!point || !watts.trim() || !tilt.trim() || !direction.trim() || !Number.isFinite(capacity) || capacity < 50 || capacity > 10000 || !Number.isFinite(angle) || angle < 0 || angle > 90 || !Number.isFinite(bearing) || bearing < -180 || bearing > 180) { setMessage("Verifică puterea și unghiurile panoului."); return; }
-      setMessage(""); setBusy(true); setRequest({ point, date: selectedDate, watts: capacity, tilt: angle, azimuth: bearing });
+      if (!point || !roofId || !watts.trim() || !tilt.trim() || !direction.trim() || !Number.isFinite(capacity) || capacity < 50 || capacity > 10000 || !Number.isFinite(angle) || angle < 0 || angle > 90 || !Number.isFinite(bearing) || bearing < -180 || bearing > 180) { setMessage("Verifică puterea și unghiurile panoului."); return; }
+      setMessage(""); setBusy(true); setRequest({ point, roofId, date: selectedDate, watts: capacity, tilt: angle, azimuth: bearing });
     }} style={[styles.button, (!point || busy || loading) && { opacity: 0.45 }]}>{busy ? <ActivityIndicator color={colors.white} /> : <Text style={styles.buttonText}>Calculează</Text>}</Pressable>
     {result && <View>
-      <Text style={styles.result}>≈ {result.energy_kwh.toFixed(2)} kWh / zi</Text>
+      <Text style={styles.result}>≈ {result.min_energy_kwh < result.energy_kwh ? `${result.min_energy_kwh.toFixed(2)}–` : ""}{result.energy_kwh.toFixed(2)} kWh / zi</Text>
       {savings !== null
-        ? <Text style={styles.result}>≈ {savings.toFixed(2)} lei economisiți / zi</Text>
+        ? <Text style={styles.result}>≈ {minSavings !== null && minSavings < savings ? `${minSavings.toFixed(2)}–` : ""}{savings.toFixed(2)} lei economisiți / zi</Text>
         : <Text style={styles.error}>Introdu un preț între 0 și 100 lei/kWh.</Text>}
-      <Text style={styles.note}>{result.mode === "forecast" ? "Prognoză meteo" : `Medie istorică: ${result.reference_dates.map((date) => date.slice(0, 4)).join(", ")}`}. Economie estimată dacă folosești toată energia produsă.</Text>
+      <Text style={styles.note}>{result.mode === "forecast" ? "Prognoză meteo" : `Medie istorică: ${result.reference_dates.map((date) => date.slice(0, 4)).join(", ")}`}. Fără umbră calculată: {result.unshaded_kwh.toFixed(2)} kWh/zi. Economie estimată dacă folosești toată energia produsă.</Text>
+      <Text style={styles.note}>{result.uncertain_hours > 0 ? "Intervalul include ore cu înălțimi sau acoperire incerte. " : ""}Umbră estimată doar de la clădirile cartografiate; copacii și detaliile acoperișului nu sunt incluse.</Text>
     </View>}
     {!!message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
-    <Text style={styles.note}>Open-Meteo · pierderi estimate 14% · prețul inițial este un exemplu · umbrirea locală nu este inclusă.</Text>
+    <Text style={styles.note}>Open-Meteo · pierderi estimate 14% · prețul inițial este un exemplu.</Text>
     {picker && (Platform.OS === "android" ? pickerView : <Modal transparent animationType="slide" onRequestClose={() => setPicker(false)}><View style={styles.backdrop}><View style={styles.sheet}>{pickerView}<View style={styles.row}><Pressable onPress={() => setPicker(false)}><Text style={styles.close}>Anulează</Text></Pressable><Pressable onPress={() => { setDay(draft); setRequest(null); setBusy(false); setResult(null); setPicker(false); }}><Text style={styles.close}>Confirmă</Text></Pressable></View></View></View></Modal>)}
   </ScrollView>;
 }

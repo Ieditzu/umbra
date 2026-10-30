@@ -84,13 +84,15 @@ export async function inspectBuilding(
 
 export async function calculateSolarPower(
   point: Coordinate,
+  roofId: string,
   date: string,
   watts: number,
   tilt: number,
   azimuth: number,
   signal: AbortSignal,
-): Promise<{ energy_kwh: number; irradiation_kwh_m2: number; mode: "forecast" | "historical"; reference_dates: string[] }> {
-  const result = await requestCalculation(base(), "/v1/solar-power", { point, date, watts, tilt, azimuth }, signal) as Record<string, unknown>;
-  if (result.date !== date || result.watts !== watts || result.tilt !== tilt || result.azimuth !== azimuth || result.shading_included !== false || !["forecast", "historical"].includes(result.mode as string) || !Array.isArray(result.reference_dates) || result.reference_dates.length !== (result.mode === "historical" ? 3 : 0) || !result.reference_dates.every((day: unknown) => typeof day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(day)) || typeof result.energy_kwh !== "number" || !Number.isFinite(result.energy_kwh) || result.energy_kwh < 0 || typeof result.irradiation_kwh_m2 !== "number" || !Number.isFinite(result.irradiation_kwh_m2) || result.irradiation_kwh_m2 < 0) throw new Error("Estimare solară invalidă.");
-  return { energy_kwh: result.energy_kwh, irradiation_kwh_m2: result.irradiation_kwh_m2, mode: result.mode as "forecast" | "historical", reference_dates: result.reference_dates as string[] };
+): Promise<{ energy_kwh: number; min_energy_kwh: number; unshaded_kwh: number; uncertain_hours: number; blocked_hours: number; mode: "forecast" | "historical"; reference_dates: string[] }> {
+  const result = await requestCalculation(base(), "/v1/solar-power", withMeasured({ point, roof_id: roofId, date, watts, tilt, azimuth }), signal) as Record<string, unknown>;
+  if (result.date !== date || result.watts !== watts || result.tilt !== tilt || result.azimuth !== azimuth || result.shading_included !== true || !["forecast", "historical"].includes(result.mode as string) || !Array.isArray(result.reference_dates) || result.reference_dates.length !== (result.mode === "historical" ? 3 : 0) || !result.reference_dates.every((day: unknown) => typeof day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(day)) || typeof result.min_energy_kwh !== "number" || !Number.isFinite(result.min_energy_kwh) || result.min_energy_kwh < 0 || typeof result.unshaded_kwh !== "number" || !Number.isFinite(result.unshaded_kwh) || typeof result.uncertain_hours !== "number" || !Number.isFinite(result.uncertain_hours) || result.uncertain_hours < 0 || typeof result.blocked_hours !== "number" || !Number.isFinite(result.blocked_hours) || result.blocked_hours < 0 || typeof result.energy_kwh !== "number" || !Number.isFinite(result.energy_kwh) || result.energy_kwh < 0 || typeof result.irradiation_kwh_m2 !== "number" || !Number.isFinite(result.irradiation_kwh_m2) || result.irradiation_kwh_m2 < 0) throw new Error("Estimare solară invalidă.");
+  if (result.min_energy_kwh > result.energy_kwh || result.energy_kwh > result.unshaded_kwh) throw new Error("Estimare solară invalidă.");
+  return { energy_kwh: result.energy_kwh, min_energy_kwh: result.min_energy_kwh, unshaded_kwh: result.unshaded_kwh, uncertain_hours: result.uncertain_hours, blocked_hours: result.blocked_hours, mode: result.mode as "forecast" | "historical", reference_dates: result.reference_dates as string[] };
 }

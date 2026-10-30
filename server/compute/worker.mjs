@@ -3,6 +3,8 @@ import { withMeasuredHeights } from "../../mobile/src/engine/data.ts";
 import { inspectBuilding } from "../../mobile/src/engine/measureTarget.ts";
 import { withTrees } from "../../mobile/src/engine/trees.ts";
 import { compareLocalRoutes } from "../../mobile/src/engine/routing.ts";
+import { roofShade } from "../../mobile/src/engine/roofShade.ts";
+import { solarPosition } from "../../mobile/src/engine/solar.ts";
 import { placeCanopy } from "../../mobile/map-web/tree-placement.mjs";
 import { visibleBuildings } from "../../mobile/src/engine/buildings.ts";
 import {
@@ -141,6 +143,12 @@ parentPort.on("message", async (message) => {
             : null;
         })(),
       };
+    } else if (message.kind === "solar-shade") {
+      const roof = byId(data).get(q.roof_id);
+      result = { shades: q.instants.map((at) => {
+        if (controller.signal.aborted) throw Error("Calculul a fost oprit.");
+        return roofShade(data, q.point, roof, solarPosition(at, q.point));
+      }) };
     } else if (message.kind === "inspect") {
       result = {
         building: data

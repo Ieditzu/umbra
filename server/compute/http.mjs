@@ -229,9 +229,15 @@ export function createComputeServer({
         const ip = /^(127\.0\.0\.1|::1|::ffff:127\.0\.0\.1)$/.test(peer) && typeof forwarded === "string" && forwarded ? forwarded.split(",")[0].trim() : peer;
         if (!limiter.allow("solar_ip", ip)) throw new ComputeError("Prea multe estimări. Încearcă mai târziu.", 429, "rate_limited");
         const q = await readJson();
-        if (!q || Array.isArray(q) || typeof q !== "object" || Object.keys(q).some((k) => !["point", "date", "watts", "tilt", "azimuth"].includes(k)))
+        if (!q || Array.isArray(q) || typeof q !== "object" || Object.keys(q).some((k) => !["point", "date", "watts", "tilt", "azimuth", "roof_id", "measured_heights"].includes(k)))
           throw new ComputeError("Cerere invalidă.", 422, "invalid");
-        await reply(200, JSON.stringify(await solar(q)));
+        validateMeasured(q.measured_heights);
+        const estimate = await solar(q, { shade: async (instants) => {
+          const measured = mergeHeights(heights?.confirmed(), q.measured_heights);
+          const answer = await pool.run("solar-shade", { point: q.point, roof_id: q.roof_id, instants, ...(measured?.length ? { measured_heights: measured } : {}) }, controller.signal);
+          return JSON.parse(answer).shades;
+        } });
+        await reply(200, JSON.stringify(estimate));
         return;
       }
       const kind = kinds.get(path);

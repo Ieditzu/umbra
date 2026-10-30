@@ -163,6 +163,7 @@ export class ComputePool {
         inspect: 1,
         buildings: 1,
         shadows: 2,
+        "solar-shade": 2,
       };
       this.queue.sort(
         (a, b) => priority[a.kind] - priority[b.kind] || a.id - b.id,
