@@ -3,6 +3,7 @@ import test from "node:test";
 import { freshFix, shouldRefreshRoute } from "../src/domain/live.ts";
 import {
   detailedViewport,
+  shadowViewport,
   parseShadowLayer,
   mapShadowVisibility,
   shadowInstant,
@@ -13,6 +14,14 @@ test("large views suspend detailed geometry until the map is zoomed back in", ()
   assert.equal(detailedViewport([28.62, 44.16, 28.66, 44.20]), true);
   assert.equal(detailedViewport([28, 44, 29, 45]), false);
   assert.equal(detailedViewport([28.62, 44, 28.66, 45]), false);
+});
+
+test("wide and tilted views calculate a bounded region around the focus", () => {
+  assert.deepEqual(shadowViewport([28.62, 44.16, 28.66, 44.2]), [28.62, 44.16, 28.66, 44.2]);
+  const result = shadowViewport([28, 44, 29, 45], { longitude: 28.5, latitude: 44.5 });
+  assert.deepEqual(result, [28.44, 44.44, 28.56, 44.56]);
+  const edge = shadowViewport([28, 44, 29, 45], { longitude: 29, latitude: 44 });
+  assert.ok(edge[0] >= 28 && edge[1] >= 44 && edge[2] <= 29 && edge[3] <= 45);
 });
 
 const point = { latitude: 44.175, longitude: 28.635 };

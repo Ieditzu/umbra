@@ -8,6 +8,13 @@ export function detailedViewport(bounds: Bounds): boolean {
   return bounds[2] - bounds[0] <= 0.12 && bounds[3] - bounds[1] <= 0.12;
 }
 export type TreeModel = { center: [number, number]; radius: number; height: number; seed: number };
+/** Limit expensive shadow geometry to the visible area around the map focus. */
+export function shadowViewport(bounds: Bounds, focus?: Coordinate): Bounds {
+  const half = 0.06;
+  const longitude = Math.max(bounds[0], Math.min(bounds[2], focus?.longitude ?? (bounds[0] + bounds[2]) / 2));
+  const latitude = Math.max(bounds[1], Math.min(bounds[3], focus?.latitude ?? (bounds[1] + bounds[3]) / 2));
+  return [Math.max(bounds[0], longitude - half), Math.max(bounds[1], latitude - half), Math.min(bounds[2], longitude + half), Math.min(bounds[3], latitude + half)];
+}
 export type ShadowPolygon = {
   id: string;
   source:

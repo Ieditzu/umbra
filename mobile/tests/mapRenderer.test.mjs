@@ -199,6 +199,13 @@ test("transport places are filtered from all POI layers without removing other s
   assert.equal(layers[2].filter, undefined);
 });
 
+test("the shadow layer uses a valid MapLibre expression filter", () => {
+  const { map } = renderer();
+  const filter = map.getLayer("umbra-shadows").filter;
+  assert.equal(filter[0], "!");
+  assert.equal(filter[1][0], "in");
+});
+
 test("street names move below 3d geometry while points of interest stay above", () => {
   const { map } = renderer(true);
   map.layers = {

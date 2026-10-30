@@ -258,9 +258,8 @@
           type: "fill",
           source: "umbra-shadows",
           filter: [
-            "!in",
-            ["get", "source"],
-            ["literal", ["tree_canopy", "satellite_canopy", "tree_trunk"]],
+            "!",
+            ["in", ["get", "source"], ["literal", ["tree_canopy", "satellite_canopy", "tree_trunk"]]],
           ],
           paint: {
             "fill-color": [
