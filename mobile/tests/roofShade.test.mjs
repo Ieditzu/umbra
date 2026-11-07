@@ -20,5 +20,8 @@ test("missing and overlapping heights, coverage and a point outside the roof rem
   assert.equal(roofShade(data([roof, obstacle({ low_m: 0, high_m: 0, source: "missing" })]), point, roof, sun), "uncertain");
   assert.equal(roofShade(data([roof, obstacle({ low_m: 20, high_m: 40, source: "estimated_from_levels" })]), point, roof, sun), "uncertain");
   assert.equal(roofShade(data([roof]), { latitude: 44.18, longitude: 28.636 }, roof, sun), "uncertain");
-  assert.equal(roofShade(data([roof]), point, { ...roof, height: { low_m: 0, high_m: 0, source: "missing" } }, sun), "uncertain");
+  const missingRoof = { ...roof, height: { low_m: 0, high_m: 0, source: "missing" } };
+  assert.equal(roofShade(data([missingRoof]), point, missingRoof, sun), "clear");
+  assert.equal(roofShade(data([missingRoof, obstacle({ low_m: 40, high_m: 40, source: "osm_height_tag" })]), point, missingRoof, sun), "uncertain");
+  assert.equal(roofShade(data([missingRoof, obstacle({ low_m: 5, high_m: 5, source: "osm_height_tag" })]), point, missingRoof, sun), "clear");
 });

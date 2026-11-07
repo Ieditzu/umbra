@@ -778,7 +778,7 @@ export default function MapScreen() {
           </Pressable>
         )}
         {solarMode && !navigating ? (
-          <SolarPanel key={solarPoint ? `${solarPoint.latitude},${solarPoint.longitude}` : "select"} point={solarPoint} roofId={solarRoof?.id ?? null} loading={solarLoading} error={solarError} onClose={stopSolar} />
+          <SolarPanel key={solarPoint ? `${solarPoint.latitude},${solarPoint.longitude}` : "select"} point={solarPoint} roofId={solarRoof?.id ?? null} footprint={solarRoof?.footprint ?? []} loading={solarLoading} error={solarError} onClose={stopSolar} />
         ) : measuring && !navigating ? (
           <MeasurePanel
             target={target}
