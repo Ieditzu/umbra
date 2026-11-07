@@ -1,0 +1,30 @@
+{
+  "times": [
+    20,
+    35,
+    50,
+    55,
+    55,
+    45,
+    40
+  ],
+  "total": 300,
+  "words": [
+    30,
+    50,
+    67,
+    90,
+    71,
+    69,
+    33
+  ],
+  "speeches": [
+    "Pe aceeași stradă putem merge pe un trotuar în soare sau pe unul în umbră. UMBRA ajută pietonii să compare traseele și după umbra estimată, nu doar după durata drumului.",
+    "Proiectul a pornit de la un experiment despre o persoană aflată după colț. Am comparat o scenă goală cu o filmare de mers și am urmărit dacă umbra apare în imagine înaintea persoanei. Apoi am folosit geometria umbrelor într-o altă direcție: o hartă care ne ajută să alegem trasee pietonale.",
+    "În aplicație alegem destinația și ora plecării. Calculatorul folosește clădirile, rețeaua pietonală și poziția Soarelui pentru a estima umbrele și a compara traseele. Telefonul afișează harta și poziția prin GPS. Putem compara variante rapide, echilibrate sau cu mai multă umbră, în limita ocolului ales. Aplicația are rețele pregătite pentru București și celelalte reședințe de județ. Pentru a calcula umbra unei clădiri avem însă nevoie de înălțimea ei.",
+    "În datele OpenStreetMap analizate pentru Constanța, Mamaia și Palazu Mare, optzeci și șapte virgulă opt la sută dintre cele cincizeci și una de mii patru sute douăzeci și opt de clădiri nu aveau înălțimea sau numărul de etaje. Am comparat și GlobalBuildingAtlas cu etichetele OSM. În grupul de zece clădiri între douăzeci și patruzeci de metri, diferența medie GBA minus OSM a fost minus cincisprezece virgulă șapte metri. Aceasta este o comparație între baze de date, nu o măsurare independentă pe teren. Datele lipsă ne-au dus la întrebarea de cercetare.",
+    "Cu ce eroare putem estima înălțimea din umbră și când rămâne vârful umbrei neobstrucționat? Pe teren plan folosim relația h egal L înmulțit cu tangenta elevației solare. Aplicația calculează unghiul după loc, dată și oră, iar lungimea poate fi măsurată cu ruleta, laserul, GPS-ul sau dintr-o fotografie aeriană. O valoare confirmată după regulile aplicației poate fi folosită la calculul umbrelor și traseelor. Precizia trebuie comparată cu înălțimi de referință măsurate independent.",
+    "Aceeași geometrie este folosită într-o funcție experimentală pentru panouri solare. Alegem clădirea, ziua, puterea nominală, orientarea și înclinarea. Aplicația estimează energia zilnică folosind un model simplificat de cer senin și umbra directă a clădirilor asupra unui punct de pe acoperiș. Un interval arată unele incertitudini de înălțime. Este o estimare, nu producție măsurată: modelul nu include norii sau toate obstacolele și nu a fost comparat cu un panou real.",
+    "UMBRA leagă datele despre oraș de două întrebări practice: ce traseu alegem și cum poate influența umbra un panou solar. Datele despre clădiri și măsurarea înălțimilor stau la baza ambelor estimări. Vă mulțumim!"
+  ]
+}

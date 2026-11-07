@@ -1,0 +1,27 @@
+{
+  "times": [
+    35,
+    65,
+    70,
+    65,
+    80,
+    55
+  ],
+  "total": 370,
+  "words": [
+    23,
+    40,
+    44,
+    43,
+    55,
+    27
+  ],
+  "speeches": [
+    "UMBRA compară trasee pietonale după durata mersului și umbra estimată. Harta ne ajută să vedem cum se schimbă umbrele în funcție de oră.",
+    "Am pornit de la un experiment despre umbra unei persoane după colț. Apoi am folosit geometria umbrelor clădirilor pentru trasee, estimarea înălțimii și analiza unui punct de pe acoperiș. Întrebarea noastră este cu ce eroare putem estima înălțimea din umbră.",
+    "Aplicația are trei funcții: compară traseele, estimează înălțimea clădirilor din umbră și calculează o estimare a energiei pentru panouri solare. Utilizatorul alege destinația și ora, poate selecta o clădire și poate introduce datele panoului. Estimarea solară nu demonstrează că instalarea este posibilă sau profitabilă.",
+    "Pe teren plan, înălțimea este lungimea umbrei înmulțită cu tangenta elevației solare. Aplicația calculează unghiul Soarelui din loc, dată și oră; lungimea se introduce sau se estimează prin metodele disponibile. Măsurătorile confirmate după regulile aplicației pot fi folosite în calculul umbrelor și traseelor.",
+    "În instantaneul OSM analizat pentru Constanța, Mamaia și Palazu Mare, 87,8% din 51.428 de clădiri nu aveau înălțime sau etaje. Pentru zece clădiri între 20 și 40 de metri, diferența medie dintre GBA și etichetele OSM a fost minus 15,7 metri. Aceasta este o comparație între baze de date, nu o măsurare independentă a preciziei.",
+    "Datele despre clădiri și poziția Soarelui leagă traseele, estimarea înălțimilor și calculul pentru panouri. Acestea sunt estimări care depind de date și de condițiile modelului. Vă mulțumim!"
+  ]
+}
